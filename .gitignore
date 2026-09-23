@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.vercel/
+.vercel/output/
+.env*
+.DS_Store
+*.log
