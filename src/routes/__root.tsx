@@ -8,6 +8,21 @@ const APP_NAME = "Vigía";
 
 const THEME_BOOT = `try{var t=localStorage.getItem("vigia-theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}`;
 
+/** Splash visible desde el primer paint (antes de hidratar React). */
+const BOOT_SPLASH = `
+<style>
+  html,body{margin:0;background:#23483C;min-height:100%}
+  #vigia-boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#23483C;transition:opacity .35s ease}
+  #vigia-boot img{width:96px;height:96px;border-radius:20px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  #vigia-boot p{margin:16px 0 0;font-family:Fraunces,Georgia,serif;font-size:1.75rem;font-weight:600;color:#F3EFE6}
+  #vigia-boot.done{opacity:0;pointer-events:none}
+</style>
+<div id="vigia-boot" aria-hidden="true">
+  <img src="/icon-192.png" alt="" width="96" height="96"/>
+  <p>Vigía</p>
+</div>
+`;
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -24,7 +39,7 @@ export const Route = createRootRoute({
       { name: "mobile-web-app-capable", content: "yes" },
     ],
     links: [
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.png" },
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/icon-192.png" },
@@ -46,6 +61,7 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body className="antialiased" style={{ backgroundColor: "#23483C", margin: 0 }}>
+        <div dangerouslySetInnerHTML={{ __html: BOOT_SPLASH }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
         <PreviewHostBridge />
         <AuthProvider>

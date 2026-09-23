@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
+function hideBootSplash() {
+  const el = document.getElementById("vigia-boot");
+  if (!el) return;
+  el.classList.add("done");
+  window.setTimeout(() => el.remove(), 400);
+}
+
 export function Splash({ show }: { show: boolean }) {
   const [mounted, setMounted] = useState(show);
   const [visible, setVisible] = useState(false);
@@ -8,14 +15,18 @@ export function Splash({ show }: { show: boolean }) {
   useEffect(() => {
     if (show) {
       setMounted(true);
-      // next frame → trigger enter animation
       const id = requestAnimationFrame(() => setVisible(true));
       return () => cancelAnimationFrame(id);
     }
-    // exit
     setVisible(false);
+    hideBootSplash();
     const t = window.setTimeout(() => setMounted(false), 450);
     return () => window.clearTimeout(t);
+  }, [show]);
+
+  // Si por alguna razón no se monta el splash de React, igual ocultamos el boot
+  useEffect(() => {
+    if (!show) hideBootSplash();
   }, [show]);
 
   if (!mounted) return null;
