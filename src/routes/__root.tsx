@@ -45,7 +45,7 @@ function RootDocument() {
       <head>
         <HeadContent />
       </head>
-      <body className="antialiased">
+      <body className="antialiased" style={{ backgroundColor: "#23483C", margin: 0 }}>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
         <PreviewHostBridge />
         <AuthProvider>
