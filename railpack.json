@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "node",
+  "steps": {
+    "build": {
+      "commands": ["npm run build"]
+    }
+  },
+  "deploy": {
+    "startCommand": "node .output/server/index.mjs"
+  }
+}
