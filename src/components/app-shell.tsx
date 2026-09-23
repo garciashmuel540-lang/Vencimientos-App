@@ -10,10 +10,12 @@ import {
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Onboarding } from "@/components/onboarding";
+import { Splash } from "@/components/splash";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { cn } from "@/lib/utils";
 
 const TOUR_KEY = "vigia-tour-done";
+const SPLASH_MIN_MS = 1400;
 
 const NAV = [
   { to: "/", label: "Inicio", icon: LayoutGrid },
@@ -29,21 +31,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const fireOpenAlerts = useVigiaStore((s) => s.fireOpenAlerts);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [tour, setTour] = useState(false);
+  const [splash, setSplash] = useState(true);
+  const [minTimeDone, setMinTimeDone] = useState(false);
 
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
 
   useEffect(() => {
-    if (!ready) return;
+    const t = window.setTimeout(() => setMinTimeDone(true), SPLASH_MIN_MS);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (ready && minTimeDone) setSplash(false);
+  }, [ready, minTimeDone]);
+
+  useEffect(() => {
+    if (!ready || splash) return;
     if (!localStorage.getItem(TOUR_KEY)) setTour(true);
     const t = window.setTimeout(() => void fireOpenAlerts(), 600);
     return () => window.clearTimeout(t);
-  }, [ready, fireOpenAlerts]);
+  }, [ready, splash, fireOpenAlerts]);
 
   return (
     <TooltipProvider delayDuration={250}>
       <div className="min-h-dvh bg-background text-foreground">
+        <Splash show={splash} />
         <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
           {children}
         </div>
