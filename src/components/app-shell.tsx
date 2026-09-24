@@ -11,6 +11,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Onboarding } from "@/components/onboarding";
 import { Splash } from "@/components/splash";
+import { ChatIA } from "@/components/chat-ia";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { cn } from "@/lib/utils";
 
@@ -111,6 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             setTour(false);
           }}
         />
+        <ChatIA />
         <Toaster position="top-center" richColors={false} />
       </div>
     </TooltipProvider>

@@ -33,7 +33,7 @@ export interface Product {
   location: StoreLocation;
   notes: string;
   image: string | null;
-  source: "openfoodfacts" | "upcitemdb" | "local" | "manual";
+  source: "openfoodfacts" | "upcitemdb" | "local" | "manual" | "openbeautyfacts" | "openproductsfacts";
   createdAt: string;
   updatedAt: string;
 }
