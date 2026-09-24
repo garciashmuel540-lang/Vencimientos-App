@@ -44,6 +44,10 @@ export function ChatIA() {
     setMessages(nextMessages);
     setInput("");
     setLoading(true);
+
+    // Creamos un mensaje vacío del modelo donde iremos escribiendo
+    setMessages([...nextMessages, { role: "model", text: "" }]);
+
     try {
       const today = new Date().toISOString().slice(0, 10);
       const chatProducts: ChatProduct[] = products
@@ -55,7 +59,8 @@ export function ChatIA() {
           status: productStatus(p, soonWithin),
           category: p.category,
         }));
-      const res = await askVigiaFn({
+
+      const stream = await askVigiaFn({
         data: {
           storeName: settings.storeName,
           today,
@@ -64,11 +69,24 @@ export function ChatIA() {
           question: q,
         },
       });
-      const reply = res.error ? `⚠️ ${res.error}` : res.text || "Sin respuesta.";
-      setMessages([...nextMessages, { role: "model", text: reply }]);
+
+      // Consumimos el stream y actualizamos el último mensaje
+      for await (const chunk of stream) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last.role === "model") {
+            updated[updated.length - 1] = { ...last, text: last.text + chunk };
+          }
+          return updated;
+        });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido";
-      setMessages([...nextMessages, { role: "model", text: `⚠️ ${msg}` }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "model", text: `⚠️ ${msg}` },
+      ]);
     } finally {
       setLoading(false);
     }
