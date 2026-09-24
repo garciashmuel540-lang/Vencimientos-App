@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 /**
  * Chat con IA de Vigía.
@@ -42,7 +42,13 @@ Reglas:
 - Cuando sugieras acciones, prioriza por urgencia: vencidos > por vencer > vigentes.
 - Si no sabes algo, dilo. No inventes.
 - No des consejos médicos ni legales.
-- Hoy es la fecha que te paso en el contexto.`;
+- Hoy es la fecha que te paso en el contexto.
+- Tienes herramientas para agregar, eliminar, consumir o actualizar productos. Úsalas cuando el usuario te lo pida directamente.
+- Si el usuario pide una acción, PRIMERO confirma con una frase corta ("Listo, agrego...") y LUEGO llama a la herramienta.
+- Si te falta un dato para la acción (por ejemplo, la fecha de vencimiento), PREGÚNTALE al usuario antes de llamar la herramienta.
+- Si la fecha es relativa ("mañana", "en 2 semanas"), conviértela a YYYY-MM-DD usando la fecha de hoy.
+- Después de llamar una herramienta, confirma al usuario lo que hiciste con una frase breve.
+`;
 
 function buildInventorySummary(ctx: ChatContext): string {
   const { products, today, storeName } = ctx;
@@ -90,6 +96,94 @@ function buildInventorySummary(ctx: ChatContext): string {
   return lines.join("\n");
 }
 
+export type ChatChunk =
+  | { type: "text"; content: string }
+  | { type: "action"; name: string; args: Record<string, unknown> }
+  | { type: "error"; content: string };
+
+const tools = [
+  {
+    functionDeclarations: [
+      {
+        name: "agregarProducto",
+        description:
+          "Agrega un producto nuevo al inventario. Úsalo cuando el usuario diga cosas como 'agrega una coca', 'registra 5 panes que vencen el 15/10', 'añade leche'.",
+        parametersJsonSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: {
+              type: Type.STRING,
+              description: "Nombre del producto, ej: 'Coca-Cola', 'Pan de caja'",
+            },
+            quantity: {
+              type: Type.NUMBER,
+              description: "Cantidad de unidades (entero positivo)",
+            },
+            expiresAt: {
+              type: Type.STRING,
+              description: "Fecha de vencimiento en formato YYYY-MM-DD",
+            },
+            brand: { type: Type.STRING, description: "Marca del producto (opcional)" },
+            category: {
+              type: Type.STRING,
+              description:
+                "Categoría: bebida, lacteo, snack, panaderia, carnes, limpieza, cuidado, congelados, enlatados, otros",
+            },
+          },
+          required: ["name", "quantity", "expiresAt"],
+        },
+      },
+      {
+        name: "eliminarProducto",
+        description:
+          "Elimina un producto del inventario. Úsalo cuando el usuario diga 'borra el yogurt', 'quita la coca', 'elimina el pan'.",
+        parametersJsonSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: {
+              type: Type.STRING,
+              description: "Nombre (o parte del nombre) del producto a eliminar",
+            },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "consumirProducto",
+        description:
+          "Descuenta unidades de un producto (por venta o consumo). Úsalo cuando el usuario diga 'vendí 2 panes', 'quita 3 cocas', 'consumí 1 yogurt'.",
+        parametersJsonSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING, description: "Nombre del producto" },
+            amount: {
+              type: Type.NUMBER,
+              description: "Cuántas unidades descontar",
+            },
+          },
+          required: ["name", "amount"],
+        },
+      },
+      {
+        name: "actualizarVencimiento",
+        description:
+          "Cambia la fecha de vencimiento de un producto existente. Úsalo cuando el usuario diga 'cambia la fecha del pan al 20/10', 'el yogurt vence el 5/11'.",
+        parametersJsonSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING, description: "Nombre del producto" },
+            expiresAt: {
+              type: Type.STRING,
+              description: "Nueva fecha YYYY-MM-DD",
+            },
+          },
+          required: ["name", "expiresAt"],
+        },
+      },
+    ],
+  },
+];
+
 export const askVigiaFn = createServerFn({ method: "POST" })
   .validator((raw: unknown): ChatContext => {
     const input = raw as ChatContext;
@@ -109,7 +203,12 @@ export const askVigiaFn = createServerFn({ method: "POST" })
     if (!apiKey) {
       return new ReadableStream<string>({
         start(controller) {
-          controller.enqueue("⚠️ Falta GEMINI_API_KEY en el servidor.");
+          controller.enqueue(
+            JSON.stringify({
+              type: "error",
+              content: "Falta GEMINI_API_KEY en el servidor.",
+            }) + "\n",
+          );
           controller.close();
         },
       });
@@ -138,20 +237,47 @@ export const askVigiaFn = createServerFn({ method: "POST" })
             contents,
             config: {
               systemInstruction: SYSTEM_PROMPT,
-              temperature: 0.4,
+              temperature: 0.3,
               maxOutputTokens: 2048,
               thinkingConfig: { thinkingBudget: 0 },
+              tools,
             },
           });
+
           for await (const chunk of stream) {
+            // 1. ¿Llamada a función?
+            const fnCalls = chunk.functionCalls;
+            if (fnCalls && fnCalls.length > 0) {
+              for (const fc of fnCalls) {
+                controller.enqueue(
+                  JSON.stringify({
+                    type: "action",
+                    name: fc.name,
+                    args: fc.args ?? {},
+                  }) + "\n",
+                );
+              }
+              continue;
+            }
+
+            // 2. Texto normal
             const text = chunk.text;
-            if (text) controller.enqueue(text);
+            if (text) {
+              controller.enqueue(
+                JSON.stringify({ type: "text", content: text }) + "\n",
+              );
+            }
           }
           controller.close();
         } catch (err) {
           console.error("[ai-chat] Gemini error:", err);
           const msg = err instanceof Error ? err.message : "Error desconocido";
-          controller.enqueue(`⚠️ Error al consultar Gemini: ${msg}`);
+          controller.enqueue(
+            JSON.stringify({
+              type: "error",
+              content: `Error al consultar Gemini: ${msg}`,
+            }) + "\n",
+          );
           controller.close();
         }
       },
