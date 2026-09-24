@@ -132,7 +132,7 @@ export const askVigiaFn = createServerFn({ method: "POST" })
 
     try {
       const res = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         contents,
         config: {
           systemInstruction: SYSTEM_PROMPT,
