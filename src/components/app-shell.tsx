@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
         <nav
-          className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur-sm"
+          className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           aria-label="Principal"
         >
