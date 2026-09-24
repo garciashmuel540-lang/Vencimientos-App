@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Send, X, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { productStatus } from "@/lib/vigia/dates";
@@ -134,10 +135,14 @@ export function ChatIA() {
                   "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
                   m.role === "user"
                     ? "ml-auto bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground",
+                    : "bg-muted text-foreground [&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5 [&_strong]:font-semibold [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] [&_h1]:my-1 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:my-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:my-1 [&_h3]:text-sm [&_h3]:font-semibold",
                 )}
               >
-                {m.text}
+                {m.role === "model" ? (
+                  <ReactMarkdown>{m.text}</ReactMarkdown>
+                ) : (
+                  m.text
+                )}
               </div>
             ))}
             {loading && (
