@@ -137,7 +137,8 @@ export const askVigiaFn = createServerFn({ method: "POST" })
         config: {
           systemInstruction: SYSTEM_PROMPT,
           temperature: 0.4,
-          maxOutputTokens: 500,
+          maxOutputTokens: 2048,
+          thinkingConfig: { thinkingBudget: 0 },
         },
       });
 
