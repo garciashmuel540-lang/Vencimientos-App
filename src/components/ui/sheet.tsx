@@ -15,7 +15,7 @@ const SheetOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-foreground/40 transition-opacity duration-300 ease-out data-[state=closed]:opacity-0 data-[state=open]:opacity-100",
+      "fixed inset-0 z-50 bg-foreground/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 duration-200",
       className,
     )}
     {...props}
@@ -32,7 +32,7 @@ const SheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-16 flex max-h-[90vh] flex-col rounded-t-2xl bg-card p-5 text-card-foreground shadow-lg will-change-transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] data-[state=closed]:translate-y-full data-[state=open]:translate-y-0 md:inset-y-0 md:right-0 md:left-auto md:mt-0 md:w-full md:max-w-md md:rounded-none md:rounded-l-2xl md:data-[state=closed]:translate-y-0 md:data-[state=closed]:translate-x-full md:data-[state=open]:translate-x-0",
+        "fixed inset-x-0 bottom-0 z-50 mt-16 flex max-h-[90vh] flex-col rounded-t-2xl bg-card p-5 text-card-foreground shadow-lg will-change-transform md:inset-y-0 md:right-0 md:left-auto md:mt-0 md:w-full md:max-w-md md:rounded-none md:rounded-l-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:ease-[cubic-bezier(0.32,0.72,0,1)] md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right",
         className,
       )}
       {...props}
