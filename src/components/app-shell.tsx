@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Link
                       to={item.to}
                       aria-label={item.label}
-                      className="absolute -top-7 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform duration-150 active:scale-[0.96]"
+                      className="absolute -top-7 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform duration-150 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-90"
                     >
                       <Icon className="size-6" />
                     </Link>
