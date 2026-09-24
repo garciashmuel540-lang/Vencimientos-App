@@ -7,6 +7,13 @@ import { Label } from "@/components/ui/label";
 import { SAMPLE_BARCODES } from "@/lib/vigia/types";
 import { cn } from "@/lib/utils";
 
+interface Html5QrcodeLike {
+  isScanning: boolean;
+  start: (...args: never[]) => Promise<void>;
+  stop: () => Promise<void>;
+  clear: () => Promise<void>;
+}
+
 interface ScannerProps {
   onDetect: (code: string) => void;
   paused?: boolean;
@@ -14,12 +21,7 @@ interface ScannerProps {
 
 export function Scanner({ onDetect, paused }: ScannerProps) {
   const hostId = "vigia-reader";
-  const scannerRef = useRef<{
-    isScanning: boolean;
-    start: (...args: never[]) => Promise<void>;
-    stop: () => Promise<void>;
-    clear: () => Promise<void>;
-  } | null>(null);
+  const scannerRef = useRef<Html5QrcodeLike | null>(null);
   const lastCode = useRef("");
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -36,31 +38,48 @@ export function Scanner({ onDetect, paused }: ScannerProps) {
     if (!s) return;
     try {
       if (s.isScanning) await s.stop();
+      await s.clear();
     } catch {
       /* already stopped */
     }
+    scannerRef.current = null;
     setRunning(false);
   }, []);
 
   const start = useCallback(async () => {
     setCameraError(null);
+
+    // Si ya hay una instancia viva, detenerla y limpiarla primero
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) await scannerRef.current.stop();
+        await scannerRef.current.clear();
+      } catch {
+        /* ignore */
+      }
+      scannerRef.current = null;
+    }
+
+    // Esperar un momento para que el navegador libere la cámara
+    await new Promise((r) => setTimeout(r, 350));
+
     const el = document.getElementById(hostId);
     if (!el) return;
     try {
       const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(hostId, {
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.QR_CODE,
-          ],
-          verbose: false,
-        }) as unknown as NonNullable<typeof scannerRef.current>;
-      }
+
+      scannerRef.current = new Html5Qrcode(hostId, {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+        verbose: false,
+      }) as unknown as Html5QrcodeLike;
+
       await scannerRef.current.start(
         { facingMode: facing } as never,
         { fps: 8, qrbox: { width: 280, height: 140 } } as never,
