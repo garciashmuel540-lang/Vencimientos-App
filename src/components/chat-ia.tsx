@@ -7,6 +7,7 @@ import { useVigiaStore } from "@/lib/vigia/store";
 import { productStatus } from "@/lib/vigia/dates";
 import { askVigiaFn, type ChatProduct } from "@/lib/vigia/ai-chat";
 import type { Product, ProductCategory, StoreLocation } from "@/lib/vigia/types";
+import { useChatFocus } from "@/lib/vigia/chat-focus";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -66,6 +67,9 @@ export function ChatIA() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const focus = useChatFocus((s) => s.focused);
+  const autoOpen = useChatFocus((s) => s.autoOpen);
+  const clearFocus = useChatFocus((s) => s.clear);
   const products = useVigiaStore((s) => s.products);
   const settings = useVigiaStore((s) => s.settings);
   const soonWithin = Math.max(...settings.days, 30);
@@ -75,6 +79,19 @@ export function ChatIA() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
+
+  // Auto-abrir cuando se enfoca un producto desde ProductSheet
+  useEffect(() => {
+    if (autoOpen && focus) {
+      setOpen(true);
+      setMessages([
+        {
+          role: "model",
+          text: `Pregúntame sobre **${focus.name}** (${focus.quantity} u., vence ${focus.expiresAt}).`,
+        },
+      ]);
+    }
+  }, [autoOpen, focus]);
 
   function appendToLastModel(text: string) {
     setMessages((prev) => {
@@ -229,6 +246,16 @@ export function ChatIA() {
           products: chatProducts,
           history: messages.map((m) => ({ role: m.role, text: m.text })),
           question: q,
+          focusedProduct: focus
+            ? {
+                name: focus.name,
+                quantity: focus.quantity,
+                expiresAt: focus.expiresAt,
+                status: productStatus(focus, soonWithin),
+                category: focus.category,
+                brand: focus.brand,
+              }
+            : undefined,
         },
       });
 
@@ -295,7 +322,10 @@ export function ChatIA() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                clearFocus();
+              }}
               aria-label="Cerrar chat"
             >
               <X className="size-5" />

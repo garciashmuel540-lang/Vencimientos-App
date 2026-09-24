@@ -25,6 +25,7 @@ export interface ChatContext {
   products: ChatProduct[];
   history: ChatHistoryMsg[];
   question: string;
+  focusedProduct?: ChatProduct & { brand?: string };
 }
 
 export interface ChatReply {
@@ -43,6 +44,7 @@ Reglas:
 - Si no sabes algo, dilo. No inventes.
 - No des consejos médicos ni legales.
 - Hoy es la fecha que te paso en el contexto.
+- Si te paso un PRODUCTO ENFOCADO al final, prioriza responder sobre ÉL. Ignora el resto del inventario a menos que el usuario lo pida explícitamente.
 - Tienes herramientas para agregar, eliminar, consumir o actualizar productos. Úsalas cuando el usuario te lo pida directamente.
 - Si el usuario pide una acción, PRIMERO confirma con una frase corta ("Listo, agrego...") y LUEGO llama a la herramienta.
 - Si te falta un dato para la acción (por ejemplo, la fecha de vencimiento), PREGÚNTALE al usuario antes de llamar la herramienta.
@@ -224,7 +226,13 @@ export const askVigiaFn = createServerFn({ method: "POST" })
       {
         role: "user" as const,
         parts: [
-          { text: `${data.question}\n\n--- INVENTARIO ---\n${inventory}` },
+          {
+            text: `${data.question}\n\n--- INVENTARIO ---\n${inventory}${
+              data.focusedProduct
+                ? `\n\n--- PRODUCTO ENFOCADO ---\nNombre: ${data.focusedProduct.name}\nMarca: ${data.focusedProduct.brand ?? "-"}\nCantidad: ${data.focusedProduct.quantity}\nVence: ${data.focusedProduct.expiresAt}\nEstado: ${data.focusedProduct.status}`
+                : ""
+            }`,
+          },
         ],
       },
     ];

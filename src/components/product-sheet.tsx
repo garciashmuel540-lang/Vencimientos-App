@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Pencil, Trash2 } from "lucide-react";
+import { Minus, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { daysLabel, formatDate, productStatus } from "@/lib/vigia/dates";
 import { CATEGORY_LABEL, LOCATION_LABEL, type Product } from "@/lib/vigia/types";
 import { useVigiaStore } from "@/lib/vigia/store";
+import { useChatFocus } from "@/lib/vigia/chat-focus";
 
 export function ProductSheet({
   product,
@@ -38,6 +39,7 @@ export function ProductSheet({
   const consume = useVigiaStore((s) => s.consume);
   const remove = useVigiaStore((s) => s.remove);
   const upsert = useVigiaStore((s) => s.upsertProduct);
+  const focusOn = useChatFocus((s) => s.focusOn);
   const [editing, setEditing] = useState(false);
   const [confirm, setConfirm] = useState(false);
 
@@ -116,6 +118,17 @@ export function ProductSheet({
                 <p className="mt-4 rounded-md bg-muted px-3 py-2 text-sm">{product.notes}</p>
               ) : null}
               <div className="mt-6 flex flex-col gap-2">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={() => {
+                    focusOn(product);
+                    onOpenChange(false);
+                  }}
+                >
+                  <Sparkles className="size-4" />
+                  Preguntar a la IA
+                </Button>
                 <Button
                   size="lg"
                   onClick={async () => {
