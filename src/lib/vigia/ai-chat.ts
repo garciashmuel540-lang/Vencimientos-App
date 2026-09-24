@@ -104,19 +104,19 @@ export const askVigiaFn = createServerFn({ method: "POST" })
       question: input.question.trim().slice(0, 500),
     };
   })
-  .handler(async ({ data }): Promise<ChatReply> => {
+  .handler(async ({ data }): Promise<ReadableStream<string>> => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return {
-        text: "",
-        error:
-          "Falta GEMINI_API_KEY en el servidor. Configúrala en Railway → Variables.",
-      };
+      return new ReadableStream<string>({
+        start(controller) {
+          controller.enqueue("⚠️ Falta GEMINI_API_KEY en el servidor.");
+          controller.close();
+        },
+      });
     }
 
     const ai = new GoogleGenAI({ apiKey });
     const inventory = buildInventorySummary(data);
-
     const contents = [
       ...data.history.map((m) => ({
         role: m.role,
@@ -130,26 +130,30 @@ export const askVigiaFn = createServerFn({ method: "POST" })
       },
     ];
 
-    try {
-      const res = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents,
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          temperature: 0.4,
-          maxOutputTokens: 2048,
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      });
-
-      const text = res.text?.trim() ?? "";
-      if (!text) {
-        return { text: "", error: "Gemini no devolvió respuesta." };
-      }
-      return { text };
-    } catch (err) {
-      console.error("[ai-chat] Gemini error:", err);
-      const msg = err instanceof Error ? err.message : "Error desconocido";
-      return { text: "", error: `Error al consultar Gemini: ${msg}` };
-    }
+    return new ReadableStream<string>({
+      async start(controller) {
+        try {
+          const stream = await ai.models.generateContentStream({
+            model: "gemini-3.6-flash",
+            contents,
+            config: {
+              systemInstruction: SYSTEM_PROMPT,
+              temperature: 0.4,
+              maxOutputTokens: 2048,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          });
+          for await (const chunk of stream) {
+            const text = chunk.text;
+            if (text) controller.enqueue(text);
+          }
+          controller.close();
+        } catch (err) {
+          console.error("[ai-chat] Gemini error:", err);
+          const msg = err instanceof Error ? err.message : "Error desconocido";
+          controller.enqueue(`⚠️ Error al consultar Gemini: ${msg}`);
+          controller.close();
+        }
+      },
+    });
   });

@@ -71,15 +71,23 @@ export function ChatIA() {
       });
 
       // Consumimos el stream y actualizamos el último mensaje
-      for await (const chunk of stream) {
-        setMessages((prev) => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
-          if (last.role === "model") {
-            updated[updated.length - 1] = { ...last, text: last.text + chunk };
-          }
-          return updated;
-        });
+      const reader = stream.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last.role === "model") {
+              updated[updated.length - 1] = {
+                ...last,
+                text: last.text + value,
+              };
+            }
+            return updated;
+          });
+        }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error desconocido";
