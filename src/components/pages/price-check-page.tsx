@@ -170,9 +170,16 @@ export function PriceCheckPage() {
                         {promotion.dynamic}
                       </p>
                     ) : null}
-                    {promotion.endDate ? (
+                    {promotion.startDate || promotion.endDate ? (
                       <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                        Válido hasta {formatDate(promotion.endDate)}
+                        📅 Vigente:{" "}
+                        {promotion.startDate
+                          ? formatDate(promotion.startDate)
+                          : "hoy"}{" "}
+                        →{" "}
+                        {promotion.endDate
+                          ? formatDate(promotion.endDate)
+                          : "hasta agotar"}
                       </p>
                     ) : null}
                     {promotion.subcategory ? (
