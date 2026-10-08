@@ -19,6 +19,16 @@ export interface ChatHistoryMsg {
   text: string;
 }
 
+export interface CatalogMatch {
+  barcode: string;
+  name: string;
+  brand: string;
+  price?: number;
+  priceC?: number;
+  department?: string;
+  category?: string;
+}
+
 export interface ChatContext {
   storeName?: string;
   today: string;
@@ -26,6 +36,7 @@ export interface ChatContext {
   history: ChatHistoryMsg[];
   question: string;
   focusedProduct?: ChatProduct & { brand?: string };
+  catalogMatches?: CatalogMatch[];
 }
 
 export interface ChatReply {
@@ -45,6 +56,7 @@ Reglas generales:
 - No des consejos médicos ni legales.
 - Hoy es la fecha que te paso en el contexto.
 - Si te paso un PRODUCTO ENFOCADO al final, prioriza responder sobre ÉL. Ignora el resto del inventario a menos que el usuario lo pida explícitamente.
+- Si el usuario pregunta por un producto que NO está en el inventario, revisa el bloque CATÁLOGO. Ahí están los productos del catálogo de precios de la tienda con sus precios. Usa esos datos para responder.
 
 REGLAS DE HERRAMIENTAS (MUY IMPORTANTE):
 - Tienes herramientas para AGREGAR, ELIMINAR, CONSUMIR, ACTUALIZAR VENCIMIENTOS y ACTUALIZAR PRECIOS.
@@ -263,6 +275,21 @@ export const askVigiaFn = createServerFn({ method: "POST" })
             text: `${data.question}\n\n--- INVENTARIO ---\n${inventory}${
               data.focusedProduct
                 ? `\n\n--- PRODUCTO ENFOCADO ---\nNombre: ${data.focusedProduct.name}\nMarca: ${data.focusedProduct.brand ?? "-"}\nCantidad: ${data.focusedProduct.quantity}\nVence: ${data.focusedProduct.expiresAt}\nEstado: ${data.focusedProduct.status}`
+                : ""
+            }${
+              data.catalogMatches && data.catalogMatches.length > 0
+                ? `\n\n--- CATÁLOGO (coincidencias de precios) ---\n${data.catalogMatches
+                    .map(
+                      (c) =>
+                        `- ${c.name}${c.brand ? ` | ${c.brand}` : ""} | ${
+                          typeof c.price === "number"
+                            ? `C$ ${c.price.toFixed(2)}`
+                            : "sin precio"
+                        }${c.priceC ? ` | P. C: C$ ${c.priceC.toFixed(2)}` : ""}${
+                          c.department ? ` | ${c.department}` : ""
+                        }`,
+                    )
+                    .join("\n")}`
                 : ""
             }`,
           },

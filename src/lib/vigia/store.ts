@@ -60,6 +60,17 @@ interface VigiaState {
       presentation?: string;
     },
   ) => Promise<void>;
+  searchCatalog: (keywords: string[]) => Promise<
+    {
+      barcode: string;
+      name: string;
+      brand: string;
+      price?: number;
+      priceC?: number;
+      department?: string;
+      category?: string;
+    }[]
+  >;
   findCatalogMatches: (query: string) => Promise<
     {
       barcode: string;
@@ -522,6 +533,37 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     const total = await db.catalog.count();
     const lastUpdate = await getKv<string | null>("lastCatalogUpdate", null);
     return { total, lastUpdate };
+  },
+
+  searchCatalog: async (keywords) => {
+    const words = keywords
+      .map((w) => w.toLowerCase().trim())
+      .filter((w) => w.length >= 3);
+    if (words.length === 0) return [];
+    const db = getDb();
+    const all = await db.catalog.toArray();
+    const scored = all
+      .map((e) => {
+        const name = (e.name + " " + e.brand).toLowerCase();
+        let score = 0;
+        for (const w of words) {
+          if (name.includes(w)) score++;
+        }
+        return { entry: e, score };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15)
+      .map((x) => ({
+        barcode: x.entry.barcode,
+        name: x.entry.name,
+        brand: x.entry.brand,
+        price: x.entry.price,
+        priceC: x.entry.priceC,
+        department: x.entry.department,
+        category: x.entry.category,
+      }));
+    return scored;
   },
 
   findCatalogMatches: async (query) => {

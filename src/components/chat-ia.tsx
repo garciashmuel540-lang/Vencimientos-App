@@ -25,6 +25,14 @@ interface Message {
   text: string;
 }
 
+const STOP_WORDS = new Set([
+  "que", "como", "cual", "donde", "cuando", "porque",
+  "para", "pero", "este", "esta", "esto", "esos", "esas",
+  "los", "las", "del", "una", "unos", "unas", "con", "sin",
+  "los", "las", "hay", "tiene", "vale", "cuesta",
+  "agrega", "borra", "pon", "ponle", "dame", "quiero",
+]);
+
 const SUGGESTIONS = [
   "¿Qué se vence esta semana?",
   "Agrega una Coca-Cola que vence el 30/11/2026, 5 unidades",
@@ -310,6 +318,17 @@ export function ChatIA() {
           category: p.category,
         }));
 
+      // Extraer palabras clave del mensaje (>= 3 letras)
+      const keywords = q
+        .toLowerCase()
+        .replace(/[^a-z0-9áéíóúñü\s]/gi, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+
+      const catalogMatches = await useVigiaStore
+        .getState()
+        .searchCatalog(keywords);
+
       const stream = await askVigiaFn({
         data: {
           storeName: settings.storeName,
@@ -317,6 +336,7 @@ export function ChatIA() {
           products: chatProducts,
           history: messages.map((m) => ({ role: m.role, text: m.text })),
           question: q,
+          catalogMatches,
           focusedProduct: focus
             ? {
                 name: focus.name,
