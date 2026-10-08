@@ -14,6 +14,7 @@ import {
 import {
   CATEGORY_LABEL,
   LOCATION_LABEL,
+  inferCategory,
   type ProductCategory,
   type StoreLocation,
 } from "@/lib/vigia/types";
@@ -50,6 +51,7 @@ export function emptyDraft(barcode = ""): ProductDraft {
     notes: "",
     image: null,
     source: "manual",
+    subcategory: "",
   };
 }
 
@@ -181,6 +183,20 @@ export function ProductForm({
               ))}
             </SelectContent>
           </Select>
+        </Field>
+        <Field label="Subcategoría (del catálogo)" htmlFor="subcategory">
+          <Input
+            id="subcategory"
+            value={draft.subcategory ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              patch("subcategory", v);
+              if (v.trim()) {
+                patch("category", inferCategory(v));
+              }
+            }}
+            placeholder="Ej. Gaseosas, Cervezas, Gomitas"
+          />
         </Field>
         <Field label="Ubicación">
           <Select

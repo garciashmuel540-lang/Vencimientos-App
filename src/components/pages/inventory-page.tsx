@@ -41,15 +41,27 @@ export function InventoryPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ProductStatus>("all");
   const [category, setCategory] = useState<"all" | ProductCategory>("all");
+  const [subcategory, setSubcategory] = useState<"all" | string>("all");
   const [location, setLocation] = useState<"all" | StoreLocation>("all");
   const [selected, setSelected] = useState<Product | null>(null);
+
   const [creating, setCreating] = useState(false);
+
+  const availableSubcategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of products) {
+      if (category !== "all" && p.category !== category) continue;
+      if (p.subcategory) set.add(p.subcategory);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [products, category]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return products.filter((p) => {
       if (status !== "all" && productStatus(p, soonWithin) !== status) return false;
       if (category !== "all" && p.category !== category) return false;
+      if (subcategory !== "all" && p.subcategory !== subcategory) return false;
       if (location !== "all" && p.location !== location) return false;
       if (!needle) return true;
       return (
@@ -58,7 +70,7 @@ export function InventoryPage() {
         p.barcode.includes(needle)
       );
     });
-  }, [products, q, status, category, location, soonWithin]);
+  }, [products, q, status, category, subcategory, location, soonWithin]);
 
   return (
     <main>
@@ -109,6 +121,25 @@ export function InventoryPage() {
               ))}
             </SelectContent>
           </Select>
+          {availableSubcategories.length > 0 ? (
+            <Select
+              value={subcategory}
+              onValueChange={(v) => setSubcategory(v as typeof subcategory)}
+            >
+              <SelectTrigger aria-label="Subcategoría">
+                <SelectValue placeholder="Subcategoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Subcategoría</SelectItem>
+                {availableSubcategories.map((sc) => (
+                  <SelectItem key={sc} value={sc}>
+                    {sc}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+
           <Select value={location} onValueChange={(v) => setLocation(v as typeof location)}>
             <SelectTrigger aria-label="Ubicación">
               <SelectValue placeholder="Ubicación" />

@@ -37,6 +37,7 @@ export interface ProductDraft {
   price?: number;
   priceC?: number;
   cost?: number;
+  subcategory?: string;
 }
 
 interface VigiaState {
@@ -196,6 +197,8 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       source: draft.source,
       price: typeof draft.price === "number" ? draft.price : existing?.price,
       priceC: typeof draft.priceC === "number" ? draft.priceC : existing?.priceC,
+      subcategory:
+        draft.subcategory?.trim() || existing?.subcategory,
     };
     await getDb().products.put(product);
     await rememberCatalog({

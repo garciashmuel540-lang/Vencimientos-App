@@ -20,7 +20,7 @@ import { useVigiaStore } from "@/lib/vigia/store";
 import type { ProductDraft } from "@/lib/vigia/store";
 import { daysLabel, formatDate, productStatus } from "@/lib/vigia/dates";
 import type { LookupResult, Product, Promotion } from "@/lib/vigia/types";
-import { CATEGORY_LABEL, LOCATION_LABEL } from "@/lib/vigia/types";
+import { CATEGORY_LABEL, LOCATION_LABEL, inferCategory } from "@/lib/vigia/types";
 
 function fmtPrice(n?: number): string {
   if (typeof n !== "number" || Number.isNaN(n)) return "—";
@@ -81,13 +81,23 @@ export function PriceCheckPage() {
   function startAdd() {
     const base = emptyDraft(code ?? "");
     const r = result;
+    const detectedSub = (r as { department?: string } | null)?.department
+      ? ""
+      : "";
+    // El campo `category` del LookupResult ya trae la subcategoría específica
+    // del catálogo PRDA74 (ej. "Gaseosas"). La usamos como subcategoría
+    // y deducimos la categoría genérica.
+    const subFromCatalog = r?.category as string | undefined;
     setDraft({
       ...base,
       barcode: code ?? base.barcode,
       name: r?.name ?? base.name,
       brand: r?.brand ?? base.brand,
       presentation: r?.presentation ?? base.presentation,
-      category: r?.category ?? base.category,
+      category: subFromCatalog
+        ? inferCategory(subFromCatalog)
+        : base.category,
+      subcategory: subFromCatalog ?? "",
       image: r?.image ?? base.image,
       source: r?.source ?? "manual",
     });
