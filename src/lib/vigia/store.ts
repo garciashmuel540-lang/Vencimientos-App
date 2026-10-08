@@ -60,6 +60,16 @@ interface VigiaState {
       presentation?: string;
     },
   ) => Promise<void>;
+  findCatalogMatches: (query: string) => Promise<
+    {
+      barcode: string;
+      name: string;
+      brand: string;
+      price?: number;
+      priceC?: number;
+      cost?: number;
+    }[]
+  >;
   consume: (id: string, amount?: number) => Promise<void>;
   remove: (id: string) => Promise<void>;
   updateSettings: (patch: Partial<AlertSettings>) => Promise<void>;
@@ -512,6 +522,29 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     const total = await db.catalog.count();
     const lastUpdate = await getKv<string | null>("lastCatalogUpdate", null);
     return { total, lastUpdate };
+  },
+
+  findCatalogMatches: async (query) => {
+    const q = query.toLowerCase().trim();
+    if (!q) return [];
+    const db = getDb();
+    const all = await db.catalog.toArray();
+    return all
+      .filter(
+        (e) =>
+          e.barcode === q ||
+          e.name.toLowerCase().includes(q) ||
+          e.brand.toLowerCase().includes(q),
+      )
+      .slice(0, 10)
+      .map((e) => ({
+        barcode: e.barcode,
+        name: e.name,
+        brand: e.brand,
+        price: e.price,
+        priceC: e.priceC,
+        cost: e.cost,
+      }));
   },
 
   updateSettings: async (patch) => {

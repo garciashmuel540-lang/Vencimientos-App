@@ -246,27 +246,43 @@ export function ChatIA() {
         return "⚠️ Necesito saber qué precio actualizar (venta, mayoreo o costo).";
       }
 
+      const cambios: string[] = [];
+      if (price != null) cambios.push(`venta → C$ ${price.toFixed(2)}`);
+      if (priceC != null) cambios.push(`mayoreo → C$ ${priceC.toFixed(2)}`);
+      if (cost != null) cambios.push(`costo → C$ ${cost.toFixed(2)}`);
+      const cambiosTxt = cambios.join(", ");
+
+      // 1. Buscar en inventario
       const matches = findMatches(store.products, query);
-      if (matches.length === 0) {
-        return `⚠️ No encontré **${query}** en tu inventario.`;
+      if (matches.length === 1) {
+        const p = matches[0];
+        await store.updatePrices(p.barcode, { price, priceC, cost });
+        return `✅ **${p.name}**: ${cambiosTxt}.`;
       }
       if (matches.length > 1) {
         const lista = matches
           .slice(0, 5)
           .map((p) => `**${p.name}**`)
           .join(", ");
-        return `🤔 Encontré varios: ${lista}. Dime el nombre exacto.`;
+        return `🤔 Encontré varios en tu inventario: ${lista}. Dime el nombre exacto.`;
       }
 
-      const p = matches[0];
-      await store.updatePrices(p.barcode, { price, priceC, cost });
+      // 2. Si no está en inventario, buscar en catálogo
+      const catalogMatches = await store.findCatalogMatches(query);
+      if (catalogMatches.length === 0) {
+        return `⚠️ No encontré **${query}** en tu inventario ni en el catálogo. Prueba con el nombre exacto o escanea el código.`;
+      }
+      if (catalogMatches.length > 1) {
+        const lista = catalogMatches
+          .slice(0, 5)
+          .map((e) => `**${e.name}**${e.brand ? ` (${e.brand})` : ""}`)
+          .join(", ");
+        return `🤔 Encontré varios en el catálogo: ${lista}. Dime el nombre exacto.`;
+      }
 
-      const cambios: string[] = [];
-      if (price != null) cambios.push(`venta → C$ ${price.toFixed(2)}`);
-      if (priceC != null) cambios.push(`mayoreo → C$ ${priceC.toFixed(2)}`);
-      if (cost != null) cambios.push(`costo → C$ ${cost.toFixed(2)}`);
-
-      return `✅ **${p.name}**: ${cambios.join(", ")}.`;
+      const entry = catalogMatches[0];
+      await store.updatePrices(entry.barcode, { price, priceC, cost });
+      return `✅ **${entry.name}**${entry.brand ? ` (${entry.brand})` : ""} *(del catálogo)*: ${cambiosTxt}.`;
     }
 
     return `⚠️ Acción desconocida: ${name}`;
