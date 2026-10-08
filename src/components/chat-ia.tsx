@@ -235,6 +235,40 @@ export function ChatIA() {
       return `🤔 Encontré varios: ${lista}. Dime el nombre exacto.`;
     }
 
+    // 5. ACTUALIZAR PRECIO
+    if (name === "actualizarPrecio") {
+      const query = String(args.name ?? "").trim();
+      const price = typeof args.price === "number" ? args.price : undefined;
+      const priceC = typeof args.priceC === "number" ? args.priceC : undefined;
+      const cost = typeof args.cost === "number" ? args.cost : undefined;
+
+      if (price == null && priceC == null && cost == null) {
+        return "⚠️ Necesito saber qué precio actualizar (venta, mayoreo o costo).";
+      }
+
+      const matches = findMatches(store.products, query);
+      if (matches.length === 0) {
+        return `⚠️ No encontré **${query}** en tu inventario.`;
+      }
+      if (matches.length > 1) {
+        const lista = matches
+          .slice(0, 5)
+          .map((p) => `**${p.name}**`)
+          .join(", ");
+        return `🤔 Encontré varios: ${lista}. Dime el nombre exacto.`;
+      }
+
+      const p = matches[0];
+      await store.updatePrices(p.barcode, { price, priceC, cost });
+
+      const cambios: string[] = [];
+      if (price != null) cambios.push(`venta → C$ ${price.toFixed(2)}`);
+      if (priceC != null) cambios.push(`mayoreo → C$ ${priceC.toFixed(2)}`);
+      if (cost != null) cambios.push(`costo → C$ ${cost.toFixed(2)}`);
+
+      return `✅ **${p.name}**: ${cambios.join(", ")}.`;
+    }
+
     return `⚠️ Acción desconocida: ${name}`;
   }
 
