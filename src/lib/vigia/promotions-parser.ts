@@ -70,11 +70,35 @@ function toNumber(v: unknown): number | undefined {
 
 function toDate(v: unknown): string | undefined {
   if (v == null || v === "") return undefined;
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (v instanceof Date) {
+    if (Number.isNaN(v.getTime())) return undefined;
+    return v.toISOString().slice(0, 10);
+  }
   const s = String(v).trim();
+  if (!s) return undefined;
+
   // "2026-09-11 00:00:00" → "2026-09-11"
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+
+  // "11/09/2026" o "11-09-2026" (formato d/m/yyyy)
+  const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (dmy) {
+    const d = String(dmy[1]).padStart(2, "0");
+    const mo = String(dmy[2]).padStart(2, "0");
+    return `${dmy[3]}-${mo}-${d}`;
+  }
+
+  // Serial de Excel (número). Base: 1899-12-30
+  const n = Number(s);
+  if (Number.isFinite(n) && n > 10000 && n < 100000) {
+    const ms = Math.round((n - 25569) * 86400 * 1000);
+    const date = new Date(ms);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString().slice(0, 10);
+    }
+  }
+
   return undefined;
 }
 
