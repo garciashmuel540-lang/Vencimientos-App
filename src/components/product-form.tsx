@@ -60,6 +60,7 @@ export function ProductForm({
   submitLabel,
   onSubmit,
   onCancel,
+  showPrices = false,
 }: {
   initial: ProductDraft;
   lookingUp?: boolean;
@@ -67,6 +68,7 @@ export function ProductForm({
   submitLabel: string;
   onSubmit: (draft: ProductDraft) => Promise<void> | void;
   onCancel?: () => void;
+  showPrices?: boolean;
 }) {
   const [draft, setDraft] = useState<ProductDraft>(initial);
   const [saving, setSaving] = useState(false);
@@ -255,6 +257,59 @@ export function ProductForm({
           onChange={(e) => void handleImage(e.target.files?.[0])}
         />
       </div>
+
+      {showPrices ? (
+        <>
+          <Field label="Precio de venta (C$)">
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={draft.price ?? ""}
+              onChange={(e) =>
+                patch(
+                  "price",
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+          <Field label="Precio C / mayoreo (C$)">
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={draft.priceC ?? ""}
+              onChange={(e) =>
+                patch(
+                  "priceC",
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+          <Field label="Costo interno (C$)">
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={draft.cost ?? ""}
+              onChange={(e) =>
+                patch(
+                  "cost",
+                  e.target.value === "" ? undefined : Number(e.target.value),
+                )
+              }
+            />
+          </Field>
+        </>
+      ) : null}
 
       {error ? <p className="text-sm text-bad">{error}</p> : null}
 

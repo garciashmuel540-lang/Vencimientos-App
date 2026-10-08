@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Plus, RefreshCw, Tag } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Scanner } from "@/components/scanner";
 import { ProductForm, emptyDraft } from "@/components/product-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -36,6 +38,8 @@ export function PriceCheckPage() {
   const [paused, setPaused] = useState(false);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<ProductDraft | null>(null);
+  const [editingPrice, setEditingPrice] = useState(false);
+  const [priceForm, setPriceForm] = useState({ price: 0, priceC: 0, cost: 0 });
 
   async function handleCode(c: string) {
     setPaused(true);
@@ -186,6 +190,21 @@ export function PriceCheckPage() {
                 )}
 
                 <div className="mt-5 flex flex-col gap-2">
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    onClick={() => {
+                      setPriceForm({
+                        price: result.price ?? 0,
+                        priceC: result.priceC ?? 0,
+                        cost: result.cost ?? 0,
+                      });
+                      setEditingPrice(true);
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                    Actualizar precio
+                  </Button>
                   {!inInventory ? (
                     <Button size="lg" onClick={startAdd}>
                       <Plus className="size-4" />
@@ -241,6 +260,7 @@ export function PriceCheckPage() {
             <div className="mt-4">
               <ProductForm
                 initial={draft}
+                showPrices={true}
                 submitLabel="Guardar en inventario"
                 onCancel={() => {
                   setDraft(null);
@@ -256,6 +276,90 @@ export function PriceCheckPage() {
               />
             </div>
           ) : null}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
+        open={editingPrice}
+        onOpenChange={(v) => {
+          if (!v) setEditingPrice(false);
+        }}
+      >
+        <SheetContent className="overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Actualizar precio</SheetTitle>
+            <SheetDescription>
+              {result?.name ?? "Producto"}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-5 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="price-edit">Precio de venta (C$)</Label>
+              <Input
+                id="price-edit"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                value={priceForm.price}
+                onChange={(e) =>
+                  setPriceForm((p) => ({ ...p, price: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="priceC-edit">Precio C / mayoreo (C$)</Label>
+              <Input
+                id="priceC-edit"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                value={priceForm.priceC}
+                onChange={(e) =>
+                  setPriceForm((p) => ({ ...p, priceC: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="cost-edit">Costo interno (C$)</Label>
+              <Input
+                id="cost-edit"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                value={priceForm.cost}
+                onChange={(e) =>
+                  setPriceForm((p) => ({ ...p, cost: Number(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="mt-2 flex flex-col gap-2">
+              <Button
+                size="lg"
+                onClick={async () => {
+                  if (!result) return;
+                  await useVigiaStore
+                    .getState()
+                    .updatePrices(result.barcode, priceForm);
+                  toast.success("Precio actualizado");
+                  setEditingPrice(false);
+                  const fresh = await lookupProduct(result.barcode);
+                  setResult(fresh);
+                }}
+              >
+                Guardar precio
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={() => setEditingPrice(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
         </SheetContent>
       </Sheet>
     </main>
