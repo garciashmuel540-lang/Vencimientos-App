@@ -447,6 +447,52 @@ export function ChatIA() {
           </form>
         </div>
       )}
+      <AlertDialog
+        open={Boolean(pendingAction)}
+        onOpenChange={(v) => {
+          if (!v) setPendingAction(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar acción</AlertDialogTitle>
+            <AlertDialogDescription>
+              El asistente quiere: <strong>{pendingAction?.label}</strong>
+              <br />
+              ¿Estás seguro?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                appendToLastModel("\n\n❌ Acción cancelada.");
+                setPendingAction(null);
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                const action = pendingAction;
+                setPendingAction(null);
+                if (!action) return;
+                setLoading(true);
+                try {
+                  const result = await runAction(action.name, action.args);
+                  appendToLastModel(`\n\n${result}`);
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : "Error";
+                  appendToLastModel(`\n\n⚠️ ${msg}`);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Sí, ejecutar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
