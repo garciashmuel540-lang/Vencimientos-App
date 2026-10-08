@@ -81,12 +81,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <li key={item.to}>
                     <Link
                       to={item.to}
-                      aria-label={item.label}
                       className={cn(
-                        "mx-auto flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-sm transition-transform duration-150 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-95",
+                        "flex h-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
+                        active ? "text-primary" : "text-muted-foreground",
                       )}
+                      aria-current={active ? "page" : undefined}
                     >
-                      <Icon className="size-[22px]" />
+                      <Icon className="size-[18px]" />
+                      {item.label}
                     </Link>
                   </li>
                 );
