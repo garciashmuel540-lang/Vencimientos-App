@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Bell, FileSpreadsheet, Mail, Moon, RotateCcw, Smartphone, Sun, Trash2, Upload, X } from "lucide-react";
+import { Bell, FileSpreadsheet, Mail, Moon, Package, RotateCcw, Smartphone, Sun, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useVigiaStore } from "@/lib/vigia/store";
 import {
   requestNotifyPermission,
@@ -41,6 +49,21 @@ export function SettingsPage() {
   >([]);
   const [importing, setImporting] = useState(false);
   const promoFileRef = useRef<HTMLInputElement>(null);
+  const catalogFileRef = useRef<HTMLInputElement>(null);
+  const [catalogStats, setCatalogStats] = useState<{ total: number; lastUpdate: string | null }>({
+    total: 0,
+    lastUpdate: null,
+  });
+  const [importingCatalog, setImportingCatalog] = useState(false);
+  const [preview, setPreview] = useState<{
+    totalInExcel: number;
+    newProducts: number;
+    updates: number;
+    unchanged: number;
+    warnings: string[];
+    parsedEntries: import("@/lib/vigia/types").CatalogEntry[];
+    sourceFile: string;
+  } | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("vigia-theme");
@@ -49,7 +72,40 @@ export function SettingsPage() {
     if (typeof Notification === "undefined") setPerm("unsupported");
     else setPerm(Notification.permission);
     void useVigiaStore.getState().listPromotionSources().then(setPromoSources);
+    void useVigiaStore.getState().catalogStats().then(setCatalogStats);
   }, []);
+
+  async function handleCatalogPreview(file: File) {
+    setImportingCatalog(true);
+    try {
+      const result = await useVigiaStore.getState().previewCatalogUpdate(file);
+      if (result.totalInExcel === 0) {
+        toast.error("No se encontraron productos en el archivo.");
+        return;
+      }
+      setPreview(result);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al leer el archivo");
+    } finally {
+      setImportingCatalog(false);
+      if (catalogFileRef.current) catalogFileRef.current.value = "";
+    }
+  }
+
+  async function confirmCatalogUpdate() {
+    if (!preview) return;
+    try {
+      const { added, updated } = await useVigiaStore
+        .getState()
+        .applyCatalogUpdate(preview.parsedEntries);
+      toast.success(`Catálogo actualizado: ${added} nuevos, ${updated} precios cambiados`);
+      const stats = await useVigiaStore.getState().catalogStats();
+      setCatalogStats(stats);
+      setPreview(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al actualizar");
+    }
+  }
 
   async function handleImportPromos(file: File) {
     setImporting(true);
@@ -235,6 +291,54 @@ export function SettingsPage() {
 
         <Card className="p-4">
           <div className="flex items-center gap-2">
+            <Package className="size-4 text-muted-foreground" />
+            <h2 className="font-medium">Catálogo de precios</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sube el Excel completo del sistema para actualizar precios, costos y agregar productos nuevos.
+          </p>
+
+          <div className="mt-3 flex flex-col gap-1 rounded-md bg-muted px-3 py-2">
+            <p className="text-sm">
+              <strong>{catalogStats.total.toLocaleString("es")}</strong> productos en catálogo
+            </p>
+            {catalogStats.lastUpdate ? (
+              <p className="text-xs text-muted-foreground">
+                Última actualización:{" "}
+                {new Date(catalogStats.lastUpdate).toLocaleDateString("es")}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Sin actualizaciones desde la app
+              </p>
+            )}
+          </div>
+
+          <input
+            ref={catalogFileRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleCatalogPreview(f);
+            }}
+          />
+
+          <div className="mt-3 flex flex-col gap-2">
+            <Button
+              variant="outline"
+              onClick={() => catalogFileRef.current?.click()}
+              disabled={importingCatalog}
+            >
+              <Upload className="size-4" />
+              {importingCatalog ? "Leyendo…" : "Cargar Excel de catálogo"}
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-2">
             <FileSpreadsheet className="size-4 text-muted-foreground" />
             <h2 className="font-medium">Promociones</h2>
           </div>
@@ -358,6 +462,53 @@ export function SettingsPage() {
           </div>
         </Card>
       </div>
+      <Dialog
+        open={Boolean(preview)}
+        onOpenChange={(v) => {
+          if (!v) setPreview(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resumen de cambios</DialogTitle>
+            <DialogDescription>
+              {preview?.sourceFile} · {preview?.totalInExcel.toLocaleString("es")} productos en el archivo
+            </DialogDescription>
+          </DialogHeader>
+
+          {preview ? (
+            <div className="mt-2 flex flex-col gap-2 text-sm">
+              <div className="flex items-center justify-between rounded-md bg-ok/10 px-3 py-2">
+                <span>Nuevos productos</span>
+                <strong className="text-ok">{preview.newProducts}</strong>
+              </div>
+              <div className="flex items-center justify-between rounded-md bg-warn-soft px-3 py-2">
+                <span>Precios que cambian</span>
+                <strong className="text-warn">{preview.updates}</strong>
+              </div>
+              <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2">
+                <span>Sin cambios</span>
+                <strong>{preview.unchanged}</strong>
+              </div>
+
+              {preview.warnings.length > 0 ? (
+                <p className="text-xs text-warn">
+                  {preview.warnings.length} aviso(s). Revisa la consola si algo no cuadra.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPreview(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => void confirmCatalogUpdate()}>
+              Confirmar actualización
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

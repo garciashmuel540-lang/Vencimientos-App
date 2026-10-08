@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { addHistory, getDb, getKv, getSettings, saveSettings, setKv } from "./db";
 import { rememberCatalog } from "./lookup";
 import { parsePromotionsFile } from "./promotions-parser";
+import { parseCatalogFile } from "./catalog-parser";
 import {
   persistAlertSnapshot,
   computeAlerts,
@@ -69,6 +70,20 @@ interface VigiaState {
     { sourceFile: string; count: number; importedAt: string }[]
   >;
   getActivePromotion: (barcode: string) => Promise<Promotion | null>;
+  previewCatalogUpdate: (file: File) => Promise<{
+    totalInExcel: number;
+    newProducts: number;
+    updates: number;
+    unchanged: number;
+    warnings: string[];
+    parsedEntries: import("./types").CatalogEntry[];
+    sourceFile: string;
+  }>;
+  applyCatalogUpdate: (entries: import("./types").CatalogEntry[]) => Promise<{
+    added: number;
+    updated: number;
+  }>;
+  catalogStats: () => Promise<{ total: number; lastUpdate: string | null }>;
   clearDemo: () => Promise<void>;
   resetAll: () => Promise<void>;
   fireOpenAlerts: () => Promise<void>;
@@ -393,6 +408,110 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     return active.sort((a, b) =>
       (b.importedAt ?? "").localeCompare(a.importedAt ?? ""),
     )[0];
+  },
+
+  previewCatalogUpdate: async (file) => {
+    const { entries, sourceFile, warnings } = await parseCatalogFile(file);
+    const fetchedAt = new Date().toISOString();
+    const withDate: import("./types").CatalogEntry[] = entries.map((e) => ({
+      ...e,
+      fetchedAt,
+    }));
+
+    const db = getDb();
+    let newProducts = 0;
+    let updates = 0;
+    let unchanged = 0;
+
+    // Batch de lecturas para eficiencia
+    const codes = withDate.map((e) => e.barcode);
+    const existing = await db.catalog.bulkGet(codes);
+
+    withDate.forEach((entry, i) => {
+      const prev = existing[i];
+      if (!prev) {
+        newProducts++;
+      } else {
+        const priceChanged =
+          typeof entry.price === "number" &&
+          entry.price !== prev.price;
+        const costChanged =
+          typeof entry.cost === "number" && entry.cost !== prev.cost;
+        const priceCChanged =
+          typeof entry.priceC === "number" && entry.priceC !== prev.priceC;
+        if (priceChanged || costChanged || priceCChanged) updates++;
+        else unchanged++;
+      }
+    });
+
+    return {
+      totalInExcel: withDate.length,
+      newProducts,
+      updates,
+      unchanged,
+      warnings,
+      parsedEntries: withDate,
+      sourceFile,
+    };
+  },
+
+  applyCatalogUpdate: async (entries) => {
+    const db = getDb();
+    let added = 0;
+    let updated = 0;
+
+    // Insertar/actualizar en bulk
+    await db.transaction("rw", db.catalog, db.products, async () => {
+      for (const entry of entries) {
+        const prev = await db.catalog.get(entry.barcode);
+        if (!prev) {
+          added++;
+        } else if (
+          prev.price !== entry.price ||
+          prev.cost !== entry.cost ||
+          prev.priceC !== entry.priceC
+        ) {
+          updated++;
+        }
+        // Mantener nombre/marca/categoría si ya existían (no pisar)
+        const finalEntry = prev
+          ? {
+              ...entry,
+              name: prev.name || entry.name,
+              brand: prev.brand || entry.brand,
+              category: prev.category || entry.category,
+              department: prev.department || entry.department,
+              supplier: prev.supplier || entry.supplier,
+            }
+          : entry;
+        await db.catalog.put(finalEntry);
+
+        // Actualizar el producto del inventario si existe
+        const product = await db.products
+          .filter((p) => p.barcode === entry.barcode)
+          .first();
+        if (product && typeof entry.price === "number") {
+          await db.products.update(product.id, {
+            price: entry.price,
+            priceC: entry.priceC ?? product.priceC,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    });
+
+    // Invalidar caché de API y marcar fecha de actualización
+    await setKv("lastCatalogUpdate", new Date().toISOString());
+
+    await get().refresh();
+    return { added, updated };
+  },
+
+  catalogStats: async () => {
+    const db = getDb();
+    const total = await db.catalog.count();
+    const lastUpdate = await getKv<string | null>("lastCatalogUpdate", null);
+    return { total, lastUpdate };
   },
 
   updateSettings: async (patch) => {
