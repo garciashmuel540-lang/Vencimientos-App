@@ -61,7 +61,7 @@ export interface CatalogEntry {
 export interface HistoryEntry {
   id: string;
   productId: string;
-  action: "created" | "updated" | "consumed" | "removed" | "expired";
+  action: "created" | "updated" | "consumed" | "removed" | "expired" | "price_changed";
   name: string;
   barcode: string;
   snapshot: string;

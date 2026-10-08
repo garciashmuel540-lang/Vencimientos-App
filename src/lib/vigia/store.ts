@@ -32,6 +32,9 @@ export interface ProductDraft {
   notes: string;
   image: string | null;
   source: Product["source"];
+  price?: number;
+  priceC?: number;
+  cost?: number;
 }
 
 interface VigiaState {
@@ -43,6 +46,10 @@ interface VigiaState {
   hydrate: () => Promise<void>;
   refresh: () => Promise<void>;
   upsertProduct: (draft: ProductDraft, id?: string) => Promise<Product>;
+  updatePrices: (
+    barcode: string,
+    prices: { price?: number; priceC?: number; cost?: number },
+  ) => Promise<void>;
   consume: (id: string, amount?: number) => Promise<void>;
   remove: (id: string) => Promise<void>;
   updateSettings: (patch: Partial<AlertSettings>) => Promise<void>;
@@ -172,6 +179,8 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       notes: draft.notes.trim(),
       image: draft.image,
       source: draft.source,
+      price: typeof draft.price === "number" ? draft.price : existing?.price,
+      priceC: typeof draft.priceC === "number" ? draft.priceC : existing?.priceC,
     };
     await getDb().products.put(product);
     await rememberCatalog({
@@ -192,6 +201,49 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     });
     await get().refresh();
     return product;
+  },
+
+  updatePrices: async (barcode, prices) => {
+    const db = getDb();
+    const code = barcode.replace(/\s/g, "");
+
+    // 1. Actualizar catálogo global
+    const entry = await db.catalog.get(code);
+    if (entry) {
+      await db.catalog.put({
+        ...entry,
+        price:
+          typeof prices.price === "number" ? prices.price : entry.price,
+        priceC:
+          typeof prices.priceC === "number" ? prices.priceC : entry.priceC,
+        cost: typeof prices.cost === "number" ? prices.cost : entry.cost,
+      });
+    }
+
+    // 2. Actualizar producto en inventario si existe
+    const product = await db.products
+      .filter((p) => p.barcode === code)
+      .first();
+    if (product) {
+      const before = product.price;
+      await db.products.update(product.id, {
+        price:
+          typeof prices.price === "number" ? prices.price : product.price,
+        priceC:
+          typeof prices.priceC === "number" ? prices.priceC : product.priceC,
+        updatedAt: new Date().toISOString(),
+      });
+      // 3. Guardar historial
+      await addHistory({
+        productId: product.id,
+        action: "price_changed",
+        name: product.name,
+        barcode: product.barcode,
+        snapshot: `Precio: C$ ${before ?? "—"} → C$ ${prices.price ?? "—"}`,
+      });
+    }
+
+    await get().refresh();
   },
 
   consume: async (id, amount = 1) => {

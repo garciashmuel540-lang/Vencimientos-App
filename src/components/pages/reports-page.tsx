@@ -10,15 +10,16 @@ import { daysLabel, formatDate, productStatus } from "@/lib/vigia/dates";
 import { downloadCsv } from "@/lib/vigia/export";
 import { buildDailySummary } from "@/lib/vigia/notifications";
 import { useVigiaStore } from "@/lib/vigia/store";
-import { CATEGORY_LABEL } from "@/lib/vigia/types";
+import { CATEGORY_LABEL, HistoryEntry } from "@/lib/vigia/types";
 import { toast } from "sonner";
 
-const ACTION_LABEL = {
+const ACTION_LABEL: Record<HistoryEntry["action"], string> = {
   created: "Registrado",
   updated: "Editado",
   consumed: "Vendido / usado",
   removed: "Quitado",
   expired: "Marcado vencido",
+  price_changed: "Precio actualizado",
 };
 
 export function ReportsPage() {
