@@ -340,9 +340,16 @@ export function PriceCheckPage() {
                 size="lg"
                 onClick={async () => {
                   if (!result) return;
-                  await useVigiaStore
-                    .getState()
-                    .updatePrices(result.barcode, priceForm);
+                  await useVigiaStore.getState().updatePrices(
+                    result.barcode,
+                    priceForm,
+                    {
+                      name: result.name,
+                      brand: result.brand,
+                      category: result.category,
+                      presentation: result.presentation,
+                    },
+                  );
                   toast.success("Precio actualizado");
                   setEditingPrice(false);
                   const fresh = await lookupProduct(result.barcode);

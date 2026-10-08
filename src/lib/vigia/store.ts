@@ -49,6 +49,12 @@ interface VigiaState {
   updatePrices: (
     barcode: string,
     prices: { price?: number; priceC?: number; cost?: number },
+    context?: {
+      name?: string;
+      brand?: string;
+      category?: string;
+      presentation?: string;
+    },
   ) => Promise<void>;
   consume: (id: string, amount?: number) => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -203,11 +209,11 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     return product;
   },
 
-  updatePrices: async (barcode, prices) => {
+  updatePrices: async (barcode, prices, context) => {
     const db = getDb();
     const code = barcode.replace(/\s/g, "");
 
-    // 1. Actualizar catálogo global
+    // 1. Actualizar catálogo global (o crear si no existe)
     const entry = await db.catalog.get(code);
     if (entry) {
       await db.catalog.put({
@@ -217,6 +223,27 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         priceC:
           typeof prices.priceC === "number" ? prices.priceC : entry.priceC,
         cost: typeof prices.cost === "number" ? prices.cost : entry.cost,
+        name: context?.name?.trim() || entry.name,
+        brand: context?.brand?.trim() ?? entry.brand,
+        presentation: context?.presentation?.trim() ?? entry.presentation,
+      });
+    } else {
+      const product = await db.products
+        .filter((p) => p.barcode === code)
+        .first();
+      await db.catalog.put({
+        barcode: code,
+        name: context?.name?.trim() || product?.name || "",
+        brand: context?.brand?.trim() ?? product?.brand ?? "",
+        presentation:
+          context?.presentation?.trim() ?? product?.presentation ?? "",
+        category: (context?.category || product?.category || "otros") as ProductCategory,
+        image: product?.image ?? null,
+        source: "manual",
+        fetchedAt: new Date().toISOString(),
+        price: typeof prices.price === "number" ? prices.price : undefined,
+        priceC: typeof prices.priceC === "number" ? prices.priceC : undefined,
+        cost: typeof prices.cost === "number" ? prices.cost : undefined,
       });
     }
 
