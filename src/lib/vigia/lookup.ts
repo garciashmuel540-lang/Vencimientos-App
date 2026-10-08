@@ -74,6 +74,15 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
       ? cache.payload
       : null;
 
+  // PRIORIDAD: catálogo local con precio > caché de API > catálogo local sin precio > API
+  const localHasPrice =
+    localHit &&
+    (typeof localHit.price === "number" || typeof localHit.priceC === "number");
+
+  if (localHasPrice) {
+    return localHit;
+  }
+
   if (cacheFresh?.found) {
     return {
       ...cacheFresh,
