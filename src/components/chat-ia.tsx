@@ -293,6 +293,41 @@ export function ChatIA() {
       return `✅ **${entry.name}**${entry.brand ? ` (${entry.brand})` : ""} *(del catálogo)*: ${cambiosTxt}.`;
     }
 
+    // 6. BUSCAR EN CATÁLOGO (solo consulta, no modifica)
+    if (name === "buscarCatalogo") {
+      const query = String(args.query ?? "").trim();
+      if (!query) {
+        return "⚠️ No entendí qué producto buscar.";
+      }
+
+      const keywords = query
+        .toLowerCase()
+        .replace(/[^a-z0-9áéíóúñü\s]/gi, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+
+      const results = await useVigiaStore.getState().searchCatalog(keywords);
+
+      if (results.length === 0) {
+        return `⚠️ No encontré "${query}" en el catálogo. Prueba con otro nombre.`;
+      }
+
+      const lineas = results
+        .slice(0, 8)
+        .map((r) => {
+          const priceTxt =
+            typeof r.price === "number"
+              ? `C$ ${r.price.toFixed(2)}`
+              : r.priceC
+                ? `C$ ${r.priceC.toFixed(2)} (mayoreo)`
+                : "sin precio";
+          return `- **${r.name}**${r.brand ? ` (${r.brand})` : ""}: ${priceTxt}`;
+        })
+        .join("\n");
+
+      return `📋 Encontré ${results.length} producto(s) en el catálogo:\n${lineas}`;
+    }
+
     return `⚠️ Acción desconocida: ${name}`;
   }
 
