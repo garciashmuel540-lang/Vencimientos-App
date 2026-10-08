@@ -36,6 +36,8 @@ export interface Product {
   source: "openfoodfacts" | "upcitemdb" | "local" | "manual" | "openbeautyfacts" | "openproductsfacts";
   createdAt: string;
   updatedAt: string;
+  price?: number;
+  priceC?: number;
 }
 
 export interface CatalogEntry {
@@ -47,6 +49,13 @@ export interface CatalogEntry {
   image: string | null;
   source: Product["source"];
   fetchedAt: string;
+  department?: string;
+  supplier?: string;
+  price?: number;
+  priceC?: number;
+  cost?: number;
+  qtySnapshot?: number;
+  inactive?: boolean;
 }
 
 export interface HistoryEntry {
@@ -75,6 +84,13 @@ export interface LookupResult {
   source: Product["source"];
   found: boolean;
   sourcesTried: string[];
+  department?: string;
+  supplier?: string;
+  price?: number;
+  priceC?: number;
+  cost?: number;
+  qtySnapshot?: number;
+  inactive?: boolean;
 }
 
 export interface AlertSettings {

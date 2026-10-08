@@ -1,6 +1,6 @@
 /** Estado de inventario en el cliente, respaldado por IndexedDB. */
 import { create } from "zustand";
-import { addHistory, getDb, getSettings, saveSettings, setKv } from "./db";
+import { addHistory, getDb, getKv, getSettings, saveSettings, setKv } from "./db";
 import { rememberCatalog } from "./lookup";
 import {
   persistAlertSnapshot,
@@ -88,6 +88,58 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       await db.history.bulkAdd(history);
       await setKv("seeded", true);
     }
+
+    // Cargar catálogo de precios la primera vez (background, no bloquea)
+    void (async () => {
+      try {
+        const loaded = await getKv("catalogPricesLoaded", false);
+        if (loaded) return;
+        const res = await fetch("/catalogo-precios.json");
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          version: number;
+          count: number;
+          items: Array<{
+            barcode: string;
+            name: string;
+            brand: string;
+            presentation?: string;
+            category?: string;
+            department?: string;
+            supplier?: string;
+            price?: number;
+            priceC?: number;
+            cost?: number;
+            qtySnapshot?: number;
+            inactive?: boolean;
+          }>;
+        };
+        if (!data?.items?.length) return;
+        const entries = data.items.map((item) => ({
+          barcode: String(item.barcode).trim(),
+          name: String(item.name).trim(),
+          brand: String(item.brand ?? "").trim(),
+          presentation: String(item.presentation ?? "").trim(),
+          category: (item.category ?? "otros") as ProductCategory,
+          image: null,
+          source: "manual" as const,
+          fetchedAt: new Date().toISOString(),
+          department: item.department,
+          supplier: item.supplier,
+          price: typeof item.price === "number" ? item.price : undefined,
+          priceC: typeof item.priceC === "number" ? item.priceC : undefined,
+          cost: typeof item.cost === "number" ? item.cost : undefined,
+          qtySnapshot:
+            typeof item.qtySnapshot === "number" ? item.qtySnapshot : undefined,
+          inactive: Boolean(item.inactive),
+        }));
+        await db.catalog.bulkPut(entries);
+        await setKv("catalogPricesLoaded", true);
+        console.info(`[vigia] catálogo cargado: ${entries.length} productos`);
+      } catch (err) {
+        console.warn("[vigia] no se pudo cargar catálogo de precios:", err);
+      }
+    })();
     const data = await readAll();
     set({ ...data, ready: true });
     void persistAlertSnapshot(computeAlerts(data.products, data.settings));

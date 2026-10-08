@@ -6,6 +6,7 @@ import {
   Package,
   ScanBarcode,
   Settings,
+  Tag,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,6 +23,7 @@ const NAV = [
   { to: "/", label: "Inicio", icon: LayoutGrid },
   { to: "/inventario", label: "Inventario", icon: Package },
   { to: "/escanear", label: "Escanear", icon: ScanBarcode, fab: true },
+  { to: "/precio", label: "Precio", icon: Tag },
   { to: "/reportes", label: "Reportes", icon: BarChart3 },
   { to: "/ajustes", label: "Ajustes", icon: Settings },
 ] as const;
@@ -67,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           aria-label="Principal"
         >
-          <ul className="mx-auto grid max-w-3xl grid-cols-5 px-2 py-1.5">
+          <ul className="mx-auto grid max-w-3xl grid-cols-6 px-2 py-1.5">
             {NAV.map((item) => {
               const active =
                 item.to === "/"
@@ -92,12 +94,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     to={item.to}
                     className={cn(
-                      "flex h-12 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
+                      "flex h-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
                       active ? "text-primary" : "text-muted-foreground",
                     )}
                     aria-current={active ? "page" : undefined}
                   >
-                    <Icon className="size-5" />
+                    <Icon className="size-[18px]" />
                     {item.label}
                   </Link>
                 </li>

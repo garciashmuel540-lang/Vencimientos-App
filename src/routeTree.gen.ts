@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as EscanearRouteImport } from './routes/escanear'
 import { Route as InventarioRouteImport } from './routes/inventario'
+import { Route as PrecioRouteImport } from './routes/precio'
 import { Route as ReportesRouteImport } from './routes/reportes'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const InventarioRoute = InventarioRouteImport.update({
   path: '/inventario',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrecioRoute = PrecioRouteImport.update({
+  id: '/precio',
+  path: '/precio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportesRoute = ReportesRouteImport.update({
   id: '/reportes',
   path: '/reportes',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
   '/inventario': typeof InventarioRoute
+  '/precio': typeof PrecioRoute
   '/reportes': typeof ReportesRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
   '/inventario': typeof InventarioRoute
+  '/precio': typeof PrecioRoute
   '/reportes': typeof ReportesRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,23 @@ export interface FileRoutesById {
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
   '/inventario': typeof InventarioRoute
+  '/precio': typeof PrecioRoute
   '/reportes': typeof ReportesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/ajustes' | '/escanear' | '/inventario' | '/reportes'
+  fullPaths:
+    '/' | '/ajustes' | '/escanear' | '/inventario' | '/precio' | '/reportes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/ajustes' | '/escanear' | '/inventario' | '/reportes'
-  id: '__root__' | '/' | '/ajustes' | '/escanear' | '/inventario' | '/reportes'
+  to: '/' | '/ajustes' | '/escanear' | '/inventario' | '/precio' | '/reportes'
+  id:
+    | '__root__'
+    | '/'
+    | '/ajustes'
+    | '/escanear'
+    | '/inventario'
+    | '/precio'
+    | '/reportes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +93,7 @@ export interface RootRouteChildren {
   AjustesRoute: typeof AjustesRoute
   EscanearRoute: typeof EscanearRoute
   InventarioRoute: typeof InventarioRoute
+  PrecioRoute: typeof PrecioRoute
   ReportesRoute: typeof ReportesRoute
 }
 
@@ -109,6 +127,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventarioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/precio': {
+      id: '/precio'
+      path: '/precio'
+      fullPath: '/precio'
+      preLoaderRoute: typeof PrecioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reportes': {
       id: '/reportes'
       path: '/reportes'
@@ -124,6 +149,7 @@ const rootRouteChildren: RootRouteChildren = {
   AjustesRoute: AjustesRoute,
   EscanearRoute: EscanearRoute,
   InventarioRoute: InventarioRoute,
+  PrecioRoute: PrecioRoute,
   ReportesRoute: ReportesRoute,
 }
 export const routeTree = rootRouteImport

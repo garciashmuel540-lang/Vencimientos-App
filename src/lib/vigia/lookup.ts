@@ -33,6 +33,13 @@ function fromCatalog(entry: CatalogEntry): LookupResult {
     source: entry.source,
     found: Boolean(entry.name),
     sourcesTried: ["local"],
+    department: entry.department,
+    supplier: entry.supplier,
+    price: entry.price,
+    priceC: entry.priceC,
+    cost: entry.cost,
+    qtySnapshot: entry.qtySnapshot,
+    inactive: entry.inactive,
   };
 }
 
@@ -108,6 +115,13 @@ export async function rememberCatalog(entry: {
   category: ProductCategory;
   image: string | null;
   source: CatalogEntry["source"];
+  department?: string;
+  supplier?: string;
+  price?: number;
+  priceC?: number;
+  cost?: number;
+  qtySnapshot?: number;
+  inactive?: boolean;
 }): Promise<void> {
   await getDb().catalog.put({
     ...entry,
