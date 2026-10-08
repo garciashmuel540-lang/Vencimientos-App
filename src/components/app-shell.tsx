@@ -78,13 +78,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               const Icon = item.icon;
               if ("fab" in item && item.fab) {
                 return (
-                  <li key={item.to} className="relative flex justify-center">
+                  <li key={item.to}>
                     <Link
                       to={item.to}
                       aria-label={item.label}
-                      className="absolute -top-7 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform duration-150 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-90"
+                      className={cn(
+                        "mx-auto flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-sm transition-transform duration-150 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:scale-95",
+                      )}
                     >
-                      <Icon className="size-6" />
+                      <Icon className="size-[22px]" />
                     </Link>
                   </li>
                 );
