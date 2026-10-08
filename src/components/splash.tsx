@@ -41,7 +41,7 @@ export function Splash({ show }: { show: boolean }) {
     >
       <div
         className={cn(
-          "flex flex-col items-center gap-4 transition-all duration-500 ease-out",
+          "flex flex-col items-center gap-4 transition-[opacity,transform] duration-500 ease-out will-change-[opacity,transform]",
           visible ? "scale-100 opacity-100" : "scale-90 opacity-0",
         )}
       >
@@ -60,7 +60,7 @@ export function Splash({ show }: { show: boolean }) {
           Vigía
         </p>
         <div className="mt-2 h-1 w-16 overflow-hidden rounded-full bg-white/20">
-          <div className="h-full w-full origin-left animate-[splash-bar_1.2s_ease-in-out_infinite] rounded-full bg-[#F3EFE6]/80" />
+          <div className="h-full w-full origin-left rounded-full bg-[#F3EFE6]/80 will-change-transform animate-[splash-bar_1.2s_ease-in-out_infinite]" />
         </div>
       </div>
     </div>
