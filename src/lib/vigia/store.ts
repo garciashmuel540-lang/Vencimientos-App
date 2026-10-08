@@ -231,9 +231,11 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       const product = await db.products
         .filter((p) => p.barcode === code)
         .first();
+      const finalName =
+        context?.name?.trim() || product?.name?.trim() || `Producto ${code}`;
       await db.catalog.put({
         barcode: code,
-        name: context?.name?.trim() || product?.name || "",
+        name: finalName,
         brand: context?.brand?.trim() ?? product?.brand ?? "",
         presentation:
           context?.presentation?.trim() ?? product?.presentation ?? "",

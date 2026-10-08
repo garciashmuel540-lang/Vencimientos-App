@@ -31,7 +31,10 @@ function fromCatalog(entry: CatalogEntry): LookupResult {
     category: entry.category,
     image: entry.image,
     source: entry.source,
-    found: Boolean(entry.name),
+    found:
+      Boolean(entry.name) ||
+      typeof entry.price === "number" ||
+      typeof entry.priceC === "number",
     sourcesTried: ["local"],
     department: entry.department,
     supplier: entry.supplier,
