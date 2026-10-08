@@ -56,7 +56,8 @@ Reglas generales:
 - No des consejos médicos ni legales.
 - Hoy es la fecha que te paso en el contexto.
 - Si te paso un PRODUCTO ENFOCADO al final, prioriza responder sobre ÉL. Ignora el resto del inventario a menos que el usuario lo pida explícitamente.
-- Si el usuario pregunta por un producto que NO está en el inventario, revisa el bloque CATÁLOGO. Ahí están los productos del catálogo de precios de la tienda con sus precios. Usa esos datos para responder.
+- Para consultar precios: PRIMERO revisa el bloque CATÁLOGO que te paso al final del mensaje. Si el producto está ahí, responde con esos datos.
+- Si el producto NO está en el bloque CATÁLOGO, LLAMA A LA HERRAMIENTA buscarCatalogo con el nombre o marca. Esa tool busca en los 3189 productos del catálogo completo.
 
 REGLAS DE HERRAMIENTAS (MUY IMPORTANTE):
 - Tienes herramientas para AGREGAR, ELIMINAR, CONSUMIR, ACTUALIZAR VENCIMIENTOS y ACTUALIZAR PRECIOS.
@@ -208,6 +209,36 @@ const tools = [
             },
           },
           required: ["name", "expiresAt"],
+        },
+      },
+      {
+        name: "actualizarPrecio",
+        description:
+          "Actualiza el precio de venta, precio C (mayoreo) o costo de un producto. Úsalo cuando el usuario diga 'ponle C$ 50 a la Coca-Cola', 'el Red Bull ahora cuesta 120', 'sube el precio del pan a 85', 'actualiza el costo de la leche a 40'. Solo actualiza los precios que el usuario especifique.",
+        parametersJsonSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING, description: "Nombre del producto" },
+            price: { type: Type.NUMBER, description: "Nuevo precio de venta (opcional)" },
+            priceC: { type: Type.NUMBER, description: "Nuevo precio C / mayoreo (opcional)" },
+            cost: { type: Type.NUMBER, description: "Nuevo costo interno (opcional)" },
+          },
+          required: ["name"],
+        },
+      },
+      {
+        name: "buscarCatalogo",
+        description:
+          "Busca productos en el catálogo de precios completo de la tienda (3189 productos). Úsalo cuando el usuario pregunte por el precio de un producto que NO está en el bloque CATÁLOGO ni en el inventario. Ej: 'cuánto cuesta la Mirinda', 'precio del agua Alpina de 2 litros'. Esta tool SOLO consulta, no modifica nada.",
+        parametersJsonSchema: {
+          type: Type.OBJECT,
+          properties: {
+            query: {
+              type: Type.STRING,
+              description: "Término de búsqueda (nombre o marca). Ej: 'alpina 2 litros', 'mirinda', 'red bull'",
+            },
+          },
+          required: ["query"],
         },
       },
     ],
