@@ -3,6 +3,16 @@ import { MessageCircle, Send, X, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { productStatus } from "@/lib/vigia/dates";
 import { askVigiaFn, type ChatProduct } from "@/lib/vigia/ai-chat";
@@ -24,7 +34,13 @@ const SUGGESTIONS = [
 
 type ChatChunk =
   | { type: "text"; content: string }
-  | { type: "action"; name: string; args: Record<string, unknown> }
+  | {
+      type: "action";
+      name: string;
+      args: Record<string, unknown>;
+      requiresConfirmation?: boolean;
+      confirmationLabel?: string;
+    }
   | { type: "error"; content: string };
 
 const CATEGORIES: ProductCategory[] = [
@@ -65,6 +81,11 @@ export function ChatIA() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    name: string;
+    args: Record<string, unknown>;
+    label: string;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const focus = useChatFocus((s) => s.focused);
@@ -285,8 +306,16 @@ export function ChatIA() {
           } else if (chunk.type === "error") {
             appendToLastModel(`⚠️ ${chunk.content}`);
           } else if (chunk.type === "action") {
-            const confirm = await runAction(chunk.name, chunk.args);
-            appendToLastModel(`\n\n${confirm}`);
+            if (chunk.requiresConfirmation) {
+              setPendingAction({
+                name: chunk.name,
+                args: chunk.args,
+                label: chunk.confirmationLabel ?? "Confirmar acción",
+              });
+            } else {
+              const confirm = await runAction(chunk.name, chunk.args);
+              appendToLastModel(`\n\n${confirm}`);
+            }
           }
         }
       }
