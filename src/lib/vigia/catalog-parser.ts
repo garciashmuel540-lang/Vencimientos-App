@@ -130,7 +130,7 @@ export async function parseCatalogFile(file: File): Promise<ParsedCatalogResult>
   for (const sheetName of wb.SheetNames) {
     const sheet = XLSX.utils.sheet_to_json<Row>(wb.Sheets[sheetName], {
       header: 1,
-      raw: false,
+      raw: true,
       defval: "",
     });
 

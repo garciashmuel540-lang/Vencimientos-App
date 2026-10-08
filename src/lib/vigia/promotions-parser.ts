@@ -10,6 +10,14 @@ interface ParsedResult {
   promotions: Promotion[];
   sourceFile: string;
   warnings: string[];
+  debugSamples?: Array<{
+    barcode: string;
+    name: string;
+    startRaw: string | undefined;
+    endRaw: string | undefined;
+    startType: string;
+    endType: string;
+  }>;
 }
 
 type Row = (string | number | null | undefined)[];
@@ -72,7 +80,11 @@ function toDate(v: unknown): string | undefined {
   if (v == null || v === "") return undefined;
   if (v instanceof Date) {
     if (Number.isNaN(v.getTime())) return undefined;
-    return v.toISOString().slice(0, 10);
+    // Usar fecha local (no UTC) para evitar desfases por zona horaria
+    const yyyy = v.getFullYear();
+    const mm = String(v.getMonth() + 1).padStart(2, "0");
+    const dd = String(v.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
   }
   const s = String(v).trim();
   if (!s) return undefined;
@@ -184,7 +196,7 @@ export async function parsePromotionsFile(file: File): Promise<ParsedResult> {
   for (const sheetName of wb.SheetNames) {
     const sheet = XLSX.utils.sheet_to_json<Row>(wb.Sheets[sheetName], {
       header: 1,
-      raw: false,
+      raw: true,
       defval: "",
     });
 
@@ -283,5 +295,16 @@ export async function parsePromotionsFile(file: File): Promise<ParsedResult> {
     }
   }
 
-  return { promotions, sourceFile, warnings };
+  // DEBUG: agregar info de fechas crudas para diagnóstico
+  const debugSamples = promotions.slice(0, 5).map((p) => ({
+    barcode: p.barcode,
+    name: p.name,
+    startRaw: p.startDate,
+    endRaw: p.endDate,
+    startType: typeof p.startDate,
+    endType: typeof p.endDate,
+  }));
+  console.info("[vigia] muestras de fechas parseadas:", debugSamples);
+
+  return { promotions, sourceFile, warnings, debugSamples };
 }
