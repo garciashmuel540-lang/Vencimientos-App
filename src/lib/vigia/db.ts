@@ -9,6 +9,7 @@ import type {
   CatalogEntry,
   HistoryEntry,
   Product,
+  Promotion,
 } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 
@@ -18,6 +19,7 @@ export class VigiaDB extends Dexie {
   history!: Table<HistoryEntry, string>;
   apiCache!: Table<ApiCacheEntry, string>;
   kv!: Table<{ key: string; value: unknown }, string>;
+  promotions!: Table<Promotion, string>;
 
   constructor() {
     super("VigiaDB");
@@ -27,6 +29,9 @@ export class VigiaDB extends Dexie {
       history: "id, productId, action, at",
       apiCache: "barcode, fetchedAt",
       kv: "key",
+    });
+    this.version(2).stores({
+      promotions: "id, barcode, sourceFile, endDate, importedAt",
     });
   }
 }

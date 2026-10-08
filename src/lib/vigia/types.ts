@@ -137,3 +137,22 @@ export const SAMPLE_BARCODES: { code: string; label: string }[] = [
   { code: "8000500037560", label: "Ferrero" },
   { code: "7501055300079", label: "Lala" },
 ];
+
+export interface Promotion {
+  id: string;
+  barcode: string;
+  name: string;
+  dynamic: string;
+  priceBefore: number;
+  priceNow: number;
+  priceBeforePYA?: number;
+  priceNowPYA?: number;
+  category?: string;
+  subcategory?: string;
+  startDate?: string;
+  endDate?: string;
+  observations?: string;
+  sourceFile: string;
+  importedAt: string;
+}
+

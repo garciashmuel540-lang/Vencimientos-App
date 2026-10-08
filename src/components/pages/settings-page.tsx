@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Bell, Mail, Moon, RotateCcw, Smartphone, Sun, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Bell, FileSpreadsheet, Mail, Moon, RotateCcw, Smartphone, Sun, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,11 @@ export function SettingsPage() {
   const demo = useVigiaStore((s) => s.demo);
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [perm, setPerm] = useState<NotificationPermission | "unsupported">("denied");
+  const [promoSources, setPromoSources] = useState<
+    { sourceFile: string; count: number; importedAt: string }[]
+  >([]);
+  const [importing, setImporting] = useState(false);
+  const promoFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("vigia-theme");
@@ -43,7 +48,41 @@ export function SettingsPage() {
     else setTheme("system");
     if (typeof Notification === "undefined") setPerm("unsupported");
     else setPerm(Notification.permission);
+    void useVigiaStore.getState().listPromotionSources().then(setPromoSources);
   }, []);
+
+  async function handleImportPromos(file: File) {
+    setImporting(true);
+    try {
+      const { count, warnings } = await useVigiaStore
+        .getState()
+        .importPromotions(file);
+      if (count === 0) {
+        toast.error(warnings[0] ?? "No se encontraron promociones válidas.");
+      } else {
+        toast.success(`${count} promociones importadas`);
+        if (warnings.length > 0) {
+          toast.message(`${warnings.length} aviso(s)`, {
+            description: warnings.slice(0, 3).join("\n"),
+          });
+        }
+      }
+      const list = await useVigiaStore.getState().listPromotionSources();
+      setPromoSources(list);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al importar");
+    } finally {
+      setImporting(false);
+      if (promoFileRef.current) promoFileRef.current.value = "";
+    }
+  }
+
+  async function handleRemovePromoSource(sourceFile: string) {
+    await useVigiaStore.getState().removePromotionSource(sourceFile);
+    const list = await useVigiaStore.getState().listPromotionSources();
+    setPromoSources(list);
+    toast.success("Archivo eliminado");
+  }
 
   function applyTheme(next: "light" | "dark" | "system") {
     setTheme(next);
@@ -191,6 +230,83 @@ export function SettingsPage() {
             >
               Enviar por correo
             </Button>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="size-4 text-muted-foreground" />
+            <h2 className="font-medium">Promociones</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Carga los Excel de promociones del mes. Se aplican al escanear en el verificador de precios.
+          </p>
+
+          {promoSources.length > 0 ? (
+            <ul className="mt-3 flex flex-col gap-2">
+              {promoSources.map((s) => (
+                <li
+                  key={s.sourceFile}
+                  className="flex items-center justify-between gap-2 rounded-md bg-muted px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{s.sourceFile}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {s.count} promos ·{" "}
+                      {new Date(s.importedAt).toLocaleDateString("es")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => void handleRemovePromoSource(s.sourceFile)}
+                    aria-label="Eliminar archivo"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              No hay promociones cargadas.
+            </p>
+          )}
+
+          <input
+            ref={promoFileRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImportPromos(f);
+            }}
+          />
+
+          <div className="mt-3 flex flex-col gap-2">
+            <Button
+              variant="outline"
+              onClick={() => promoFileRef.current?.click()}
+              disabled={importing}
+            >
+              <Upload className="size-4" />
+              {importing ? "Importando…" : "Cargar archivo Excel"}
+            </Button>
+            {promoSources.length > 0 ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-bad"
+                onClick={async () => {
+                  await useVigiaStore.getState().clearAllPromotions();
+                  setPromoSources([]);
+                  toast.success("Todas las promociones eliminadas");
+                }}
+              >
+                Borrar todas
+              </Button>
+            ) : null}
           </div>
         </Card>
 

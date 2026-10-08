@@ -19,7 +19,7 @@ import { lookupProduct } from "@/lib/vigia/lookup";
 import { useVigiaStore } from "@/lib/vigia/store";
 import type { ProductDraft } from "@/lib/vigia/store";
 import { daysLabel, formatDate, productStatus } from "@/lib/vigia/dates";
-import type { LookupResult, Product } from "@/lib/vigia/types";
+import type { LookupResult, Product, Promotion } from "@/lib/vigia/types";
 import { CATEGORY_LABEL, LOCATION_LABEL } from "@/lib/vigia/types";
 
 function fmtPrice(n?: number): string {
@@ -40,6 +40,7 @@ export function PriceCheckPage() {
   const [draft, setDraft] = useState<ProductDraft | null>(null);
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceForm, setPriceForm] = useState({ price: 0, priceC: 0, cost: 0 });
+  const [promotion, setPromotion] = useState<Promotion | null>(null);
 
   async function handleCode(c: string) {
     setPaused(true);
@@ -58,6 +59,9 @@ export function PriceCheckPage() {
         products.find((p) => p.barcode.replace(/^0+/, "") === codeNorm.replace(/^0+/, "")) ??
         null;
       setInInventory(found);
+
+      const promo = await useVigiaStore.getState().getActivePromotion(c);
+      setPromotion(promo);
     } catch {
       toast.error("No se pudo consultar el código. Intenta de nuevo.");
     } finally {
@@ -71,6 +75,7 @@ export function PriceCheckPage() {
     setInInventory(null);
     setPaused(false);
     setDraft(null);
+    setPromotion(null);
   }
 
   function startAdd() {
@@ -133,9 +138,44 @@ export function PriceCheckPage() {
                   </div>
                 </div>
 
+                {promotion ? (
+                  <div className="mt-5 rounded-lg bg-gradient-to-br from-amber-50 to-orange-100 p-4 dark:from-amber-950/40 dark:to-orange-950/40">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                      🎉 Promoción activa
+                    </p>
+                    <p className="mt-1 font-display text-4xl font-semibold text-amber-900 dark:text-amber-200">
+                      {fmtPrice(promotion.priceNow)}
+                    </p>
+                    {promotion.priceBefore > 0 &&
+                    promotion.priceBefore !== promotion.priceNow ? (
+                      <p className="text-sm text-amber-700 dark:text-amber-400">
+                        Antes:{" "}
+                        <span className="line-through">
+                          {fmtPrice(promotion.priceBefore)}
+                        </span>
+                      </p>
+                    ) : null}
+                    {promotion.dynamic ? (
+                      <p className="mt-2 inline-block rounded-full bg-amber-200/70 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-700/40 dark:text-amber-100">
+                        {promotion.dynamic}
+                      </p>
+                    ) : null}
+                    {promotion.endDate ? (
+                      <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                        Válido hasta {formatDate(promotion.endDate)}
+                      </p>
+                    ) : null}
+                    {promotion.subcategory ? (
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                        {promotion.subcategory}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="mt-5 rounded-lg bg-primary/10 px-4 py-3">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Precio de venta
+                    {promotion ? "Precio normal" : "Precio de venta"}
                   </p>
                   <p className="font-display text-3xl font-semibold text-primary">
                     {fmtPrice(result.price ?? result.priceC)}

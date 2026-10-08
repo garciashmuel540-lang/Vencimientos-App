@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { addHistory, getDb, getKv, getSettings, saveSettings, setKv } from "./db";
 import { rememberCatalog } from "./lookup";
+import { parsePromotionsFile } from "./promotions-parser";
 import {
   persistAlertSnapshot,
   computeAlerts,
@@ -17,6 +18,7 @@ import {
   type HistoryEntry,
   type Product,
   type ProductCategory,
+  type Promotion,
   type StoreLocation,
 } from "./types";
 
@@ -59,6 +61,13 @@ interface VigiaState {
   consume: (id: string, amount?: number) => Promise<void>;
   remove: (id: string) => Promise<void>;
   updateSettings: (patch: Partial<AlertSettings>) => Promise<void>;
+  importPromotions: (file: File) => Promise<{ count: number; warnings: string[] }>;
+  removePromotionSource: (sourceFile: string) => Promise<void>;
+  clearAllPromotions: () => Promise<void>;
+  listPromotionSources: () => Promise<
+    { sourceFile: string; count: number; importedAt: string }[]
+  >;
+  getActivePromotion: (barcode: string) => Promise<Promotion | null>;
   clearDemo: () => Promise<void>;
   resetAll: () => Promise<void>;
   fireOpenAlerts: () => Promise<void>;
@@ -317,6 +326,70 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       snapshot: `${product.brand} · ${product.quantity} pzas`,
     });
     await get().refresh();
+  },
+
+  importPromotions: async (file) => {
+    const { promotions, warnings } = await parsePromotionsFile(file);
+    if (promotions.length === 0) {
+      return { count: 0, warnings: [...warnings, "No se encontraron promociones válidas."] };
+    }
+    // Eliminar cualquier promo anterior del mismo archivo
+    await getDb()
+      .promotions.where("sourceFile")
+      .equals(file.name)
+      .delete();
+    await getDb().promotions.bulkPut(promotions);
+    return { count: promotions.length, warnings };
+  },
+
+  removePromotionSource: async (sourceFile) => {
+    await getDb().promotions.where("sourceFile").equals(sourceFile).delete();
+  },
+
+  clearAllPromotions: async () => {
+    await getDb().promotions.clear();
+  },
+
+  listPromotionSources: async () => {
+    const all = await getDb().promotions.toArray();
+    const map = new Map<
+      string,
+      { sourceFile: string; count: number; importedAt: string }
+    >();
+    for (const p of all) {
+      const prev = map.get(p.sourceFile);
+      if (prev) {
+        prev.count += 1;
+        if (p.importedAt > prev.importedAt) prev.importedAt = p.importedAt;
+      } else {
+        map.set(p.sourceFile, {
+          sourceFile: p.sourceFile,
+          count: 1,
+          importedAt: p.importedAt,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      b.importedAt.localeCompare(a.importedAt),
+    );
+  },
+
+  getActivePromotion: async (barcode) => {
+    const code = barcode.replace(/\s/g, "");
+    const all = await getDb()
+      .promotions.where("barcode")
+      .equals(code)
+      .toArray();
+    if (all.length === 0) return null;
+    const today = new Date().toISOString().slice(0, 10);
+    const active = all.filter(
+      (p) => !p.endDate || p.endDate >= today,
+    );
+    if (active.length === 0) return null;
+    // Elegir la más reciente
+    return active.sort((a, b) =>
+      (b.importedAt ?? "").localeCompare(a.importedAt ?? ""),
+    )[0];
   },
 
   updateSettings: async (patch) => {
