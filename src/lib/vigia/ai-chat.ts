@@ -100,8 +100,17 @@ function buildInventorySummary(ctx: ChatContext): string {
 
 export type ChatChunk =
   | { type: "text"; content: string }
-  | { type: "action"; name: string; args: Record<string, unknown> }
+  | {
+      type: "action";
+      name: string;
+      args: Record<string, unknown>;
+      requiresConfirmation?: boolean;
+      confirmationLabel?: string;
+    }
   | { type: "error"; content: string };
+
+// Acciones que requieren confirmación del usuario antes de ejecutarse
+const DESTRUCTIVE_ACTIONS = new Set(["eliminarProducto", "borrarPromociones", "eliminarVarios"]);
 
 const tools = [
   {
@@ -186,6 +195,23 @@ const tools = [
   },
 ];
 
+function buildConfirmationLabel(
+  name: string,
+  args: Record<string, unknown>,
+): string {
+  if (name === "eliminarProducto") {
+    return `Eliminar "${String(args.name ?? "producto")}"`;
+  }
+  if (name === "borrarPromociones") {
+    return `Borrar promociones de "${String(args.sourceFile ?? "archivo")}"`;
+  }
+  if (name === "eliminarVarios") {
+    const count = Array.isArray(args.productIds) ? args.productIds.length : 0;
+    return `Eliminar ${count} producto(s)`;
+  }
+  return `Ejecutar ${name}`;
+}
+
 export const askVigiaFn = createServerFn({ method: "POST" })
   .validator((raw: unknown): ChatContext => {
     const input = raw as ChatContext;
@@ -257,11 +283,17 @@ export const askVigiaFn = createServerFn({ method: "POST" })
             const fnCalls = chunk.functionCalls;
             if (fnCalls && fnCalls.length > 0) {
               for (const fc of fnCalls) {
+                const name = fc.name ?? "";
+                const isDestructive = DESTRUCTIVE_ACTIONS.has(name);
                 controller.enqueue(
                   JSON.stringify({
                     type: "action",
-                    name: fc.name,
+                    name,
                     args: fc.args ?? {},
+                    requiresConfirmation: isDestructive,
+                    confirmationLabel: isDestructive
+                      ? buildConfirmationLabel(name, fc.args ?? {})
+                      : undefined,
                   }) + "\n",
                 );
               }
