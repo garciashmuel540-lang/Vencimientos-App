@@ -192,14 +192,14 @@ export function PriceCheckPage() {
 
                 <div className="mt-5 rounded-lg bg-primary/10 px-4 py-3">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {promotion ? "Precio normal" : "Precio de venta"}
+                    Precio al consumidor
                   </p>
                   <p className="font-display text-3xl font-semibold text-primary">
-                    {fmtPrice(result.price ?? result.priceC)}
+                    {fmtPrice(result.priceC ?? result.price)}
                   </p>
-                  {result.priceC && result.price !== result.priceC ? (
+                  {result.priceC && result.price && result.priceC !== result.price ? (
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Precio C: {fmtPrice(result.priceC)}
+                      Precio interno (sin IVA): {fmtPrice(result.price)}
                     </p>
                   ) : null}
                 </div>
@@ -351,7 +351,7 @@ export function PriceCheckPage() {
           </SheetHeader>
           <div className="mt-5 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="price-edit">Precio de venta (C$)</Label>
+              <Label htmlFor="price-edit">Precio interno (sin IVA)</Label>
               <Input
                 id="price-edit"
                 type="number"
@@ -365,7 +365,7 @@ export function PriceCheckPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="priceC-edit">Precio C / mayoreo (C$)</Label>
+              <Label htmlFor="priceC-edit">Precio al consumidor (con IVA)</Label>
               <Input
                 id="priceC-edit"
                 type="number"

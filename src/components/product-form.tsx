@@ -276,7 +276,7 @@ export function ProductForm({
 
       {showPrices ? (
         <>
-          <Field label="Precio de venta (C$)">
+          <Field label="Precio al consumidor (con IVA)">
             <Input
               type="number"
               inputMode="decimal"
@@ -292,7 +292,7 @@ export function ProductForm({
               }
             />
           </Field>
-          <Field label="Precio C / mayoreo (C$)">
+          <Field label="Precio interno (sin IVA)">
             <Input
               type="number"
               inputMode="decimal"
