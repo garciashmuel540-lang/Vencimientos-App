@@ -11,7 +11,7 @@ import type {
 import { buildConfirmationLabel, DESTRUCTIVE_ACTIONS } from "./types";
 import { INTERNAL_TOOLS, SYSTEM_PROMPT } from "./tools";
 
-const MODEL = "llama-3.3-70b-versatile";
+const MODEL = "openai/gpt-oss-120b";
 
 function convertToolsToGroq(tools: InternalTool[]) {
   return tools.map((t) => ({
