@@ -547,7 +547,11 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         const name = (e.name + " " + e.brand).toLowerCase();
         let score = 0;
         for (const w of words) {
-          if (name.includes(w)) score++;
+          if (name.includes(w)) {
+            // Palabras más largas pesan más (una palabra de 8 letras
+            // vale el doble que una de 4)
+            score += w.length;
+          }
         }
         return { entry: e, score };
       })
