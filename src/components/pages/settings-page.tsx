@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Bell, FileSpreadsheet, Mail, Moon, Package, RotateCcw, Smartphone, Sun, Trash2, Upload, X } from "lucide-react";
+import { Bell, FileSpreadsheet, LogOut, Mail, Moon, Package, RotateCcw, Smartphone, Sun, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useVigiaStore } from "@/lib/vigia/store";
+import { useSupabaseAuth, signOutSupabase } from "@/lib/auth/supabase-auth";
 import {
   requestNotifyPermission,
   buildDailySummary,
@@ -42,8 +43,10 @@ export function SettingsPage() {
   const clearDemo = useVigiaStore((s) => s.clearDemo);
   const resetAll = useVigiaStore((s) => s.resetAll);
   const demo = useVigiaStore((s) => s.demo);
+  const { user: authUser } = useSupabaseAuth();
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [perm, setPerm] = useState<NotificationPermission | "unsupported">("denied");
+  const [signingOut, setSigningOut] = useState(false);
   const [promoSources, setPromoSources] = useState<
     { sourceFile: string; count: number; importedAt: string }[]
   >([]);
@@ -148,6 +151,18 @@ export function SettingsPage() {
       next === "dark" ||
       (next === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.classList.toggle("dark", dark);
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOutSupabase();
+      toast.success("Sesión cerrada");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se pudo cerrar sesión";
+      toast.error(msg);
+      setSigningOut(false);
+    }
   }
 
   function toggleDay(day: number) {
@@ -412,6 +427,33 @@ export function SettingsPage() {
               </Button>
             ) : null}
           </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-2">
+            <LogOut className="size-4 text-muted-foreground" />
+            <h2 className="font-medium">Sesión</h2>
+          </div>
+          {authUser ? (
+            <>
+              <p className="mt-2 text-sm">
+                Estás conectado como{" "}
+                <strong>{authUser.email ?? "usuario"}</strong>
+              </p>
+              <Button
+                variant="outline"
+                className="mt-3 w-full"
+                onClick={() => void handleSignOut()}
+                disabled={signingOut}
+              >
+                {signingOut ? "Cerrando…" : "Cerrar sesión"}
+              </Button>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              No hay sesión activa
+            </p>
+          )}
         </Card>
 
         <Card className="p-4">
