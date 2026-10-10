@@ -28,8 +28,25 @@ export function SupabaseGuard({ children }: { children: ReactNode }) {
   // Sincronizar inventario con Supabase al loguearse
   useEffect(() => {
     if (!user) return;
+    // Forzar sync cuando cambia el usuario
     void useVigiaStore.getState().syncInventory();
   }, [user?.id]);
+
+  // Detectar logout y limpiar Dexie (para que el próximo usuario empiece limpio)
+  useEffect(() => {
+    if (user) return;
+    // Sin usuario → limpiar Dexie para no dejar rastros
+    void (async () => {
+      try {
+        const { getDb } = await import("@/lib/vigia/db");
+        const db = getDb();
+        await db.products.clear();
+        await db.history.clear();
+      } catch (err) {
+        console.warn("[vigia] no se pudo limpiar Dexie al logout:", err);
+      }
+    })();
+  }, [user]);
 
   // Estamos en /login:
   // - si NO hay sesión, dejamos pasar (mostrar el formulario)

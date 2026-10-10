@@ -54,6 +54,15 @@ export async function syncOnLogin(): Promise<SyncResult> {
   const lastUserIdRow = await db.kv.get("lastUserId");
   const lastUserId = (lastUserIdRow?.value as string | undefined) ?? null;
 
+  console.info(
+    `[inventory-sync] login: currentUserId=${currentUserId ?? "null"} lastUserId=${lastUserId ?? "null"}`,
+  );
+
+  // Guardar el userId actual ANTES de limpiar, así si algo falla ya quedó registrado
+  if (currentUserId) {
+    await db.kv.put({ key: "lastUserId", value: currentUserId });
+  }
+
   // Limpiar si:
   //  - Hay un usuario logueado Y
   //  - (no había lastUserId guardado, O el usuario cambió)
@@ -71,11 +80,6 @@ export async function syncOnLogin(): Promise<SyncResult> {
       await db.history.clear();
       result.errors.push("cleared_on_user_change");
     }
-  }
-
-  // Guardar el userId actual para la próxima
-  if (currentUserId) {
-    await db.kv.put({ key: "lastUserId", value: currentUserId });
   }
 
   // 1) Traer todo de Supabase
