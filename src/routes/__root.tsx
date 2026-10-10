@@ -1,5 +1,6 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
+import { SupabaseGuard } from "@/components/auth/supabase-guard";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { AppShell } from "@/components/app-shell";
 import appCss from "../styles.css?url";
@@ -65,9 +66,11 @@ function RootDocument() {
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
         <PreviewHostBridge />
         <AuthProvider>
-          <AppShell>
-            <Outlet />
-          </AppShell>
+          <SupabaseGuard>
+            <AppShell>
+              <Outlet />
+            </AppShell>
+          </SupabaseGuard>
         </AuthProvider>
         <Scripts />
       </body>

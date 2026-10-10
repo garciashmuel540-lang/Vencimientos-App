@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as EscanearRouteImport } from './routes/escanear'
 import { Route as InventarioRouteImport } from './routes/inventario'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrecioRouteImport } from './routes/precio'
 import { Route as ReportesRouteImport } from './routes/reportes'
 
@@ -36,6 +37,11 @@ const InventarioRoute = InventarioRouteImport.update({
   path: '/inventario',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrecioRoute = PrecioRouteImport.update({
   id: '/precio',
   path: '/precio',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
   '/inventario': typeof InventarioRoute
+  '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
   '/reportes': typeof ReportesRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
   '/inventario': typeof InventarioRoute
+  '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
   '/reportes': typeof ReportesRoute
 }
@@ -69,21 +77,36 @@ export interface FileRoutesById {
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
   '/inventario': typeof InventarioRoute
+  '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
   '/reportes': typeof ReportesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/ajustes' | '/escanear' | '/inventario' | '/precio' | '/reportes'
+    | '/'
+    | '/ajustes'
+    | '/escanear'
+    | '/inventario'
+    | '/login'
+    | '/precio'
+    | '/reportes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/ajustes' | '/escanear' | '/inventario' | '/precio' | '/reportes'
+  to:
+    | '/'
+    | '/ajustes'
+    | '/escanear'
+    | '/inventario'
+    | '/login'
+    | '/precio'
+    | '/reportes'
   id:
     | '__root__'
     | '/'
     | '/ajustes'
     | '/escanear'
     | '/inventario'
+    | '/login'
     | '/precio'
     | '/reportes'
   fileRoutesById: FileRoutesById
@@ -93,6 +116,7 @@ export interface RootRouteChildren {
   AjustesRoute: typeof AjustesRoute
   EscanearRoute: typeof EscanearRoute
   InventarioRoute: typeof InventarioRoute
+  LoginRoute: typeof LoginRoute
   PrecioRoute: typeof PrecioRoute
   ReportesRoute: typeof ReportesRoute
 }
@@ -127,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventarioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/precio': {
       id: '/precio'
       path: '/precio'
@@ -149,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   AjustesRoute: AjustesRoute,
   EscanearRoute: EscanearRoute,
   InventarioRoute: InventarioRoute,
+  LoginRoute: LoginRoute,
   PrecioRoute: PrecioRoute,
   ReportesRoute: ReportesRoute,
 }
