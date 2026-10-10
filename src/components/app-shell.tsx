@@ -33,6 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const ready = useVigiaStore((s) => s.ready);
   const fireOpenAlerts = useVigiaStore((s) => s.fireOpenAlerts);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isLoginPage = pathname === "/login";
   const [tour, setTour] = useState(false);
   const [splash, setSplash] = useState(true);
   const [minTimeDone, setMinTimeDone] = useState(false);
@@ -56,6 +57,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const t = window.setTimeout(() => void fireOpenAlerts(), 600);
     return () => window.clearTimeout(t);
   }, [ready, splash, fireOpenAlerts]);
+
+  // En /login: solo mostrar el contenido, sin barra inferior ni chat
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   return (
     <TooltipProvider delayDuration={250}>
