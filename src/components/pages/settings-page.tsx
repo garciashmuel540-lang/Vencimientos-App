@@ -32,10 +32,6 @@ import {
   countCatalogSupabase,
   pushFullCatalog,
 } from "@/lib/data/catalog-supabase";
-import {
-  countPromotionsSupabase,
-  pushFullPromotions,
-} from "@/lib/data/promotions-supabase";
 import { getDb } from "@/lib/vigia/db";
 import {
   requestNotifyPermission,
@@ -58,14 +54,6 @@ export function SettingsPage() {
   const [signingOut, setSigningOut] = useState(false);
   const [supabaseCount, setSupabaseCount] = useState<number | null>(null);
   const [migrating, setMigrating] = useState(false);
-  const [promoSupabaseCount, setPromoSupabaseCount] = useState<number | null>(
-    null,
-  );
-  const [migratingPromos, setMigratingPromos] = useState(false);
-  const [promoMigrationProgress, setPromoMigrationProgress] = useState<{
-    subidos: number;
-    total: number;
-  } | null>(null);
   const [migrationProgress, setMigrationProgress] = useState<{
     subidos: number;
     total: number;
@@ -102,46 +90,7 @@ export function SettingsPage() {
     void countCatalogSupabase()
       .then(setSupabaseCount)
       .catch(() => setSupabaseCount(null));
-    void countPromotionsSupabase()
-      .then(setPromoSupabaseCount)
-      .catch(() => setPromoSupabaseCount(null));
   }, []);
-
-  async function handlePromoMigration() {
-    setMigratingPromos(true);
-    setPromoMigrationProgress({ subidos: 0, total: 0 });
-    try {
-      const localPromos = await getDb().promotions.toArray();
-      if (localPromos.length === 0) {
-        toast.error("No hay promociones locales para migrar.");
-        return;
-      }
-      setPromoMigrationProgress({ subidos: 0, total: localPromos.length });
-      const result = await pushFullPromotions(
-        localPromos,
-        (subidos, total) => {
-          setPromoMigrationProgress({ subidos, total });
-        },
-      );
-      if (result.errores > 0) {
-        toast.error(
-          `Migración: ${result.subidos} subidos, ${result.errores} fallaron.`,
-        );
-      } else {
-        toast.success(
-          `✅ ${result.subidos} promociones migradas a la nube`,
-        );
-      }
-      const newCount = await countPromotionsSupabase();
-      setPromoSupabaseCount(newCount);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error al migrar";
-      toast.error(msg);
-    } finally {
-      setMigratingPromos(false);
-      setPromoMigrationProgress(null);
-    }
-  }
 
   async function handleMigration() {
     setMigrating(true);
@@ -457,31 +406,6 @@ export function SettingsPage() {
             Carga los Excel de promociones del mes. Se aplican al escanear en el verificador de precios.
           </p>
 
-          <div className="mt-3 flex flex-col gap-1 rounded-md bg-muted px-3 py-2 text-sm">
-            <p>
-              En la nube:{" "}
-              <strong>
-                {promoSupabaseCount === null
-                  ? "—"
-                  : promoSupabaseCount.toLocaleString("es")}
-              </strong>{" "}
-              promociones
-            </p>
-          </div>
-          {promoMigrationProgress ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Subiendo {promoMigrationProgress.subidos} /{" "}
-              {promoMigrationProgress.total}…
-            </p>
-          ) : null}
-          <Button
-            variant="outline"
-            className="mt-3 w-full"
-            onClick={() => void handlePromoMigration()}
-            disabled={migratingPromos}
-          >
-            {migratingPromos ? "Migrando…" : "Migrar promociones a la nube"}
-          </Button>
 
           {promoSources.length > 0 ? (
             <ul className="mt-3 flex flex-col gap-2">
@@ -549,44 +473,6 @@ export function SettingsPage() {
               </Button>
             ) : null}
           </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <Upload className="size-4 text-muted-foreground" />
-            <h2 className="font-medium">Migración a la nube</h2>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Sube el catálogo local de 3189 productos a Supabase para que todos los empleados lo vean.
-          </p>
-          <div className="mt-3 flex flex-col gap-1 rounded-md bg-muted px-3 py-2 text-sm">
-            <p>
-              Local: <strong>{catalogStats.total.toLocaleString("es")}</strong> productos
-            </p>
-            <p>
-              En la nube:{" "}
-              <strong>
-                {supabaseCount === null
-                  ? "—"
-                  : supabaseCount.toLocaleString("es")}
-              </strong>{" "}
-              productos
-            </p>
-          </div>
-          {migrationProgress ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Subiendo {migrationProgress.subidos} /{" "}
-              {migrationProgress.total}…
-            </p>
-          ) : null}
-          <Button
-            variant="outline"
-            className="mt-3 w-full"
-            onClick={() => void handleMigration()}
-            disabled={migrating}
-          >
-            {migrating ? "Migrando…" : "Migrar catálogo a la nube"}
-          </Button>
         </Card>
 
         <Card className="p-4">

@@ -4,7 +4,10 @@ import { addHistory, getDb, getKv, getSettings, saveSettings, setKv } from "./db
 import { rememberCatalog } from "./lookup";
 import { parsePromotionsFile } from "./promotions-parser";
 import { parseCatalogFile } from "./catalog-parser";
-import { syncCatalogFromSupabase } from "@/lib/data/catalog-supabase";
+import {
+  syncCatalogFromSupabase,
+  pushFullCatalog,
+} from "@/lib/data/catalog-supabase";
 import {
   pushPromotionsBatch,
   deletePromotionsSourceSupabase,
@@ -591,6 +594,20 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
 
     // Invalidar caché de API y marcar fecha de actualización
     await setKv("lastCatalogUpdate", new Date().toISOString());
+
+    // Subir a Supabase (en background, no bloquea)
+    void (async () => {
+      try {
+        const finalEntries = await db.catalog.toArray();
+        const result = await pushFullCatalog(finalEntries);
+        console.info(
+          `[vigia] catálogo subido a Supabase: ${result.subidos} productos` +
+            (result.errores > 0 ? ` (${result.errores} errores)` : ""),
+        );
+      } catch (err) {
+        console.warn("[vigia] no se pudo subir catálogo a Supabase:", err);
+      }
+    })();
 
     await get().refresh();
     return { added, updated };
