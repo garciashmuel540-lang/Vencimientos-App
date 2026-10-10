@@ -106,18 +106,40 @@ export async function pushFullCatalog(
  */
 export async function fetchCatalogFromSupabase(): Promise<CatalogEntry[]> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase
-    .from("catalog")
-    .select("*")
-    .order("name");
-  if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row) => ({
+  // Paginación: Supabase devuelve máximo 1000 filas por request.
+  // Traemos de a 1000 hasta agotar todas las páginas.
+  const PAGE_SIZE = 1000;
+  const allRows: CatalogRow[] = [];
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from("catalog")
+      .select("*")
+      .order("name")
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as CatalogRow[];
+    allRows.push(...page);
+    if (page.length < PAGE_SIZE) {
+      hasMore = false;
+    } else {
+      from += PAGE_SIZE;
+    }
+  }
+
+  console.info(
+    `[vigia] catálogo descargado de Supabase: ${allRows.length} productos`,
+  );
+
+  return allRows.map((row) => ({
     barcode: row.barcode,
     name: row.name,
     brand: row.brand ?? "",
     presentation: row.presentation ?? "",
-    category: row.category ?? "otros",
+    category: (row.category ?? "otros") as CatalogEntry["category"],
     department: row.department ?? undefined,
     supplier: row.supplier ?? undefined,
     price: typeof row.price === "number" ? row.price : undefined,
