@@ -24,8 +24,13 @@ export function SupabaseGuard({ children }: { children: ReactNode }) {
     hideBootSplash();
   }, []);
 
-  // Estamos en /login → dejamos pasar sin verificar
+  // Estamos en /login:
+  // - si NO hay sesión, dejamos pasar (mostrar el formulario)
+  // - si SÍ hay sesión, redirigimos a la app
   if (pathname === LOGIN_PATH) {
+    if (user && !loading) {
+      return <Navigate to="/" />;
+    }
     return <>{children}</>;
   }
 
