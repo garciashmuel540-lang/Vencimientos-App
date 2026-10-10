@@ -131,3 +131,42 @@ export async function fetchCatalogFromSupabase(): Promise<CatalogEntry[]> {
     fetchedAt: row.fetched_at ?? new Date().toISOString(),
   }));
 }
+
+/**
+ * Sincroniza el catálogo desde Supabase hacia IndexedDB (caché local).
+ * Se llama en background al abrir la app.
+ * Devuelve cuántos productos se sincronizaron.
+ */
+export async function syncCatalogFromSupabase(): Promise<{
+  count: number;
+  error?: string;
+}> {
+  if (!supabase) {
+    return { count: 0, error: "Supabase no configurado" };
+  }
+  try {
+    const entries = await fetchCatalogFromSupabase();
+    if (entries.length === 0) {
+      return { count: 0, error: "Supabase devolvió 0 productos" };
+    }
+
+    const { getDb, setKv } = await import("@/lib/vigia/db");
+    const db = getDb();
+
+    // Reemplazar el catálogo local con el de Supabase
+    await db.transaction("rw", db.catalog, async () => {
+      await db.catalog.clear();
+      await db.catalog.bulkPut(entries);
+    });
+    await setKv("catalogLastSync", new Date().toISOString());
+
+    console.info(
+      `[vigia] catálogo sincronizado desde Supabase: ${entries.length} productos`,
+    );
+    return { count: entries.length };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Error desconocido";
+    console.warn("[vigia] no se pudo sincronizar catálogo:", msg);
+    return { count: 0, error: msg };
+  }
+}

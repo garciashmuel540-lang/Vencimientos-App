@@ -4,6 +4,7 @@ import { addHistory, getDb, getKv, getSettings, saveSettings, setKv } from "./db
 import { rememberCatalog } from "./lookup";
 import { parsePromotionsFile } from "./promotions-parser";
 import { parseCatalogFile } from "./catalog-parser";
+import { syncCatalogFromSupabase } from "@/lib/data/catalog-supabase";
 import {
   persistAlertSnapshot,
   computeAlerts,
@@ -197,6 +198,22 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         console.info(`[vigia] catálogo cargado: ${entries.length} productos`);
       } catch (err) {
         console.warn("[vigia] no se pudo cargar catálogo de precios:", err);
+      }
+    })();
+
+    // Sincronizar catálogo desde Supabase (en background, no bloquea)
+    void (async () => {
+      try {
+        const result = await syncCatalogFromSupabase();
+        if (result.error) {
+          console.warn("[vigia] sync catálogo:", result.error);
+        } else if (result.count > 0) {
+          console.info(
+            `[vigia] catálogo actualizado desde la nube: ${result.count} productos`,
+          );
+        }
+      } catch (err) {
+        console.warn("[vigia] sync catálogo falló:", err);
       }
     })();
     const data = await readAll();
