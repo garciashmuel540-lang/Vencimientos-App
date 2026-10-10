@@ -5,6 +5,7 @@
 import { useEffect, type ReactNode } from "react";
 import { Navigate, useRouterState } from "@tanstack/react-router";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
+import { useVigiaStore } from "@/lib/vigia/store";
 
 const LOGIN_PATH = "/login";
 
@@ -23,6 +24,12 @@ export function SupabaseGuard({ children }: { children: ReactNode }) {
   useEffect(() => {
     hideBootSplash();
   }, []);
+
+  // Sincronizar inventario con Supabase al loguearse
+  useEffect(() => {
+    if (!user) return;
+    void useVigiaStore.getState().syncInventory();
+  }, [user?.id]);
 
   // Estamos en /login:
   // - si NO hay sesión, dejamos pasar (mostrar el formulario)

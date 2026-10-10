@@ -1,6 +1,11 @@
 /** Estado de inventario en el cliente, respaldado por IndexedDB. */
 import { create } from "zustand";
 import { addHistory, getDb, getKv, getSettings, saveSettings, setKv } from "./db";
+import {
+  syncOnLogin,
+  syncPush,
+  syncDelete,
+} from "@/lib/data/inventory-sync";
 import { rememberCatalog } from "./lookup";
 import { parsePromotionsFile } from "./promotions-parser";
 import { parseCatalogFile } from "./catalog-parser";
@@ -58,6 +63,7 @@ interface VigiaState {
   settings: AlertSettings;
   demo: boolean;
   hydrate: () => Promise<void>;
+  syncInventory: () => Promise<void>;
   refresh: () => Promise<void>;
   upsertProduct: (draft: ProductDraft, id?: string) => Promise<Product>;
   updatePrices: (
@@ -253,6 +259,22 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     void persistAlertSnapshot(computeAlerts(data.products, data.settings));
   },
 
+  syncInventory: async () => {
+    if (typeof window === "undefined") return;
+    try {
+      const result = await syncOnLogin();
+      if (result.pulled > 0 || result.pushed > 0 || result.merged > 0) {
+        console.info(
+          `[vigia] sync inventario: pulled=${result.pulled} pushed=${result.pushed} merged=${result.merged}`,
+        );
+        await get().refresh();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error desconocido";
+      console.warn("[vigia] syncInventory falló:", msg);
+    }
+  },
+
   upsertProduct: async (draft, id) => {
     const now = new Date().toISOString();
     const existing = id
@@ -296,6 +318,10 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       snapshot: `${product.brand} · ${product.quantity} pzas · vence ${product.expiresAt}`,
     });
     await get().refresh();
+    // Sync con Supabase en background (no bloquea la UI)
+    void syncPush(product).catch((err) => {
+      console.warn("[vigia] syncPush (upsert) falló:", err);
+    });
     return product;
   },
 
@@ -378,10 +404,15 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         barcode: product.barcode,
         snapshot: "Se agotó / se vendió el lote",
       });
+      // Sync con Supabase: borrar en la nube
+      void syncDelete(id).catch((err) => {
+        console.warn("[vigia] syncDelete (consume) falló:", err);
+      });
     } else {
+      const updatedAt = new Date().toISOString();
       await getDb().products.update(id, {
         quantity: nextQty,
-        updatedAt: new Date().toISOString(),
+        updatedAt,
       });
       await addHistory({
         productId: id,
@@ -390,6 +421,13 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         barcode: product.barcode,
         snapshot: `Quedan ${nextQty} unidades`,
       });
+      // Sync con Supabase: actualizar el stock
+      const updated = await getDb().products.get(id);
+      if (updated) {
+        void syncPush(updated).catch((err) => {
+          console.warn("[vigia] syncPush (consume) falló:", err);
+        });
+      }
     }
     await get().refresh();
   },
@@ -405,6 +443,10 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       name: product.name,
       barcode: product.barcode,
       snapshot: `${product.brand} · ${product.quantity} pzas`,
+    });
+    // Sync con Supabase: borrar en la nube
+    void syncDelete(id).catch((err) => {
+      console.warn("[vigia] syncDelete (remove) falló:", err);
     });
     await get().refresh();
   },
