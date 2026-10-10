@@ -10,6 +10,8 @@ export interface SupabaseUser {
   id: string;
   email: string | null;
   name: string | null;
+  role: string | null;
+  isAdmin: boolean;
 }
 
 export function useSupabaseAuth() {
@@ -36,10 +38,13 @@ export function useSupabaseAuth() {
 
 function toUser(u: User | undefined | null): SupabaseUser | null {
   if (!u) return null;
+  const role = (u.user_metadata?.role as string | undefined) ?? null;
   return {
     id: u.id,
     email: u.email ?? null,
     name: (u.user_metadata?.name as string | undefined) ?? null,
+    role,
+    isAdmin: role === "admin",
   };
 }
 
