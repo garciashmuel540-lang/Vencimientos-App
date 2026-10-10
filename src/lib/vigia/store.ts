@@ -6,6 +6,12 @@ import { parsePromotionsFile } from "./promotions-parser";
 import { parseCatalogFile } from "./catalog-parser";
 import { syncCatalogFromSupabase } from "@/lib/data/catalog-supabase";
 import {
+  pushPromotionsBatch,
+  deletePromotionsSourceSupabase,
+  clearPromotionsSupabase,
+  syncPromotionsFromSupabase,
+} from "@/lib/data/promotions-supabase";
+import {
   persistAlertSnapshot,
   computeAlerts,
   dispatchAlerts,
@@ -216,6 +222,22 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         console.warn("[vigia] sync catálogo falló:", err);
       }
     })();
+
+    // Sincronizar promociones desde Supabase (en background)
+    void (async () => {
+      try {
+        const result = await syncPromotionsFromSupabase();
+        if (result.error) {
+          console.warn("[vigia] sync promociones:", result.error);
+        } else if (result.count > 0) {
+          console.info(
+            `[vigia] promociones actualizadas desde la nube: ${result.count}`,
+          );
+        }
+      } catch (err) {
+        console.warn("[vigia] sync promociones falló:", err);
+      }
+    })();
     const data = await readAll();
     set({ ...data, ready: true });
     void persistAlertSnapshot(computeAlerts(data.products, data.settings));
@@ -389,21 +411,50 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     if (promotions.length === 0) {
       return { count: 0, warnings: [...warnings, "No se encontraron promociones válidas."] };
     }
-    // Eliminar cualquier promo anterior del mismo archivo
+    // Eliminar cualquier promo anterior del mismo archivo (local)
     await getDb()
       .promotions.where("sourceFile")
       .equals(file.name)
       .delete();
     await getDb().promotions.bulkPut(promotions);
+
+    // Subir a Supabase (en background, no bloquea)
+    void (async () => {
+      try {
+        await pushPromotionsBatch(promotions);
+        console.info(
+          `[vigia] ${promotions.length} promociones subidas a Supabase`,
+        );
+      } catch (err) {
+        console.warn("[vigia] no se pudo subir promociones:", err);
+      }
+    })();
+
     return { count: promotions.length, warnings };
   },
 
   removePromotionSource: async (sourceFile) => {
     await getDb().promotions.where("sourceFile").equals(sourceFile).delete();
+    // Borrar de Supabase (en background)
+    void (async () => {
+      try {
+        await deletePromotionsSourceSupabase(sourceFile);
+      } catch (err) {
+        console.warn("[vigia] no se pudo borrar en Supabase:", err);
+      }
+    })();
   },
 
   clearAllPromotions: async () => {
     await getDb().promotions.clear();
+    // Borrar de Supabase (en background)
+    void (async () => {
+      try {
+        await clearPromotionsSupabase();
+      } catch (err) {
+        console.warn("[vigia] no se pudo borrar en Supabase:", err);
+      }
+    })();
   },
 
   listPromotionSources: async () => {
