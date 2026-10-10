@@ -29,6 +29,11 @@ import {
 import { useVigiaStore } from "@/lib/vigia/store";
 import { useSupabaseAuth, signOutSupabase } from "@/lib/auth/supabase-auth";
 import {
+  countCatalogSupabase,
+  pushFullCatalog,
+} from "@/lib/data/catalog-supabase";
+import { getDb } from "@/lib/vigia/db";
+import {
   requestNotifyPermission,
   buildDailySummary,
 } from "@/lib/vigia/notifications";
@@ -47,6 +52,12 @@ export function SettingsPage() {
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [perm, setPerm] = useState<NotificationPermission | "unsupported">("denied");
   const [signingOut, setSigningOut] = useState(false);
+  const [supabaseCount, setSupabaseCount] = useState<number | null>(null);
+  const [migrating, setMigrating] = useState(false);
+  const [migrationProgress, setMigrationProgress] = useState<{
+    subidos: number;
+    total: number;
+  } | null>(null);
   const [promoSources, setPromoSources] = useState<
     { sourceFile: string; count: number; importedAt: string }[]
   >([]);
@@ -76,7 +87,41 @@ export function SettingsPage() {
     else setPerm(Notification.permission);
     void useVigiaStore.getState().listPromotionSources().then(setPromoSources);
     void useVigiaStore.getState().catalogStats().then(setCatalogStats);
+    void countCatalogSupabase()
+      .then(setSupabaseCount)
+      .catch(() => setSupabaseCount(null));
   }, []);
+
+  async function handleMigration() {
+    setMigrating(true);
+    setMigrationProgress({ subidos: 0, total: 0 });
+    try {
+      const localEntries = await getDb().catalog.toArray();
+      if (localEntries.length === 0) {
+        toast.error("No hay productos en el catálogo local.");
+        return;
+      }
+      setMigrationProgress({ subidos: 0, total: localEntries.length });
+      const result = await pushFullCatalog(localEntries, (subidos, total) => {
+        setMigrationProgress({ subidos, total });
+      });
+      if (result.errores > 0) {
+        toast.error(
+          `Migración con errores: ${result.subidos} subidos, ${result.errores} fallaron.`,
+        );
+      } else {
+        toast.success(`✅ ${result.subidos} productos migrados a la nube`);
+      }
+      const newCount = await countCatalogSupabase();
+      setSupabaseCount(newCount);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error al migrar";
+      toast.error(msg);
+    } finally {
+      setMigrating(false);
+      setMigrationProgress(null);
+    }
+  }
 
   async function handleCatalogPreview(file: File) {
     setImportingCatalog(true);
@@ -427,6 +472,44 @@ export function SettingsPage() {
               </Button>
             ) : null}
           </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-2">
+            <Upload className="size-4 text-muted-foreground" />
+            <h2 className="font-medium">Migración a la nube</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sube el catálogo local de 3189 productos a Supabase para que todos los empleados lo vean.
+          </p>
+          <div className="mt-3 flex flex-col gap-1 rounded-md bg-muted px-3 py-2 text-sm">
+            <p>
+              Local: <strong>{catalogStats.total.toLocaleString("es")}</strong> productos
+            </p>
+            <p>
+              En la nube:{" "}
+              <strong>
+                {supabaseCount === null
+                  ? "—"
+                  : supabaseCount.toLocaleString("es")}
+              </strong>{" "}
+              productos
+            </p>
+          </div>
+          {migrationProgress ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Subiendo {migrationProgress.subidos} /{" "}
+              {migrationProgress.total}…
+            </p>
+          ) : null}
+          <Button
+            variant="outline"
+            className="mt-3 w-full"
+            onClick={() => void handleMigration()}
+            disabled={migrating}
+          >
+            {migrating ? "Migrando…" : "Migrar catálogo a la nube"}
+          </Button>
         </Card>
 
         <Card className="p-4">
