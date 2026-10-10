@@ -43,6 +43,32 @@ export async function syncOnLogin(): Promise<SyncResult> {
   const result: SyncResult = { pulled: 0, pushed: 0, merged: 0, errors: [] };
   const db = getDb();
 
+  // 0) Detectar cambio de usuario y limpiar datos locales del usuario anterior
+  const { supabase } = await import("@/lib/supabase");
+  let currentUserId: string | null = null;
+  if (supabase) {
+    const { data } = await supabase.auth.getUser();
+    currentUserId = data.user?.id ?? null;
+  }
+
+  const lastUserIdRow = await db.kv.get("lastUserId");
+  const lastUserId = (lastUserIdRow?.value as string | undefined) ?? null;
+
+  if (currentUserId && lastUserId && currentUserId !== lastUserId) {
+    // Cambió el usuario → limpiar SOLO los datos del usuario anterior
+    console.info(
+      `[inventory-sync] cambio de usuario detectado (${lastUserId} → ${currentUserId}). Limpiando datos locales.`,
+    );
+    await db.products.clear();
+    await db.history.clear();
+    result.errors.push("cleared_on_user_change");
+  }
+
+  // Guardar el userId actual para la próxima
+  if (currentUserId) {
+    await db.kv.put({ key: "lastUserId", value: currentUserId });
+  }
+
   // 1) Traer todo de Supabase
   let remoteRows: InventoryRow[] = [];
   try {
