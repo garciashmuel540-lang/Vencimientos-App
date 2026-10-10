@@ -85,12 +85,6 @@ export async function pushPromotionsBatch(
   if (!supabase) throw new Error("Supabase no configurado");
   if (promotions.length === 0) return 0;
 
-  // Borrar las promociones anteriores del mismo archivo antes de insertar
-  const sourceFiles = Array.from(new Set(promotions.map((p) => p.sourceFile)));
-  for (const sf of sourceFiles) {
-    await supabase.from("promotions").delete().eq("source_file", sf);
-  }
-
   const rows = promotions.map(toRow);
   const { error } = await supabase.from("promotions").insert(rows);
   if (error) throw new Error(error.message);
@@ -101,6 +95,12 @@ export async function pushFullPromotions(
   promotions: Promotion[],
   onProgress?: (subidos: number, total: number) => void,
 ): Promise<{ subidos: number; errores: number }> {
+  // Borrar UNA SOLA VEZ las promociones anteriores del mismo archivo
+  const sourceFiles = Array.from(new Set(promotions.map((p) => p.sourceFile)));
+  for (const sf of sourceFiles) {
+    await deletePromotionsSourceSupabase(sf);
+  }
+
   const BATCH_SIZE = 100;
   let subidos = 0;
   let errores = 0;
