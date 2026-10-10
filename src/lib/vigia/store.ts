@@ -153,16 +153,9 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
   hydrate: async () => {
     if (typeof window === "undefined") return;
     const db = getDb();
-    const count = await db.products.count();
-    if (count === 0) {
-      const products = buildDemoProducts();
-      const catalog = buildDemoCatalog(products);
-      const history = buildDemoHistory(products);
-      await db.products.bulkAdd(products);
-      await db.catalog.bulkPut(catalog);
-      await db.history.bulkAdd(history);
-      await setKv("seeded", true);
-    }
+    // Nota: ya no sembramos demo automáticamente.
+    // Los productos vienen de Supabase al loguearse.
+    // (Antes se sembraba demo si count === 0.)
 
     // Cargar catálogo de precios la primera vez (background, no bloquea)
     void (async () => {
@@ -738,18 +731,17 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
 
   resetAll: async () => {
     const db = getDb();
+    // 1) Borrar todo lo relacionado al usuario local
     await db.products.clear();
-    await db.catalog.clear();
     await db.history.clear();
-    await db.apiCache.clear();
-    const products = buildDemoProducts();
-    await db.products.bulkAdd(products);
-    await db.catalog.bulkPut(buildDemoCatalog(products));
-    await db.history.bulkAdd(buildDemoHistory(products));
-    await setKv("seeded", true);
+    await setKv("seeded", false);
     await saveSettings(DEFAULT_SETTINGS);
+    // NO borramos catalog (es compartido) ni apiCache (es caché)
+    // 2) Sincronizar: subir los cambios (los productos borrados localmente
+    //    se borran en Supabase porque ya no están en Dexie... pero eso
+    //    requiere un paso explícito de delete en Supabase).
     await get().refresh();
-    set({ demo: true, settings: DEFAULT_SETTINGS });
+    set({ demo: false, settings: DEFAULT_SETTINGS });
   },
 
   fireOpenAlerts: async () => {
