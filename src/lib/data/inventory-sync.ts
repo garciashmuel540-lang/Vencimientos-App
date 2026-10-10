@@ -54,14 +54,23 @@ export async function syncOnLogin(): Promise<SyncResult> {
   const lastUserIdRow = await db.kv.get("lastUserId");
   const lastUserId = (lastUserIdRow?.value as string | undefined) ?? null;
 
-  if (currentUserId && lastUserId && currentUserId !== lastUserId) {
-    // Cambió el usuario → limpiar SOLO los datos del usuario anterior
-    console.info(
-      `[inventory-sync] cambio de usuario detectado (${lastUserId} → ${currentUserId}). Limpiando datos locales.`,
-    );
-    await db.products.clear();
-    await db.history.clear();
-    result.errors.push("cleared_on_user_change");
+  // Limpiar si:
+  //  - Hay un usuario logueado Y
+  //  - (no había lastUserId guardado, O el usuario cambió)
+  const shouldClear =
+    currentUserId !== null &&
+    (lastUserId === null || currentUserId !== lastUserId);
+
+  if (shouldClear) {
+    const localCount = await db.products.count();
+    if (localCount > 0) {
+      console.info(
+        `[inventory-sync] limpieza por cambio/primera sesión (${lastUserId ?? "null"} → ${currentUserId}). ${localCount} productos locales borrados.`,
+      );
+      await db.products.clear();
+      await db.history.clear();
+      result.errors.push("cleared_on_user_change");
+    }
   }
 
   // Guardar el userId actual para la próxima
@@ -120,16 +129,11 @@ export async function syncOnLogin(): Promise<SyncResult> {
     }
   }
 
-  // 5) Detectar locales que NO están en Supabase (solo en local)
-  //    Si están pendingSync → subirlos. Si no → probablemente ya estaban.
-  for (const p of localProducts) {
-    if (!remoteById.has(p.id)) {
-      // No está en Supabase → marcar como pendiente y subir
-      if (!p.pendingSync) {
-        await db.products.update(p.id, { pendingSync: true });
-      }
-    }
-  }
+  // 5) NO marcamos automáticamente los locales como pendientes.
+  //    Solo se suben a Supabase los que tienen pendingSync=true explícito
+  //    (porque el usuario los agregó/editó/consumió en esta sesión).
+  //    Los locales huérfanos (sin pendingSync) se quedan solo en Dexie.
+  //    Si el usuario quiere subirlos, tendrá que editar algo o usar un botón.
 
   // 6) Subir pendientes
   const pushed = await flushPending();
