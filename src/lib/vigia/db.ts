@@ -33,6 +33,10 @@ export class VigiaDB extends Dexie {
     this.version(2).stores({
       promotions: "id, barcode, sourceFile, endDate, importedAt",
     });
+    this.version(3).stores({
+      promotions: "id, barcode, sourceFile, endDate, importedAt",
+      products: "id, barcode, name, category, location, expiresAt, updatedAt, pendingSync",
+    });
   }
 }
 

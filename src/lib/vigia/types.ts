@@ -39,6 +39,8 @@ export interface Product {
   price?: number;
   priceC?: number;
   subcategory?: string;
+  /** Marca interna: si true, este producto aún no está sincronizado con Supabase. */
+  pendingSync?: boolean;
 }
 
 export interface CatalogEntry {
