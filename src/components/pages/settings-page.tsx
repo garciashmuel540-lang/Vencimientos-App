@@ -349,6 +349,7 @@ export function SettingsPage() {
           </div>
         </Card>
 
+        {authUser?.isAdmin && (
         <Card className="p-4">
           <div className="flex items-center gap-2">
             <Package className="size-4 text-muted-foreground" />
@@ -396,7 +397,9 @@ export function SettingsPage() {
             </Button>
           </div>
         </Card>
+        )}
 
+        {authUser?.isAdmin && (
         <Card className="p-4">
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="size-4 text-muted-foreground" />
@@ -474,6 +477,7 @@ export function SettingsPage() {
             ) : null}
           </div>
         </Card>
+        )}
 
         <Card className="p-4">
           <div className="flex items-center gap-2">
