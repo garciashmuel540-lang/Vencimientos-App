@@ -93,7 +93,15 @@ export function LoginPage() {
             </p>
           ) : null}
 
-          <Button type="submit" size="lg" disabled={loading}>
+          <Button
+            type="button"
+            size="lg"
+            disabled={loading}
+            onClick={() => {
+              const fakeEvent = { preventDefault: () => {} } as FormEvent;
+              void handleSubmit(fakeEvent);
+            }}
+          >
             {loading ? (
               <>
                 <LoaderCircle className="size-4 animate-spin" />
