@@ -237,17 +237,17 @@ export function FoodServicePage() {
       <div className="px-4 pb-4">
         {/* Fecha */}
         <div className="flex items-center gap-2">
-          <Calendar className="size-4 text-muted-foreground" />
           <Input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="flex-1"
+            className="flex-1 h-10 rounded-xl"
           />
           <Button
             type="button"
             variant="outline"
             size="sm"
+            className="rounded-xl h-10"
             onClick={() => setDate(todayISO())}
           >
             Hoy
@@ -256,11 +256,12 @@ export function FoodServicePage() {
 
         {/* Filtro admin: Míos / Todos */}
         {isAdmin && (
-          <div className="mt-3 flex gap-2">
+          <div className="mt-4 flex gap-2">
             <Button
               type="button"
               variant={onlyMine ? "default" : "outline"}
               size="sm"
+              className="flex-1 rounded-xl h-10 transition-all duration-200"
               onClick={() => setOnlyMine(true)}
             >
               <User className="size-4" /> Míos
@@ -269,6 +270,7 @@ export function FoodServicePage() {
               type="button"
               variant={!onlyMine ? "default" : "outline"}
               size="sm"
+              className="flex-1 rounded-xl h-10 transition-all duration-200"
               onClick={() => setOnlyMine(false)}
             >
               <Users className="size-4" /> Todos
@@ -282,7 +284,7 @@ export function FoodServicePage() {
             type="button"
             variant="ghost"
             size="sm"
-            className="mt-3 -ml-2"
+            className="mt-4 -ml-2 rounded-xl transition-colors"
             onClick={() => setSelectedUserId(null)}
           >
             <ArrowLeft className="size-4" /> Volver a la lista
@@ -320,7 +322,7 @@ export function FoodServicePage() {
                 key={u.userId}
                 type="button"
                 onClick={() => setSelectedUserId(u.userId)}
-                className="flex items-center gap-3 rounded-xl border bg-card p-4 text-left hover:bg-muted/40 transition-colors"
+                className="group flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-all duration-200 hover:bg-muted/40 hover:border-primary/30 active:scale-[0.99]"
               >
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <User className="size-5 text-primary" />
@@ -346,7 +348,7 @@ export function FoodServicePage() {
                     )}
                   </p>
                 </div>
-                <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+                <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-primary" />
               </button>
             ))
           )}
@@ -358,9 +360,9 @@ export function FoodServicePage() {
         <>
           {showUserDetail && selectedEmail && (
             <div className="mb-3 px-4">
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary backdrop-blur-sm">
                 <User className="size-3.5" />
-                {selectedEmail}
+                <span className="max-w-[200px] truncate">{selectedEmail}</span>
               </div>
             </div>
           )}
@@ -386,16 +388,16 @@ export function FoodServicePage() {
                 return (
                   <div
                     key={cat}
-                    className="rounded-xl border bg-card overflow-hidden"
+                    className="rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-sm"
                   >
                     <button
                       type="button"
                       onClick={() => toggleCategory(cat)}
-                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-muted/40 transition-colors"
+                      className="w-full flex items-center gap-2 px-4 py-3.5 hover:bg-muted/40 transition-colors duration-200"
                     >
                       <ChevronDown
                         className={cn(
-                          "size-4 transition-transform text-muted-foreground",
+                          "size-4 transition-transform duration-200 text-muted-foreground",
                           !isOpen && "-rotate-90",
                         )}
                       />
