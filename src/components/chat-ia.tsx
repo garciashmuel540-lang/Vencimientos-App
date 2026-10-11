@@ -337,7 +337,122 @@ export function ChatIA() {
       return `📋 Encontré ${results.length} producto(s) en el catálogo:\n${lineas}`;
     }
 
-    // 7. FOOD SERVICE: guardar conteo
+    // 7. FOOD SERVICE: consultar último conteo de un producto
+    if (name === "consultarFS") {
+      const query = String(args.productName ?? args.name ?? "").trim();
+      if (!query) {
+        return "⚠️ Necesito el nombre del producto de Food Service.";
+      }
+      const q = query.toLowerCase();
+      const exact = FS_PRODUCTS.filter((p) => p.name.toLowerCase() === q);
+      const matches = exact.length > 0
+        ? exact
+        : FS_PRODUCTS.filter(
+            (p) =>
+              p.name.toLowerCase().includes(q) ||
+              p.code.toLowerCase().includes(q),
+          );
+
+      if (matches.length === 0) {
+        return `⚠️ No encontré "${query}" en el catálogo de Food Service.`;
+      }
+      if (matches.length > 1) {
+        const lista = matches
+          .slice(0, 5)
+          .map((p) => `**${p.name}**`)
+          .join(", ");
+        return `🤔 Encontré varios productos FS: ${lista}. Dime el nombre exacto.`;
+      }
+
+      const product = matches[0];
+      const productCounts = fsCounts
+        .filter((c) => c.product_code === product.code)
+        .sort((a, b) => (b.count_date ?? "").localeCompare(a.count_date ?? ""));
+
+      if (productCounts.length === 0) {
+        return `📋 No tengo conteos guardados de **${product.name}** todavía.`;
+      }
+
+      const last = productCounts[0];
+      const calc = calcFSItem(product, {
+        opened: last.opened,
+        sealed: last.sealed,
+        system_qty: last.system_qty,
+      });
+
+      return `📋 Último conteo de **${product.name}** (${last.count_date}):
+- Abiertos: ${last.opened ?? "-"} · Sellados: ${last.sealed ?? "-"} · Sistema: ${last.system_qty ?? "-"}
+- Producción: ${calc.production} · Inventario: ${calc.inventory}
+- Resultado: **${calc.label}**`;
+    }
+
+    // 8. FOOD SERVICE: listar conteos del día (o de una fecha)
+    if (name === "listarFS") {
+      const date = typeof args.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.date)
+        ? args.date
+        : todayISO();
+
+      const dayCounts = fsCounts.filter((c) => c.count_date === date);
+      if (dayCounts.length === 0) {
+        return `📋 No tengo conteos guardados del **${date}**.`;
+      }
+
+      const lines = dayCounts
+        .sort((a, b) => a.product_name.localeCompare(b.product_name))
+        .map((c) => {
+          const product = FS_PRODUCTS.find((p) => p.code === c.product_code);
+          if (!product) return `- ${c.product_name}: ${c.opened ?? "-"} / ${c.sealed ?? "-"} / ${c.system_qty ?? "-"}`;
+          const calc = calcFSItem(product, {
+            opened: c.opened,
+            sealed: c.sealed,
+            system_qty: c.system_qty,
+          });
+          return `- **${c.product_name}**: ${calc.label}`;
+        })
+        .join("\n");
+
+      return `📋 Conteos del ${date} (${dayCounts.length} productos):\n${lines}`;
+    }
+
+    // 9. FOOD SERVICE: comparar entre usuarios (solo admin)
+    if (name === "compararFS") {
+      const date = typeof args.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.date)
+        ? args.date
+        : todayISO();
+
+      const dayCounts = fsCounts.filter((c) => c.count_date === date);
+      if (dayCounts.length === 0) {
+        return `📋 No hay conteos del **${date}** para comparar.`;
+      }
+
+      const byProduct = new Map<string, FSCountRow[]>();
+      for (const c of dayCounts) {
+        const list = byProduct.get(c.product_code) ?? [];
+        list.push(c);
+        byProduct.set(c.product_code, list);
+      }
+
+      const lines: string[] = [];
+      lines.push(`📊 Comparativo de FS del ${date}:`);
+      for (const [code, counts] of byProduct) {
+        if (counts.length < 2) continue;
+        const product = FS_PRODUCTS.find((p) => p.code === code);
+        const productName = product ? product.name : code;
+        lines.push(`\n**${productName}**:`);
+        for (const c of counts) {
+          const calc = product
+            ? calcFSItem(product, { opened: c.opened, sealed: c.sealed, system_qty: c.system_qty })
+            : null;
+          lines.push(`- ${c.product_name}: ${calc ? calc.label : "sin datos"}`);
+        }
+      }
+      if (lines.length === 1) {
+        lines.push("(no hay productos con conteos de múltiples usuarios)");
+      }
+      return lines.join("\n");
+    }
+
+    // 10. FOOD SERVICE: guardar conteo
     if (name === "guardarFS") {
       const query = String(args.productName ?? args.name ?? "").trim();
       const opened = typeof args.opened === "number" ? args.opened : null;
