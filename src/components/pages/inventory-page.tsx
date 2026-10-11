@@ -119,61 +119,45 @@ export function InventoryPage() {
             aria-label="Buscar productos"
           />
         </div>
-        {isAdmin && ownersInInventory.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-            <button
-              type="button"
-              onClick={() => setOwnerFilter("all")}
-              className={
-                "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +
-                (ownerFilter === "all"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80")
-              }
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {isAdmin && ownersInInventory.length > 0 && (
+            <Select
+              value={ownerFilter}
+              onValueChange={(v) => setOwnerFilter(v)}
             >
-              <Users className="size-3.5" />
-              Todos
-            </button>
-            <button
-              type="button"
-              onClick={() => setOwnerFilter("mine")}
-              className={
-                "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +
-                (ownerFilter === "mine"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80")
-              }
-            >
-              <User className="size-3.5" />
-              Míos
-            </button>
-            {ownersInInventory
-              .filter((uid) => uid !== user?.id)
-              .map((uid) => {
-                const email = emails.get(uid) ?? "usuario";
-                const short = email.split("@")[0];
-                const active = ownerFilter === uid;
-                return (
-                  <button
-                    key={uid}
-                    type="button"
-                    onClick={() => setOwnerFilter(uid)}
-                    className={
-                      "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +
-                      (active
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80")
-                    }
-                  >
+              <SelectTrigger aria-label="Filtrar por dueño">
+                <SelectValue placeholder="Dueño" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  <span className="inline-flex items-center gap-2">
+                    <Users className="size-3.5" />
+                    Todos
+                  </span>
+                </SelectItem>
+                <SelectItem value="mine">
+                  <span className="inline-flex items-center gap-2">
                     <User className="size-3.5" />
-                    {short}
-                  </button>
-                );
-              })}
-          </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-2">
+                    Míos
+                  </span>
+                </SelectItem>
+                {ownersInInventory
+                  .filter((uid) => uid !== user?.id)
+                  .map((uid) => {
+                    const email = emails.get(uid) ?? "usuario";
+                    const short = email.split("@")[0];
+                    return (
+                      <SelectItem key={uid} value={uid}>
+                        <span className="inline-flex items-center gap-2">
+                          <User className="size-3.5" />
+                          {short}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
             <SelectTrigger aria-label="Estado">
               <SelectValue placeholder="Estado" />
