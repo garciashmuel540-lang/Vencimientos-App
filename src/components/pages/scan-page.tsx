@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
+import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Scanner } from "@/components/scanner";
 import { ProductForm, emptyDraft } from "@/components/product-form";
 import { lookupProduct } from "@/lib/vigia/lookup";
@@ -9,6 +10,7 @@ import type { ProductDraft } from "@/lib/vigia/store";
 import { isoDate, todayStart } from "@/lib/vigia/dates";
 
 export function ScanPage() {
+  const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const upsert = useVigiaStore((s) => s.upsertProduct);
   const [lookingUp, setLookingUp] = useState(false);
   const [foundFromApi, setFoundFromApi] = useState(false);
@@ -48,7 +50,7 @@ export function ScanPage() {
 
   return (
     <main>
-      <PageHeader
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Cámara"
         title="Escanear"
         description="Apunta al código o escríbelo. Luego solo falta la fecha de vencimiento."

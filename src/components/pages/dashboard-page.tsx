@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, PackageCheck, ScanBarcode, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { ProductCard } from "@/components/product-card";
 import { ProductSheet } from "@/components/product-sheet";
 import { Card } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 export function DashboardPage() {
   const products = useVigiaStore((s) => s.products);
   const settings = useVigiaStore((s) => s.settings);
+  const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const demo = useVigiaStore((s) => s.demo);
   const soonWithin = Math.max(...settings.days, 30);
   const [selected, setSelected] = useState<Product | null>(null);
@@ -55,7 +57,7 @@ export function DashboardPage() {
 
   return (
     <main>
-      <PageHeader
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow={settings.storeName}
         title="Vigía"
         description={headline}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pencil, Plus, RefreshCw, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
+import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Scanner } from "@/components/scanner";
 import { ProductForm, emptyDraft } from "@/components/product-form";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ function fmtPrice(n?: number): string {
 }
 
 export function PriceCheckPage() {
+  const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const products = useVigiaStore((s) => s.products);
   const upsert = useVigiaStore((s) => s.upsertProduct);
 
@@ -106,7 +108,7 @@ export function PriceCheckPage() {
 
   return (
     <main>
-      <PageHeader
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Cámara"
         title="Precios"
         description="Escanea un código para ver la información y el precio."

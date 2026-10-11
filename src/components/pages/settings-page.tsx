@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Bell, FileSpreadsheet, LogOut, Mail, Moon, Package, RotateCcw, Smartphone, Sun, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
+import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ const DAY_OPTIONS = [60, 30, 15, 7, 3, 1];
 
 export function SettingsPage() {
   const settings = useVigiaStore((s) => s.settings);
+  const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const update = useVigiaStore((s) => s.updateSettings);
   const products = useVigiaStore((s) => s.products);
   const clearDemo = useVigiaStore((s) => s.clearDemo);
@@ -220,7 +222,7 @@ export function SettingsPage() {
 
   return (
     <main>
-      <PageHeader
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Preferencias"
         title="Ajustes"
         description="Alertas, apariencia y datos de esta tienda."

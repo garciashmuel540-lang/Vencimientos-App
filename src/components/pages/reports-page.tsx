@@ -3,6 +3,7 @@ import { Download, Printer, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { PageHeader } from "@/components/page-header";
+import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -29,6 +30,7 @@ export function ReportsPage() {
   const products = useVigiaStore((s) => s.products);
   const history = useVigiaStore((s) => s.history);
   const settings = useVigiaStore((s) => s.settings);
+  const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const soonWithin = Math.max(...settings.days, 30);
   const { user, isAdmin } = useSupabaseAuth();
   const { emails } = useUserEmails();
@@ -58,7 +60,7 @@ export function ReportsPage() {
 
   return (
     <main>
-      <PageHeader
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Papelería"
         title="Reportes"
         description="Exporta, imprime o envía el resumen del día."

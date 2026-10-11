@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Search, User, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { ProductCard } from "@/components/product-card";
 import { ProductSheet } from "@/components/product-sheet";
 import { ProductForm, emptyDraft } from "@/components/product-form";
@@ -38,6 +39,7 @@ import { toast } from "sonner";
 export function InventoryPage() {
   const products = useVigiaStore((s) => s.products);
   const settings = useVigiaStore((s) => s.settings);
+  const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const upsert = useVigiaStore((s) => s.upsertProduct);
   const soonWithin = Math.max(...settings.days, 30);
   const { user, isAdmin } = useSupabaseAuth();
@@ -97,7 +99,7 @@ export function InventoryPage() {
 
   return (
     <main>
-      <PageHeader
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Catálogo"
         title="Inventario"
         description={`${filtered.length} de ${products.length} productos`}

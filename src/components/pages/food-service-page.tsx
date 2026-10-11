@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, Search, ChevronDown, Users, User } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
+import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ import { FSItemCard } from "@/components/food-service/fs-item-card";
 
 export function FoodServicePage() {
   const { user, isAdmin } = useSupabaseAuth();
+  const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const [date, setDate] = useState<string>(todayISO());
   const [rows, setRows] = useState<FSCountRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,7 +156,7 @@ export function FoodServicePage() {
 
   return (
     <main className="pb-24">
-      <PageHeader
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Conteo diario"
         title="Food Service"
         description={

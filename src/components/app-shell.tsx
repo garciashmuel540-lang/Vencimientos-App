@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Menu, ScanBarcode } from "lucide-react";
+import { ScanBarcode } from "lucide-react";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Onboarding } from "@/components/onboarding";
@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { Splash } from "@/components/splash";
 import { ChatIA } from "@/components/chat-ia";
 import { useVigiaStore } from "@/lib/vigia/store";
+import { useSidebarStore } from "@/lib/vigia/sidebar";
 
 const TOUR_KEY = "vigia-tour-done";
 const SPLASH_MIN_MS = 1400;
@@ -16,10 +17,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hydrate = useVigiaStore((s) => s.hydrate);
   const ready = useVigiaStore((s) => s.ready);
   const fireOpenAlerts = useVigiaStore((s) => s.fireOpenAlerts);
+  const sidebarOpen = useSidebarStore((s) => s.open);
+  const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isLoginPage = pathname === "/login";
   const [tour, setTour] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [splash, setSplash] = useState(true);
   const [minTimeDone, setMinTimeDone] = useState(false);
 
@@ -56,16 +58,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col pb-24">
           {children}
         </div>
-
-        {/* Botón hamburguesa flotante (arriba izquierda) */}
-        <button
-          type="button"
-          onClick={() => setSidebarOpen(true)}
-          className="no-print fixed left-4 top-4 z-30 flex size-11 items-center justify-center rounded-full bg-card/95 text-foreground shadow-md backdrop-blur transition-all hover:bg-card active:scale-95"
-          aria-label="Abrir menú"
-        >
-          <Menu className="size-5" />
-        </button>
 
         {/* FAB: Escanear (abajo derecha) */}
         <Link
