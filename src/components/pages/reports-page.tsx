@@ -11,6 +11,9 @@ import { downloadCsv } from "@/lib/vigia/export";
 import { buildDailySummary } from "@/lib/vigia/notifications";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { CATEGORY_LABEL, HistoryEntry } from "@/lib/vigia/types";
+import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
+import { useUserEmails } from "@/lib/auth/use-user-emails";
+import { User } from "lucide-react";
 import { toast } from "sonner";
 
 const ACTION_LABEL: Record<HistoryEntry["action"], string> = {
@@ -27,6 +30,8 @@ export function ReportsPage() {
   const history = useVigiaStore((s) => s.history);
   const settings = useVigiaStore((s) => s.settings);
   const soonWithin = Math.max(...settings.days, 30);
+  const { user, isAdmin } = useSupabaseAuth();
+  const { emails } = useUserEmails();
 
   const soon = useMemo(
     () =>
@@ -100,20 +105,38 @@ export function ReportsPage() {
             <p className="text-sm text-muted-foreground">No hay lotes urgentes.</p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {soon.map((p) => (
-                <li key={p.id} className="flex items-start justify-between gap-3 text-sm">
-                  <div>
-                    <p className="font-medium">{p.name}</p>
-                    <p className="text-muted-foreground">
-                      {p.brand} · {CATEGORY_LABEL[p.category]} · {p.quantity} u.
-                    </p>
-                  </div>
-                  <div className="text-right tabular">
-                    <p>{formatDate(p.expiresAt)}</p>
-                    <p className="text-xs text-muted-foreground">{daysLabel(p.expiresAt)}</p>
-                  </div>
-                </li>
-              ))}
+              {soon.map((p) => {
+                const showOwner =
+                  isAdmin && p.userId && user?.id && p.userId !== user.id;
+                const ownerEmail = p.userId ? emails.get(p.userId) : null;
+                return (
+                  <li
+                    key={p.id}
+                    className="flex items-start justify-between gap-3 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium">{p.name}</p>
+                      <p className="text-muted-foreground">
+                        {p.brand} · {CATEGORY_LABEL[p.category]} · {p.quantity} u.
+                      </p>
+                      {showOwner && (
+                        <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          <User className="size-2.5" />
+                          <span className="truncate max-w-[140px]">
+                            {ownerEmail ?? "otro usuario"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right tabular shrink-0">
+                      <p>{formatDate(p.expiresAt)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {daysLabel(p.expiresAt)}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>
