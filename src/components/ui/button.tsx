@@ -8,22 +8,22 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-sm hover:opacity-90",
+        default: "bg-primary text-primary-foreground shadow-sm hover:opacity-95",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-muted",
         outline:
           "border border-border bg-card text-foreground hover:bg-muted",
         ghost: "hover:bg-muted text-foreground",
         destructive:
-          "bg-destructive text-destructive-foreground hover:opacity-90",
+          "bg-destructive text-destructive-foreground hover:opacity-95",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default: "h-11 px-4",
-        sm: "h-9 rounded-sm px-3 text-xs",
-        lg: "h-12 rounded-lg px-5 text-base",
+        sm: "h-9 rounded-lg px-3 text-xs",
+        lg: "h-12 rounded-xl px-5 text-base",
         icon: "size-11",
-        xl: "h-14 rounded-lg px-6 text-base",
+        xl: "h-14 rounded-2xl px-6 text-base",
       },
     },
     defaultVariants: {
