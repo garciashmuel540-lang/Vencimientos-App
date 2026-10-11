@@ -56,12 +56,24 @@ export interface ChatContext {
   question: string;
   focusedProduct?: ChatProduct & { brand?: string };
   catalogMatches?: CatalogMatch[];
-  /** Catálogo completo de Food Service */
   fsProducts?: FSProductChat[];
-  /** Conteos de FS del usuario (últimos 30 días o los que se hayan cargado) */
   fsCounts?: FSCountChat[];
-  /** Si el usuario actual es admin (para ver consolidados) */
   fsIsAdmin?: boolean;
+  // ============ CONTEXTO AMPLIADO ============
+  /** Historial de acciones recientes */
+  actionHistory?: ChatHistoryEntry[];
+  /** Promociones activas */
+  activePromos?: ChatPromo[];
+  /** Usuarios (solo visible para admin) */
+  users?: ChatUser[];
+  /** Estadísticas del inventario */
+  stats?: ChatStats;
+  /** Configuración de la tienda */
+  settings?: ChatSettings;
+  /** Fecha/hora actual completa */
+  nowISO?: string;
+  /** Día de la semana en español */
+  dayOfWeek?: string;
 }
 
 export type ChatChunk =
@@ -111,4 +123,44 @@ export function buildConfirmationLabel(
     return `Guardar conteo de ${pname}`;
   }
   return `Ejecutar ${name}`;
+}
+
+// ============================================
+// CONTEXTO AMPLIADO PARA IA MÁS INTELIGENTE
+// ============================================
+
+export interface ChatHistoryEntry {
+  action: string;
+  name: string;
+  barcode?: string;
+  at: string;
+  snapshot?: string;
+}
+
+export interface ChatPromo {
+  barcode: string;
+  name: string;
+  priceBefore: number;
+  priceNow: number;
+  endDate?: string;
+}
+
+export interface ChatUser {
+  email: string;
+  role: string;
+}
+
+export interface ChatStats {
+  totalProducts: number;
+  totalUnits: number;
+  expired: number;
+  soon: number;
+  ok: number;
+  totalValue?: number;
+  byCategory?: Record<string, number>;
+}
+
+export interface ChatSettings {
+  storeName: string;
+  days: number[];
 }

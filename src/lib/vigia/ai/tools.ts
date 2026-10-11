@@ -139,6 +139,146 @@ export const INTERNAL_TOOLS: InternalTool[] = [
       required: ["productName", "opened", "sealed", "system"],
     },
   },
+  // ============ TOOLS NUEVAS PARA IA MÁS INTELIGENTE ============
+  {
+    name: "listarProductos",
+    description:
+      "Lista productos del inventario con filtros opcionales. Úsalo para responder '¿qué tengo?', 'muéstrame los vencidos', 'qué hay en la nevera', etc.",
+    parameters: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          description: "Filtro de estado: ok, soon, expired, all",
+        },
+        category: {
+          type: "string",
+          description: "Filtro de categoría (bebida, lacteo, snack, etc.)",
+        },
+        location: {
+          type: "string",
+          description: "Filtro de ubicación (estante, nevera, congelador, bodega, mostrador)",
+        },
+        search: {
+          type: "string",
+          description: "Búsqueda por nombre, marca o código",
+        },
+        limit: {
+          type: "number",
+          description: "Máximo de productos a mostrar (por defecto 20)",
+        },
+      },
+    },
+  },
+  {
+    name: "contarProductos",
+    description:
+      "Cuenta productos según filtros. Úsalo para '¿cuántos vencidos tengo?', 'cuántas bebidas hay', 'cuántas unidades en total'.",
+    parameters: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          description: "Filtro de estado: ok, soon, expired, all",
+        },
+        category: {
+          type: "string",
+          description: "Filtro de categoría",
+        },
+        location: {
+          type: "string",
+          description: "Filtro de ubicación",
+        },
+        countUnits: {
+          type: "boolean",
+          description: "Si true, cuenta unidades totales; si false, cuenta productos",
+        },
+      },
+    },
+  },
+  {
+    name: "estadisticas",
+    description:
+      "Devuelve estadísticas generales del inventario: totales, promedios, valor estimado. Úsalo para 'dame un resumen', 'cómo está el inventario', 'cuánto vale todo'.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "buscarProducto",
+    description:
+      "Busca un producto por nombre en el inventario local (no en catálogo). Devuelve detalles completos. Úsalo para 'dónde está X', 'cuántos X tengo'.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Nombre o parte del nombre",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "verPromociones",
+    description:
+      "Muestra promociones activas de un producto o de todas. Úsalo para 'qué promos hay', 'está en promo la Coca-Cola', 'cuándo vence la promo'.",
+    parameters: {
+      type: "object",
+      properties: {
+        barcode: {
+          type: "string",
+          description: "Código del producto (opcional)",
+        },
+        query: {
+          type: "string",
+          description: "Buscar por nombre (opcional)",
+        },
+      },
+    },
+  },
+  {
+    name: "listarUsuarios",
+    description:
+      "Lista los usuarios del sistema con sus roles y cuántos productos tienen. Solo admin. Úsalo para 'quiénes son', 'cuántos usuarios hay'.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "verHistorial",
+    description:
+      "Muestra las últimas acciones registradas (agregados, borrados, consumidos). Úsalo para 'qué he hecho hoy', 'últimas acciones', 'historial'.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Cantidad máxima de entradas (por defecto 10)",
+        },
+        action: {
+          type: "string",
+          description: "Filtro por tipo de acción: created, consumed, removed, updated, expired",
+        },
+      },
+    },
+  },
+  {
+    name: "calcularFaltantes",
+    description:
+      "Calcula qué productos están por agotarse o necesitan compra. Úsalo para 'qué debo comprar', 'qué falta', 'qué está bajo'.",
+    parameters: {
+      type: "object",
+      properties: {
+        threshold: {
+          type: "number",
+          description: "Cantidad mínima por producto (por defecto 3)",
+        },
+      },
+    },
+  },
   {
     name: "compararFS",
     description:
@@ -206,4 +346,21 @@ REGLAS DE PRECIOS (MUY IMPORTANTE):
 - Cuando el usuario pregunte "¿cuánto cuesta X?" o "precio de X", responde con el PRECIO CON IVA (priceC) como principal.
 - Si te piden "precio sin IVA", "precio base", "precio neto", usa "price".
 - Si te piden "precio C" o "mayoreo", usa "priceC".
-- Formato sugerido: "Producto: C$ XX.XX con IVA" (y si ayuda, agregar "C$ YY.YY sin IVA" entre paréntesis).`;
+- Formato sugerido: "Producto: C$ XX.XX con IVA" (y si ayuda, agregar "C$ YY.YY sin IVA" entre paréntesis).
+
+CAPACIDADES TOTALES (eres omnipotente en esta app):
+- Puedes consultar TODO: inventario, FS, catálogo, promos, usuarios, historial, estadísticas.
+- Puedes calcular cualquier cosa: totales, promedios, tendencias, proyecciones.
+- Puedes ejecutar acciones: agregar, borrar, consumir, actualizar, guardar FS.
+- Puedes dar recomendaciones basadas en los datos.
+- Si te falta información, pregunta o usa las herramientas disponibles.
+- NUNCA digas "no puedo" si hay una herramienta disponible. Úsala.
+- Si te piden algo que no tiene tool, sugiere cómo hacerlo con las tools existentes.
+- Piensa paso a paso antes de responder preguntas complejas.
+- Para acciones destructivas (borrar todo, cambiar precios masivos), pide confirmación.
+
+CONSEJOS:
+- Antes de responder, revisa si tienes datos suficientes.
+- Si la pregunta es compleja, descompónla en pasos.
+- Si algo no cuadra, avisa al usuario.
+- Sé breve pero completo.`;
