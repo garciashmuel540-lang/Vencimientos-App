@@ -34,14 +34,21 @@ function buildUserMessage(ctx: ChatContext): string {
   }${
     ctx.catalogMatches && ctx.catalogMatches.length > 0
       ? `\n\n--- CATÁLOGO (coincidencias) ---\n${ctx.catalogMatches
-          .map(
-            (c) =>
-              `- ${c.name}${c.brand ? ` | ${c.brand}` : ""} | ${
-                typeof c.price === "number"
-                  ? `C$ ${c.price.toFixed(2)}`
-                  : "sin precio"
-              }`,
-          )
+          .map((c) => {
+            const conIva =
+              typeof c.priceC === "number"
+                ? `C$ ${c.priceC.toFixed(2)} con IVA`
+                : null;
+            const sinIva =
+              typeof c.price === "number"
+                ? `C$ ${c.price.toFixed(2)} sin IVA`
+                : null;
+            const priceTxt =
+              conIva && sinIva
+                ? `${conIva} / ${sinIva}`
+                : conIva ?? sinIva ?? "sin precio";
+            return `- ${c.name}${c.brand ? ` | ${c.brand}` : ""} | ${priceTxt}`;
+          })
           .join("\n")}`
       : ""
   }`;

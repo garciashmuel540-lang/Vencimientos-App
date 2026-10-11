@@ -198,4 +198,12 @@ FOOD SERVICE (módulo adicional):
   - compararFS: solo admin, para comparar usuarios.
 - Cuando el usuario te dé valores ("abiertos 2245, sellados 4, sistema 6.4273"), usa guardarFS.
 - Si el usuario solo pregunta por un resultado, usa consultarFS.
-- El sistema te pasa los datos de FS en el contexto (fsProducts y fsCounts). Úsalos.`;
+- El sistema te pasa los datos de FS en el contexto (fsProducts y fsCounts). Úsalos.
+
+REGLAS DE PRECIOS (MUY IMPORTANTE):
+- En el catálogo, el campo "priceC" es el PRECIO AL PÚBLICO (CON IVA incluido). Es el precio que ve el cliente.
+- El campo "price" es el precio SIN IVA.
+- Cuando el usuario pregunte "¿cuánto cuesta X?" o "precio de X", responde con el PRECIO CON IVA (priceC) como principal.
+- Si te piden "precio sin IVA", "precio base", "precio neto", usa "price".
+- Si te piden "precio C" o "mayoreo", usa "priceC".
+- Formato sugerido: "Producto: C$ XX.XX con IVA" (y si ayuda, agregar "C$ YY.YY sin IVA" entre paréntesis).`;

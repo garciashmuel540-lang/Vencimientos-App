@@ -362,12 +362,25 @@ export function ChatIA() {
       const lineas = results
         .slice(0, 8)
         .map((r) => {
-          const priceTxt =
+          // priceC es el precio CON IVA (al público). price es SIN IVA.
+          const conIva =
+            typeof r.priceC === "number"
+              ? `C$ ${r.priceC.toFixed(2)}`
+              : null;
+          const sinIva =
             typeof r.price === "number"
               ? `C$ ${r.price.toFixed(2)}`
-              : r.priceC
-                ? `C$ ${r.priceC.toFixed(2)} (mayoreo)`
-                : "sin precio";
+              : null;
+          let priceTxt: string;
+          if (conIva && sinIva) {
+            priceTxt = `${conIva} con IVA (${sinIva} sin IVA)`;
+          } else if (conIva) {
+            priceTxt = `${conIva} con IVA`;
+          } else if (sinIva) {
+            priceTxt = `${sinIva} sin IVA`;
+          } else {
+            priceTxt = "sin precio";
+          }
           return `- **${r.name}**${r.brand ? ` (${r.brand})` : ""}: ${priceTxt}`;
         })
         .join("\n");
