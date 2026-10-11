@@ -112,7 +112,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
     const next = [...parciales, n];
     setParciales(next);
     setParcialInput("");
-    setAddingParcial(false);
+    // NO cerramos el input: el usuario puede seguir agregando
     const suma = next.reduce((a, b) => a + b, 0);
     setOpened(String(suma));
     scheduleSave();
@@ -231,7 +231,22 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
 
               {/* Sumadora de parciales */}
               {parciales.length > 0 && (
-                <div className="mt-2 rounded-lg bg-background/60 p-2">
+                <div className="mt-2 rounded-lg bg-background/60 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Parciales ({parciales.length})
+                    </p>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setAddingParcial((v) => !v)}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                      >
+                        <Plus className="size-3" />
+                        {addingParcial ? "Cerrar" : "Añadir"}
+                      </button>
+                    )}
+                  </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {parciales.map((p, i) => (
                       <button
@@ -239,7 +254,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                         type="button"
                         onClick={() => !readOnly && removeParcial(i)}
                         disabled={readOnly}
-                        className="group inline-flex items-center gap-1 rounded-full bg-card px-2 py-1 text-xs font-medium tabular transition-colors hover:bg-bad-soft disabled:cursor-default"
+                        className="group inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-xs font-medium tabular transition-colors hover:bg-bad-soft disabled:cursor-default"
                         title={readOnly ? "" : "Toca para quitar"}
                       >
                         {formatFSNumber(p)}
@@ -248,8 +263,15 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                         )}
                       </button>
                     ))}
-                    <span className="ml-1 text-xs font-medium text-muted-foreground">
-                      = {formatFSNumber(sumaParciales)}
+                  </div>
+
+                  {/* Total destacado */}
+                  <div className="mt-3 flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2">
+                    <span className="text-xs font-medium text-primary">
+                      Total
+                    </span>
+                    <span className="text-base font-semibold tabular text-primary">
+                      {formatFSNumber(sumaParciales)}
                     </span>
                   </div>
                 </div>
