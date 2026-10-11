@@ -24,10 +24,51 @@ function convertToolsToGroq(tools: InternalTool[]) {
   }));
 }
 
+function buildExtraContext(ctx: ChatContext): string {
+  const lines: string[] = [];
+  if (ctx.dayOfWeek || ctx.nowISO) {
+    lines.push("");
+    lines.push("--- CONTEXTO TEMPORAL ---");
+    if (ctx.dayOfWeek) lines.push(`Día: ${ctx.dayOfWeek}`);
+    if (ctx.nowISO) lines.push(`Fecha/hora: ${ctx.nowISO}`);
+  }
+  if (ctx.stats) {
+    lines.push("");
+    lines.push("--- ESTADÍSTICAS ---");
+    lines.push(`Total productos: ${ctx.stats.totalProducts}`);
+    lines.push(`Total unidades: ${ctx.stats.totalUnits}`);
+    lines.push(`Vigentes: ${ctx.stats.ok}`);
+    lines.push(`Por vencer: ${ctx.stats.soon}`);
+    lines.push(`Vencidos: ${ctx.stats.expired}`);
+  }
+  if (ctx.actionHistory && ctx.actionHistory.length > 0) {
+    lines.push("");
+    lines.push("--- ÚLTIMAS ACCIONES ---");
+    for (const h of ctx.actionHistory.slice(0, 10)) {
+      lines.push(`- [${h.action}] ${h.name} (${h.at.slice(0, 16)})`);
+    }
+  }
+  if (ctx.settings) {
+    lines.push("");
+    lines.push("--- CONFIGURACIÓN ---");
+    lines.push(`Nombre tienda: ${ctx.settings.storeName}`);
+    lines.push(`Días de alerta: ${ctx.settings.days.join(", ")}`);
+  }
+  if (ctx.users && ctx.users.length > 0) {
+    lines.push("");
+    lines.push("--- USUARIOS ---");
+    for (const u of ctx.users) {
+      lines.push(`- ${u.email} (${u.role})`);
+    }
+  }
+  return lines.join("\n");
+}
+
 function buildUserMessage(ctx: ChatContext): string {
   const inventory = buildInventorySummary(ctx);
   const fsBlock = buildFSSummary(ctx);
-  return `${ctx.question}\n\n--- INVENTARIO ---\n${inventory}${fsBlock}${
+  const extra = buildExtraContext(ctx);
+  return `${ctx.question}\n\n--- INVENTARIO ---\n${inventory}${fsBlock}${extra}${
     ctx.focusedProduct
       ? `\n\n--- PRODUCTO ENFOCADO ---\nNombre: ${ctx.focusedProduct.name}\nCantidad: ${ctx.focusedProduct.quantity}\nVence: ${ctx.focusedProduct.expiresAt}\nEstado: ${ctx.focusedProduct.status}`
       : ""

@@ -122,6 +122,38 @@ function buildFSSummary(ctx: ChatContext): string {
   return lines.join("\n");
 }
 
+function buildExtraContextGemini(ctx: ChatContext): string {
+  const lines: string[] = [];
+  if (ctx.dayOfWeek || ctx.nowISO) {
+    lines.push("");
+    lines.push("--- CONTEXTO TEMPORAL ---");
+    if (ctx.dayOfWeek) lines.push(`Día: ${ctx.dayOfWeek}`);
+    if (ctx.nowISO) lines.push(`Fecha/hora: ${ctx.nowISO}`);
+  }
+  if (ctx.stats) {
+    lines.push("");
+    lines.push("--- ESTADÍSTICAS ---");
+    lines.push(`Total productos: ${ctx.stats.totalProducts}`);
+    lines.push(`Total unidades: ${ctx.stats.totalUnits}`);
+    lines.push(`Vigentes: ${ctx.stats.ok}`);
+    lines.push(`Por vencer: ${ctx.stats.soon}`);
+    lines.push(`Vencidos: ${ctx.stats.expired}`);
+  }
+  if (ctx.actionHistory && ctx.actionHistory.length > 0) {
+    lines.push("");
+    lines.push("--- ÚLTIMAS ACCIONES ---");
+    for (const h of ctx.actionHistory.slice(0, 10)) {
+      lines.push(`- [${h.action}] ${h.name} (${h.at.slice(0, 16)})`);
+    }
+  }
+  if (ctx.settings) {
+    lines.push("");
+    lines.push("--- CONFIGURACIÓN ---");
+    lines.push(`Nombre tienda: ${ctx.settings.storeName}`);
+  }
+  return lines.join("\n");
+}
+
 export async function* llamarGemini(
   ctx: ChatContext,
 ): AsyncGenerator<ChatChunk> {
@@ -133,6 +165,7 @@ export async function* llamarGemini(
   const ai = new GoogleGenAI({ apiKey });
   const inventory = buildInventorySummary(ctx);
   const fsBlock = buildFSSummary(ctx);
+  const extraBlock = buildExtraContextGemini(ctx);
 
   const contents = [
     ...ctx.history.map((m) => ({
