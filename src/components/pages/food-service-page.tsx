@@ -1,9 +1,10 @@
 /**
  * Pantalla principal de Food Service.
- * Muestra el conteo del día por categoría, con cards expandibles.
+ * - Modo "Míos": edita tus propios conteos.
+ * - Modo "Todos" (admin): lista de usuarios, y al tocar uno se ven sus conteos (solo lectura).
  */
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Search, ChevronDown, Users, User } from "lucide-react";
+import { Calendar, Search, ChevronDown, Users, User, ArrowLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
+import { useUserEmails } from "@/lib/auth/use-user-emails";
 import {
   FS_PRODUCTS,
   FS_CATEGORY_LABEL,
@@ -25,11 +27,14 @@ import {
   type FSCountRow,
   type FSCountInput,
 } from "@/lib/data/food-service-supabase";
+import { calcFSItem } from "@/lib/vigia/food-service-calc";
 import { FSItemCard } from "@/components/food-service/fs-item-card";
 
 export function FoodServicePage() {
   const { user, isAdmin } = useSupabaseAuth();
   const setSidebarOpen = useSidebarStore((s) => s.setOpen);
+  const { emails } = useUserEmails();
+
   const [date, setDate] = useState<string>(todayISO());
   const [rows, setRows] = useState<FSCountRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +43,7 @@ export function FoodServicePage() {
     () => new Set(["cafe"]),
   );
   const [onlyMine, setOnlyMine] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Cargar conteos de la fecha seleccionada
   useEffect(() => {
@@ -59,19 +65,69 @@ export function FoodServicePage() {
     };
   }, [date]);
 
-  // Índice por product_code (para búsqueda rápida)
+  // Al cambiar de modo, resetear el usuario seleccionado
+  useEffect(() => {
+    setSelectedUserId(null);
+  }, [onlyMine, date]);
+
+  // Filtrar filas según el modo
+  const visibleRows = useMemo(() => {
+    if (onlyMine) {
+      return rows.filter((r) => r.user_id === user?.id);
+    }
+    if (selectedUserId) {
+      return rows.filter((r) => r.user_id === selectedUserId);
+    }
+    return rows;
+  }, [rows, onlyMine, user?.id, selectedUserId]);
+
+  // Índice por product_code
   const rowsByCode = useMemo(() => {
     const map = new Map<string, FSCountRow>();
-    for (const r of rows) {
-      // Si es admin y hay varios usuarios, quedarse con el primero del propio
-      // (por ahora tomamos el más reciente)
+    for (const r of visibleRows) {
       const existing = map.get(r.product_code);
       if (!existing || r.updated_at > existing.updated_at) {
         map.set(r.product_code, r);
       }
     }
     return map;
-  }, [rows]);
+  }, [visibleRows]);
+
+  // Agrupar por usuario (para modo "Todos")
+  const usersWithCounts = useMemo(() => {
+    const map = new Map<string, FSCountRow[]>();
+    for (const r of rows) {
+      const arr = map.get(r.user_id) ?? [];
+      arr.push(r);
+      map.set(r.user_id, arr);
+    }
+    const list: {
+      userId: string;
+      email: string;
+      count: number;
+      diffs: number;
+    }[] = [];
+    for (const [uid, list2] of map.entries()) {
+      let diffs = 0;
+      for (const c of list2) {
+        const product = FS_PRODUCTS.find((p) => p.code === c.product_code);
+        if (!product) continue;
+        const calc = calcFSItem(product, {
+          opened: c.opened,
+          sealed: c.sealed,
+          system_qty: c.system_qty,
+        });
+        if (calc.status !== "ok" && calc.status !== "incompleto") diffs++;
+      }
+      list.push({
+        userId: uid,
+        email: emails.get(uid) ?? uid,
+        count: list2.length,
+        diffs,
+      });
+    }
+    return list.sort((a, b) => a.email.localeCompare(b.email));
+  }, [rows, emails]);
 
   // Filtrar productos por búsqueda
   const filteredProducts = useMemo(() => {
@@ -111,9 +167,11 @@ export function FoodServicePage() {
           next[idx] = saved;
           return next;
         }
-        // Si no estaba, y es de otro código con la misma fecha, reemplazar
         const otherIdx = prev.findIndex(
-          (r) => r.product_code === saved.product_code && r.count_date === saved.count_date,
+          (r) =>
+            r.product_code === saved.product_code &&
+            r.count_date === saved.count_date &&
+            r.user_id === saved.user_id,
         );
         if (otherIdx >= 0) {
           const next = [...prev];
@@ -151,18 +209,28 @@ export function FoodServicePage() {
     });
   };
 
-  // Contar cuántos productos tienen datos hoy
-  const filledCount = rows.filter((r) => r.count_date === date).length;
+  const filledCount = visibleRows.filter((r) => r.count_date === date).length;
+  const selectedEmail = selectedUserId
+    ? emails.get(selectedUserId) ?? selectedUserId
+    : null;
+
+  // ========== MODO "TODOS" SIN USUARIO SELECCIONADO ==========
+  const showUsersList = isAdmin && !onlyMine && !selectedUserId;
+  // ========== MODO DETALLE DE UN USUARIO ==========
+  const showUserDetail = isAdmin && !onlyMine && Boolean(selectedUserId);
 
   return (
     <main className="pb-24">
-      <PageHeader onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader
+        onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Conteo diario"
         title="Food Service"
         description={
-          filledCount > 0
-            ? `${filledCount} producto${filledCount === 1 ? "" : "s"} con datos`
-            : "Ingresa los gramos abiertos, sellados y sistema"
+          showUsersList
+            ? `${usersWithCounts.length} usuario${usersWithCounts.length === 1 ? "" : "s"} con conteos`
+            : filledCount > 0
+              ? `${filledCount} producto${filledCount === 1 ? "" : "s"} con datos`
+              : "Ingresa los gramos abiertos, sellados y sistema"
         }
       />
 
@@ -186,7 +254,7 @@ export function FoodServicePage() {
           </Button>
         </div>
 
-        {/* Filtro admin */}
+        {/* Filtro admin: Míos / Todos */}
         {isAdmin && (
           <div className="mt-3 flex gap-2">
             <Button
@@ -208,75 +276,159 @@ export function FoodServicePage() {
           </div>
         )}
 
-        {/* Buscador */}
-        <div className="mt-3 relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar producto..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </div>
+        {/* Si estamos en detalle de usuario: botón volver */}
+        {showUserDetail && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-3 -ml-2"
+            onClick={() => setSelectedUserId(null)}
+          >
+            <ArrowLeft className="size-4" /> Volver a la lista
+          </Button>
+        )}
 
-      {/* Lista por categoría */}
-      <div className="flex flex-col gap-2 px-4">
-        {loading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Cargando...
-          </p>
-        ) : filteredProducts.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            No hay productos que coincidan.
-          </p>
-        ) : (
-          (Object.keys(grouped) as FSCategory[]).map((cat) => {
-            const items = grouped[cat];
-            if (items.length === 0) return null;
-            const isOpen = expandedCats.has(cat);
-            const catFilled = items.filter((p) => rowsByCode.has(p.code)).length;
-
-            return (
-              <div key={cat} className="rounded-xl border bg-card overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(cat)}
-                  className="w-full flex items-center gap-2 px-4 py-3 hover:bg-muted/40 transition-colors"
-                >
-                  <ChevronDown
-                    className={cn(
-                      "size-4 transition-transform text-muted-foreground",
-                      !isOpen && "-rotate-90",
-                    )}
-                  />
-                  <h2 className="flex-1 text-left font-medium">
-                    {FS_CATEGORY_LABEL[cat]}
-                  </h2>
-                  <span className="text-xs text-muted-foreground">
-                    {catFilled}/{items.length}
-                  </span>
-                </button>
-
-                {isOpen && (
-                  <div className="flex flex-col gap-2 border-t bg-muted/20 p-3">
-                    {items.map((product) => (
-                      <FSItemCard
-                        key={product.code}
-                        product={product}
-                        existing={rowsByCode.get(product.code) ?? null}
-                        date={date}
-                        onSave={handleSave}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
+        {/* Si estamos en "Míos" o "detalle de un usuario": mostrar buscador */}
+        {!showUsersList && (
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar producto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         )}
       </div>
+
+      {/* ========== LISTA DE USUARIOS (modo "Todos" sin selección) ========== */}
+      {showUsersList && (
+        <div className="flex flex-col gap-2 px-4">
+          {loading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Cargando...
+            </p>
+          ) : usersWithCounts.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No hay conteos de usuarios para esta fecha.
+            </p>
+          ) : (
+            usersWithCounts.map((u) => (
+              <button
+                key={u.userId}
+                type="button"
+                onClick={() => setSelectedUserId(u.userId)}
+                className="flex items-center gap-3 rounded-xl border bg-card p-4 text-left hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <User className="size-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">
+                    {u.email.split("@")[0]}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {u.email}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {u.count} producto{u.count === 1 ? "" : "s"}
+                    {u.diffs > 0 ? (
+                      <>
+                        {" · "}
+                        <span className="text-red-600 font-medium">
+                          {u.diffs} con diferencia{u.diffs === 1 ? "" : "s"}
+                        </span>
+                      </>
+                    ) : (
+                      <> · sin diferencias</>
+                    )}
+                  </p>
+                </div>
+                <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ========== DETALLE DE UN USUARIO O "MÍOS" ========== */}
+      {!showUsersList && (
+        <>
+          {showUserDetail && selectedEmail && (
+            <div className="mb-3 px-4">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                <User className="size-3.5" />
+                {selectedEmail}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 px-4">
+            {loading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Cargando...
+              </p>
+            ) : filteredProducts.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No hay productos que coincidan.
+              </p>
+            ) : (
+              (Object.keys(grouped) as FSCategory[]).map((cat) => {
+                const items = grouped[cat];
+                if (items.length === 0) return null;
+                const isOpen = expandedCats.has(cat);
+                const catFilled = items.filter((p) =>
+                  rowsByCode.has(p.code),
+                ).length;
+
+                return (
+                  <div
+                    key={cat}
+                    className="rounded-xl border bg-card overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleCategory(cat)}
+                      className="w-full flex items-center gap-2 px-4 py-3 hover:bg-muted/40 transition-colors"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "size-4 transition-transform text-muted-foreground",
+                          !isOpen && "-rotate-90",
+                        )}
+                      />
+                      <h2 className="flex-1 text-left font-medium">
+                        {FS_CATEGORY_LABEL[cat]}
+                      </h2>
+                      <span className="text-xs text-muted-foreground">
+                        {catFilled}/{items.length}
+                      </span>
+                    </button>
+
+                    {isOpen && (
+                      <div className="flex flex-col gap-2 border-t bg-muted/20 p-3">
+                        {items.map((product) => (
+                          <FSItemCard
+                            key={product.code}
+                            product={product}
+                            existing={rowsByCode.get(product.code) ?? null}
+                            date={date}
+                            onSave={handleSave}
+                            onDelete={handleDelete}
+                            readOnly={showUserDetail}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </>
+      )}
     </main>
   );
 }

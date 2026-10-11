@@ -21,9 +21,11 @@ interface Props {
   onSave: (input: FSCountInput) => Promise<void>;
   /** Se llama cuando el usuario borra el conteo */
   onDelete?: (id: string) => Promise<void>;
+  /** Si true, no permite editar (solo lectura) */
+  readOnly?: boolean;
 }
 
-export function FSItemCard({ product, existing, date, onSave, onDelete }: Props) {
+export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly = false }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [opened, setOpened] = useState<string>(
     existing?.opened != null ? String(existing.opened) : "",
@@ -58,6 +60,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete }: Props)
 
   // Auto-save con debounce de 800ms
   const scheduleSave = () => {
+    if (readOnly) return;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(async () => {
       // Solo guardar si hay al menos un valor
@@ -157,6 +160,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete }: Props)
                 onChange={(e) => handleChange(setOpened)(e.target.value)}
                 placeholder="0"
                 className="mt-1"
+                disabled={readOnly}
               />
             </div>
             <div>
@@ -170,6 +174,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete }: Props)
                 onChange={(e) => handleChange(setSealed)(e.target.value)}
                 placeholder="0"
                 className="mt-1"
+                disabled={readOnly}
               />
             </div>
             <div>
@@ -183,6 +188,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete }: Props)
                 onChange={(e) => handleChange(setSystemQty)(e.target.value)}
                 placeholder="0"
                 className="mt-1"
+                disabled={readOnly}
               />
             </div>
           </div>
@@ -212,7 +218,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete }: Props)
             <span>
               Contenedor: {product.containerWeight} · Unitario: {product.unitWeight}
             </span>
-            {existing && onDelete && (
+            {existing && onDelete && !readOnly && (
               <Button
                 type="button"
                 variant="ghost"
