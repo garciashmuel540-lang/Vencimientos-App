@@ -7,7 +7,13 @@ import { ChevronDown, Check, AlertTriangle, X, Save, Plus, Trash2 } from "lucide
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { FSProduct } from "@/lib/vigia/food-service-catalog";
+import type { FSProduct, FSUnit } from "@/lib/vigia/food-service-catalog";
+import {
+  FS_UNIT_LABEL,
+  FS_UNIT_SHORT,
+  convertUnit,
+  getCompatibleUnits,
+} from "@/lib/vigia/food-service-catalog";
 import { calcFSItem, formatFSNumber } from "@/lib/vigia/food-service-calc";
 import type { FSCountRow, FSCountInput } from "@/lib/data/food-service-supabase";
 
@@ -45,6 +51,10 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
   const [parciales, setParciales] = useState<number[]>([]);
   const [parcialInput, setParcialInput] = useState("");
   const [addingParcial, setAddingParcial] = useState(false);
+  // Unidad en la que el usuario ingresa los valores de "Abiertos"
+  const [abiertosUnit, setAbiertosUnit] = useState<FSUnit>(
+    product.unit as FSUnit,
+  );
 
   // Cuando cambia el existing (por pull), actualizar los inputs
   useEffect(() => {
@@ -54,10 +64,16 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
     setParciales([]);
     setParcialInput("");
     setAddingParcial(false);
-  }, [existing?.id]);
+    setAbiertosUnit(product.unit as FSUnit);
+  }, [existing?.id, product.unit]);
 
   // Cálculo en vivo
-  const numOpened = opened === "" ? null : Number(opened);
+  const numOpenedRaw = opened === "" ? null : Number(opened);
+  // Convertir el valor ingresado a la unidad de la fórmula (product.unit)
+  const numOpened =
+    numOpenedRaw != null && Number.isFinite(numOpenedRaw)
+      ? convertUnit(numOpenedRaw, abiertosUnit, product.unit as FSUnit)
+      : null;
   const numSealed = sealed === "" ? null : Number(sealed);
   const numSystem = systemQty === "" ? null : Number(systemQty);
 
@@ -225,15 +241,41 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                   </button>
                 )}
               </div>
-              <Input
-                type="number"
-                inputMode="decimal"
-                value={opened}
-                onChange={(e) => handleChange(setOpened)(e.target.value)}
-                placeholder="0"
-                className="mt-1"
-                disabled={readOnly || parciales.length > 0}
-              />
+              <div className="mt-1 flex gap-2">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  value={opened}
+                  onChange={(e) => handleChange(setOpened)(e.target.value)}
+                  placeholder="0"
+                  className="flex-1"
+                  disabled={readOnly || parciales.length > 0}
+                />
+                <select
+                  value={abiertosUnit}
+                  onChange={(e) => {
+                    setAbiertosUnit(e.target.value as FSUnit);
+                    scheduleSave();
+                  }}
+                  disabled={readOnly}
+                  className="h-11 rounded-xl border border-transparent bg-muted/50 px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus:bg-card focus:border-input focus:ring-2 focus:ring-ring/20 disabled:opacity-50"
+                >
+                  {getCompatibleUnits(product).map((u) => (
+                    <option key={u} value={u}>
+                      {FS_UNIT_LABEL[u]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {/* Conversión automática si la unidad elegida ≠ unidad de la fórmula */}
+              {abiertosUnit !== product.unit &&
+                opened !== "" &&
+                Number.isFinite(Number(opened)) && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    ≈ {convertUnit(Number(opened), abiertosUnit, product.unit as FSUnit).toFixed(2)}{" "}
+                    {FS_UNIT_LABEL[product.unit as FSUnit]}
+                  </p>
+                )}
 
               {/* Sumadora de parciales */}
               {parciales.length > 0 && (

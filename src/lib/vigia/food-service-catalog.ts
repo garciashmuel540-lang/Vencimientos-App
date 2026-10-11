@@ -438,3 +438,64 @@ export function groupFSProductsByCategory(): Record<FSCategory, FSProduct[]> {
   }
   return grouped;
 }
+
+// ============================================
+// CONVERSIÓN DE UNIDADES
+// ============================================
+
+export type FSUnit = "gramo" | "kilogramo" | "libra" | "onza" | "unidad";
+
+export const FS_UNIT_LABEL: Record<FSUnit, string> = {
+  gramo: "gramos",
+  kilogramo: "kilogramos",
+  libra: "libras",
+  onza: "onzas",
+  unidad: "unidades",
+};
+
+export const FS_UNIT_SHORT: Record<FSUnit, string> = {
+  gramo: "g",
+  kilogramo: "kg",
+  libra: "lb",
+  onza: "oz",
+  unidad: "u",
+};
+
+/**
+ * Cuántos gramos hay en 1 unidad de cada medida.
+ */
+export const UNIT_TO_GRAMS: Record<FSUnit, number> = {
+  gramo: 1,
+  kilogramo: 1000,
+  libra: 453.592,
+  onza: 28.3495,
+  unidad: 1, // no aplica conversión
+};
+
+/**
+ * Convierte un valor de una unidad a otra.
+ * Ej: convertUnit(500, "gramo", "libra") → 1.10
+ */
+export function convertUnit(
+  value: number,
+  from: FSUnit,
+  to: FSUnit,
+): number {
+  if (from === to) return value;
+  // Si alguna es "unidad", no convertir (son de naturaleza distinta)
+  if (from === "unidad" || to === "unidad") return value;
+  const inGrams = value * UNIT_TO_GRAMS[from];
+  return inGrams / UNIT_TO_GRAMS[to];
+}
+
+/**
+ * Devuelve las unidades válidas para un producto FS.
+ * - Si el producto es en "unidad", solo "unidad".
+ * - Si es en peso (gramo, libra, onza, kilogramo), permite todas las de peso.
+ */
+export function getCompatibleUnits(product: FSProduct): FSUnit[] {
+  const productUnit = product.unit as FSUnit;
+  if (productUnit === "unidad") return ["unidad"];
+  // Unidades de peso
+  return ["gramo", "kilogramo", "libra", "onza"];
+}
