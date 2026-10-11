@@ -115,7 +115,14 @@ export async function pushFSCount(
 ): Promise<FSCountRow> {
   if (!supabase) throw new Error("Supabase no configurado");
 
+  // Obtener el user_id actual para que el upsert resuelva el onConflict
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) {
+    throw new Error("No hay usuario autenticado");
+  }
+
   const payload = {
+    user_id: authData.user.id,
     product_code: input.product_code,
     product_name: input.product_name,
     category: input.category,

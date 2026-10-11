@@ -122,7 +122,8 @@ export function FoodServicePage() {
       });
     } catch (err) {
       console.error("[food-service-page] save falló:", err);
-      toast.error("No se pudo guardar el conteo.");
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Error al guardar: ${msg}`);
       throw err;
     }
   };
