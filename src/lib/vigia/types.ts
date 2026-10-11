@@ -41,6 +41,8 @@ export interface Product {
   subcategory?: string;
   /** Marca interna: si true, este producto aún no está sincronizado con Supabase. */
   pendingSync?: boolean;
+  /** ID del usuario dueño (viene de Supabase al hacer pull). */
+  userId?: string;
 }
 
 export interface CatalogEntry {

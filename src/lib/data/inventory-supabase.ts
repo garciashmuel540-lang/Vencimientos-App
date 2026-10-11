@@ -99,6 +99,7 @@ export function mapRowToProduct(row: InventoryRow): Product {
     price: typeof row.price === "number" ? row.price : undefined,
     priceC: typeof row.price_c === "number" ? row.price_c : undefined,
     subcategory: row.subcategory ?? undefined,
+    userId: row.user_id,
   };
 }
 
