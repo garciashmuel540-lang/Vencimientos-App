@@ -21,6 +21,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isLoginPage = pathname === "/login";
+  // Ocultar el FAB de escanear cuando ya estamos en la pantalla de escanear o precio
+  const hideScanFab =
+    pathname.startsWith("/escanear") ||
+    pathname.startsWith("/precio");
   const [tour, setTour] = useState(false);
   const [splash, setSplash] = useState(true);
   const [minTimeDone, setMinTimeDone] = useState(false);
@@ -59,14 +63,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
 
-        {/* FAB: Escanear (abajo derecha) */}
-        <Link
-          to="/escanear"
-          className="no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
-          aria-label="Escanear"
-        >
-          <ScanBarcode className="size-6" />
-        </Link>
+        {/* FAB: Escanear (abajo derecha) - oculto en pantallas que ya escanean */}
+        {!hideScanFab && (
+          <Link
+            to="/escanear"
+            className="no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+            aria-label="Escanear"
+          >
+            <ScanBarcode className="size-6" />
+          </Link>
+        )}
 
         {/* Menú lateral */}
         <AppSidebar

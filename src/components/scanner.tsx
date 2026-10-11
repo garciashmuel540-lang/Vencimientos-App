@@ -134,7 +134,7 @@ export function Scanner({ onDetect, paused }: ScannerProps) {
       <div className="relative overflow-hidden rounded-xl bg-foreground">
         <div
           id={hostId}
-          className="min-h-56 w-full overflow-hidden [&_video]:h-full [&_video]:w-full [&_video]:object-cover"
+          className="aspect-[4/3] w-full overflow-hidden [&_video]:h-full [&_video]:w-full [&_video]:object-cover"
         />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="relative h-28 w-[80%] max-w-72">
