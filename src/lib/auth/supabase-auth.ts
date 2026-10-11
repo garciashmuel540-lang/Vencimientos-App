@@ -33,7 +33,7 @@ export function useSupabaseAuth() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  return { user, loading };
+  return { user, loading, isAdmin: user?.isAdmin ?? false };
 }
 
 function toUser(u: User | undefined | null): SupabaseUser | null {
