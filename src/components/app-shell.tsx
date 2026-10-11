@@ -1,32 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  BarChart3,
-  LayoutGrid,
-  Package,
-  ScanBarcode,
-  Settings,
-  Tag,
-} from "lucide-react";
+import { Menu, ScanBarcode } from "lucide-react";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Onboarding } from "@/components/onboarding";
+import { AppSidebar } from "@/components/app-sidebar";
 import { Splash } from "@/components/splash";
 import { ChatIA } from "@/components/chat-ia";
 import { useVigiaStore } from "@/lib/vigia/store";
-import { cn } from "@/lib/utils";
 
 const TOUR_KEY = "vigia-tour-done";
 const SPLASH_MIN_MS = 1400;
-
-const NAV = [
-  { to: "/", label: "Inicio", icon: LayoutGrid },
-  { to: "/inventario", label: "Inventario", icon: Package },
-  { to: "/escanear", label: "Escanear", icon: ScanBarcode, fab: true },
-  { to: "/precio", label: "Precio", icon: Tag },
-  { to: "/reportes", label: "Reportes", icon: BarChart3 },
-  { to: "/ajustes", label: "Ajustes", icon: Settings },
-] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const hydrate = useVigiaStore((s) => s.hydrate);
@@ -35,6 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isLoginPage = pathname === "/login";
   const [tour, setTour] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [splash, setSplash] = useState(true);
   const [minTimeDone, setMinTimeDone] = useState(false);
 
@@ -58,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(t);
   }, [ready, splash, fireOpenAlerts]);
 
-  // En /login: solo mostrar el contenido, sin barra inferior ni chat
+  // En /login: solo mostrar el contenido, sin menú ni chat
   if (isLoginPage) {
     return <>{children}</>;
   }
@@ -67,56 +52,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <TooltipProvider delayDuration={250}>
       <div className="min-h-dvh bg-background text-foreground">
         <Splash show={splash} />
-        <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
+
+        <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col pb-24">
           {children}
         </div>
-        <nav
-          className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card"
-          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-          aria-label="Principal"
+
+        {/* Botón hamburguesa flotante (arriba izquierda) */}
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(true)}
+          className="no-print fixed left-4 top-4 z-30 flex size-11 items-center justify-center rounded-full bg-card/95 text-foreground shadow-md backdrop-blur transition-all hover:bg-card active:scale-95"
+          aria-label="Abrir menú"
         >
-          <ul className="mx-auto grid max-w-3xl grid-cols-6 px-2 py-1.5">
-            {NAV.map((item) => {
-              const active =
-                item.to === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(item.to);
-              const Icon = item.icon;
-              if ("fab" in item && item.fab) {
-                return (
-                  <li key={item.to}>
-                    <Link
-                      to={item.to}
-                      className={cn(
-                        "flex h-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
-                        active ? "text-primary" : "text-muted-foreground",
-                      )}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <Icon className="size-[18px]" />
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              }
-              return (
-                <li key={item.to}>
-                  <Link
-                    to={item.to}
-                    className={cn(
-                      "flex h-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium",
-                      active ? "text-primary" : "text-muted-foreground",
-                    )}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <Icon className="size-[18px]" />
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+          <Menu className="size-5" />
+        </button>
+
+        {/* FAB: Escanear (abajo derecha) */}
+        <Link
+          to="/escanear"
+          className="no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+          aria-label="Escanear"
+        >
+          <ScanBarcode className="size-6" />
+        </Link>
+
+        {/* Menú lateral */}
+        <AppSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+
         <Onboarding
           open={tour}
           onFinish={() => {

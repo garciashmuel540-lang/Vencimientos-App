@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AjustesRouteImport } from './routes/ajustes'
 import { Route as EscanearRouteImport } from './routes/escanear'
+import { Route as FoodServiceRouteImport } from './routes/food-service'
 import { Route as InventarioRouteImport } from './routes/inventario'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrecioRouteImport } from './routes/precio'
@@ -30,6 +31,11 @@ const AjustesRoute = AjustesRouteImport.update({
 const EscanearRoute = EscanearRouteImport.update({
   id: '/escanear',
   path: '/escanear',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FoodServiceRoute = FoodServiceRouteImport.update({
+  id: '/food-service',
+  path: '/food-service',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InventarioRoute = InventarioRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
+  '/food-service': typeof FoodServiceRoute
   '/inventario': typeof InventarioRoute
   '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
+  '/food-service': typeof FoodServiceRoute
   '/inventario': typeof InventarioRoute
   '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ajustes': typeof AjustesRoute
   '/escanear': typeof EscanearRoute
+  '/food-service': typeof FoodServiceRoute
   '/inventario': typeof InventarioRoute
   '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ajustes'
     | '/escanear'
+    | '/food-service'
     | '/inventario'
     | '/login'
     | '/precio'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ajustes'
     | '/escanear'
+    | '/food-service'
     | '/inventario'
     | '/login'
     | '/precio'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ajustes'
     | '/escanear'
+    | '/food-service'
     | '/inventario'
     | '/login'
     | '/precio'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AjustesRoute: typeof AjustesRoute
   EscanearRoute: typeof EscanearRoute
+  FoodServiceRoute: typeof FoodServiceRoute
   InventarioRoute: typeof InventarioRoute
   LoginRoute: typeof LoginRoute
   PrecioRoute: typeof PrecioRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/escanear'
       fullPath: '/escanear'
       preLoaderRoute: typeof EscanearRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/food-service': {
+      id: '/food-service'
+      path: '/food-service'
+      fullPath: '/food-service'
+      preLoaderRoute: typeof FoodServiceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inventario': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AjustesRoute: AjustesRoute,
   EscanearRoute: EscanearRoute,
+  FoodServiceRoute: FoodServiceRoute,
   InventarioRoute: InventarioRoute,
   LoginRoute: LoginRoute,
   PrecioRoute: PrecioRoute,

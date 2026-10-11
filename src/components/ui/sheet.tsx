@@ -23,21 +23,37 @@ const SheetOverlay = React.forwardRef<
 ));
 SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+interface SheetContentProps
+  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+  side?: "bottom" | "right" | "left";
+}
+
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  SheetContentProps
+>(({ className, children, side = "bottom", ...props }, ref) => (
   <SheetPortal>
     <SheetOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-16 flex max-h-[90vh] flex-col rounded-t-2xl bg-card p-5 text-card-foreground shadow-lg will-change-transform md:inset-y-0 md:right-0 md:left-auto md:mt-0 md:w-full md:max-w-md md:rounded-none md:rounded-l-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:ease-[cubic-bezier(0.32,0.72,0,1)] md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right",
+        "fixed z-50 flex flex-col bg-card p-5 text-card-foreground shadow-lg will-change-transform",
+        // Default: bottom (móvil)
+        side === "bottom" &&
+          "inset-x-0 bottom-0 mt-16 max-h-[90vh] rounded-t-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:ease-[cubic-bezier(0.32,0.72,0,1)] md:inset-y-0 md:right-0 md:left-auto md:mt-0 md:w-full md:max-w-md md:rounded-none md:rounded-l-2xl md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right",
+        // Left: menú lateral izquierdo
+        side === "left" &&
+          "inset-y-0 left-0 h-full w-[80%] max-w-sm rounded-r-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left data-[state=open]:duration-300 data-[state=closed]:duration-200",
+        // Right: solo derecha
+        side === "right" &&
+          "inset-y-0 right-0 h-full w-[80%] max-w-sm rounded-l-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right data-[state=open]:duration-300 data-[state=closed]:duration-200",
         className,
       )}
       {...props}
     >
-      <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border md:hidden" />
+      {side === "bottom" && (
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border md:hidden" />
+      )}
       {children}
       <DialogPrimitive.Close className="absolute right-3 top-3 rounded-sm p-2 text-muted-foreground hover:bg-muted">
         <X className="size-4" />
