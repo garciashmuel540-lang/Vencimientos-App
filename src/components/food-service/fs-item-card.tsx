@@ -3,7 +3,7 @@
  * Muestra los inputs (abiertos, sellados, sistema) y el resultado calculado.
  */
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Check, AlertTriangle, X, Save } from "lucide-react";
+import { ChevronDown, Check, AlertTriangle, X, Save, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,11 +40,19 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
   const [saved, setSaved] = useState(false);
   const debounceRef = useRef<number | null>(null);
 
+  // Parciales para "Abiertos" (sumadora)
+  const [parciales, setParciales] = useState<number[]>([]);
+  const [parcialInput, setParcialInput] = useState("");
+  const [addingParcial, setAddingParcial] = useState(false);
+
   // Cuando cambia el existing (por pull), actualizar los inputs
   useEffect(() => {
     setOpened(existing?.opened != null ? String(existing.opened) : "");
     setSealed(existing?.sealed != null ? String(existing.sealed) : "");
     setSystemQty(existing?.system_qty != null ? String(existing.system_qty) : "");
+    setParciales([]);
+    setParcialInput("");
+    setAddingParcial(false);
   }, [existing?.id]);
 
   // Cálculo en vivo
@@ -91,6 +99,42 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
 
   const handleChange = (setter: (v: string) => void) => (v: string) => {
     setter(v);
+    scheduleSave();
+  };
+
+  // ============ SUMADORA DE PARCIALES ============
+
+  const sumaParciales = parciales.reduce((a, b) => a + b, 0);
+
+  const addParcial = () => {
+    const n = Number(parcialInput);
+    if (!Number.isFinite(n) || n <= 0) return;
+    const next = [...parciales, n];
+    setParciales(next);
+    setParcialInput("");
+    setAddingParcial(false);
+    const suma = next.reduce((a, b) => a + b, 0);
+    setOpened(String(suma));
+    scheduleSave();
+  };
+
+  const removeParcial = (idx: number) => {
+    const next = parciales.filter((_, i) => i !== idx);
+    setParciales(next);
+    if (next.length === 0) {
+      setOpened("");
+    } else {
+      const suma = next.reduce((a, b) => a + b, 0);
+      setOpened(String(suma));
+    }
+    scheduleSave();
+  };
+
+  const clearParciales = () => {
+    setParciales([]);
+    setParcialInput("");
+    setAddingParcial(false);
+    setOpened("");
     scheduleSave();
   };
 
@@ -149,10 +193,32 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
       {expanded && (
         <div className="border-t bg-muted/20 px-4 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Abiertos ({product.unit})
-              </label>
+            <div className="sm:col-span-3">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Abiertos ({product.unit})
+                </label>
+                {!readOnly && parciales.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingParcial((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                  >
+                    <Plus className="size-3" />
+                    Sumar parciales
+                  </button>
+                )}
+                {!readOnly && parciales.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearParciales}
+                    className="inline-flex items-center gap-1 rounded-full bg-bad-soft px-2 py-1 text-[11px] font-medium text-bad transition-colors hover:bg-bad-soft/70"
+                  >
+                    <Trash2 className="size-3" />
+                    Limpiar
+                  </button>
+                )}
+              </div>
               <Input
                 type="number"
                 inputMode="decimal"
@@ -160,8 +226,64 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                 onChange={(e) => handleChange(setOpened)(e.target.value)}
                 placeholder="0"
                 className="mt-1"
-                disabled={readOnly}
+                disabled={readOnly || parciales.length > 0}
               />
+
+              {/* Sumadora de parciales */}
+              {parciales.length > 0 && (
+                <div className="mt-2 rounded-lg bg-background/60 p-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {parciales.map((p, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => !readOnly && removeParcial(i)}
+                        disabled={readOnly}
+                        className="group inline-flex items-center gap-1 rounded-full bg-card px-2 py-1 text-xs font-medium tabular transition-colors hover:bg-bad-soft disabled:cursor-default"
+                        title={readOnly ? "" : "Toca para quitar"}
+                      >
+                        {formatFSNumber(p)}
+                        {!readOnly && (
+                          <X className="size-3 opacity-40 group-hover:opacity-100" />
+                        )}
+                      </button>
+                    ))}
+                    <span className="ml-1 text-xs font-medium text-muted-foreground">
+                      = {formatFSNumber(sumaParciales)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Input para agregar parcial */}
+              {addingParcial && !readOnly && (
+                <div className="mt-2 flex gap-2">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={parcialInput}
+                    onChange={(e) => setParcialInput(e.target.value)}
+                    placeholder="Ej. 356"
+                    className="flex-1 h-9"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addParcial();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-9"
+                    onClick={addParcial}
+                    disabled={!parcialInput.trim()}
+                  >
+                    Añadir
+                  </Button>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">
