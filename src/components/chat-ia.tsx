@@ -118,6 +118,26 @@ export function ChatIA() {
     }
   }, [messages, loading]);
 
+  // Cargar conteos de Food Service al montar y cada vez que se abre el chat
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const counts = await pullAllFSCounts();
+        if (!cancelled) {
+          console.info(`[chat-ia] FS counts cargados: ${counts.length}`);
+          setFsCounts(counts);
+        }
+      } catch (err) {
+        console.warn("[chat-ia] no se pudieron cargar FS counts:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   // Auto-abrir cuando se enfoca un producto desde ProductSheet
   useEffect(() => {
     if (autoOpen && focus) {
