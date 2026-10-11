@@ -34,6 +34,8 @@ export interface FSCountChat {
   system_qty: number | null;
   count_date: string;
   updated_at: string;
+  user_id?: string;
+  user_email?: string;
 }
 
 export interface CatalogMatch {

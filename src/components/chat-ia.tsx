@@ -103,6 +103,7 @@ export function ChatIA() {
     label: string;
   } | null>(null);
   const [fsCounts, setFsCounts] = useState<FSCountRow[]>([]);
+  const [userEmails, setUserEmails] = useState<Map<string, string>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const focus = useChatFocus((s) => s.focused);
@@ -118,7 +119,7 @@ export function ChatIA() {
     }
   }, [messages, loading]);
 
-  // Cargar conteos de Food Service al montar y cada vez que se abre el chat
+  // Cargar conteos de FS y mapa de emails al abrir el chat
   useEffect(() => {
     if (typeof window === "undefined") return;
     let cancelled = false;
@@ -129,8 +130,25 @@ export function ChatIA() {
           console.info(`[chat-ia] FS counts cargados: ${counts.length}`);
           setFsCounts(counts);
         }
+
+        const { supabase } = await import("@/lib/supabase");
+        if (supabase) {
+          const { data, error } = await supabase.rpc("get_user_emails");
+          if (!error && Array.isArray(data)) {
+            const map = new Map<string, string>();
+            for (const row of data as { user_id: string; email: string }[]) {
+              map.set(row.user_id, row.email);
+            }
+            if (!cancelled) {
+              console.info(`[chat-ia] emails cargados: ${map.size}`);
+              setUserEmails(map);
+            }
+          } else if (error) {
+            console.warn("[chat-ia] RPC get_user_emails falló:", error.message);
+          }
+        }
       } catch (err) {
-        console.warn("[chat-ia] no se pudieron cargar FS counts:", err);
+        console.warn("[chat-ia] no se pudieron cargar FS/emails:", err);
       }
     })();
     return () => {
@@ -393,17 +411,47 @@ export function ChatIA() {
         return `📋 No tengo conteos guardados de **${product.name}** todavía.`;
       }
 
-      const last = productCounts[0];
-      const calc = calcFSItem(product, {
-        opened: last.opened,
-        sealed: last.sealed,
-        system_qty: last.system_qty,
-      });
+      // Agrupar por usuario
+      const byUser = new Map<string, typeof productCounts>();
+      for (const c of productCounts) {
+        const uid = c.user_id ?? "unknown";
+        const arr = byUser.get(uid) ?? [];
+        arr.push(c);
+        byUser.set(uid, arr);
+      }
 
-      return `📋 Último conteo de **${product.name}** (${last.count_date}):
+      if (byUser.size === 1) {
+        // Solo un usuario: formato simple
+        const last = productCounts[0];
+        const calc = calcFSItem(product, {
+          opened: last.opened,
+          sealed: last.sealed,
+          system_qty: last.system_qty,
+        });
+        return `📋 Último conteo de **${product.name}** (${last.count_date}):
 - Abiertos: ${last.opened ?? "-"} · Sellados: ${last.sealed ?? "-"} · Sistema: ${last.system_qty ?? "-"}
 - Producción: ${calc.production} · Inventario: ${calc.inventory}
 - Resultado: **${calc.label}**`;
+      }
+
+      // Múltiples usuarios: mostrar por usuario
+      const lines: string[] = [];
+      lines.push(`📋 Conteos de **${product.name}** (por usuario):`);
+      for (const [uid, counts] of byUser) {
+        const email = userEmails.get(uid) ?? uid;
+        lines.push(`\n👤 **${email}**:`);
+        for (const c of counts) {
+          const calc = calcFSItem(product, {
+            opened: c.opened,
+            sealed: c.sealed,
+            system_qty: c.system_qty,
+          });
+          lines.push(
+            `- ${c.count_date}: ab=${c.opened ?? "-"} · se=${c.sealed ?? "-"} · sis=${c.system_qty ?? "-"} → **${calc.label}**`,
+          );
+        }
+      }
+      return lines.join("\n");
     }
 
     // 8. FOOD SERVICE: listar conteos del día (o de una fecha)
@@ -417,21 +465,46 @@ export function ChatIA() {
         return `📋 No tengo conteos guardados del **${date}**.`;
       }
 
-      const lines = dayCounts
-        .sort((a, b) => a.product_name.localeCompare(b.product_name))
-        .map((c) => {
-          const product = FS_PRODUCTS.find((p) => p.code === c.product_code);
-          if (!product) return `- ${c.product_name}: ${c.opened ?? "-"} / ${c.sealed ?? "-"} / ${c.system_qty ?? "-"}`;
-          const calc = calcFSItem(product, {
-            opened: c.opened,
-            sealed: c.sealed,
-            system_qty: c.system_qty,
-          });
-          return `- **${c.product_name}**: ${calc.label}`;
-        })
-        .join("\n");
+      const renderCount = (c: typeof dayCounts[0]) => {
+        const product = FS_PRODUCTS.find((p) => p.code === c.product_code);
+        if (!product) {
+          return `- ${c.product_name}: ${c.opened ?? "-"} / ${c.sealed ?? "-"} / ${c.system_qty ?? "-"}`;
+        }
+        const calc = calcFSItem(product, {
+          opened: c.opened,
+          sealed: c.sealed,
+          system_qty: c.system_qty,
+        });
+        return `- **${c.product_name}**: ${calc.label}`;
+      };
 
-      return `📋 Conteos del ${date} (${dayCounts.length} productos):\n${lines}`;
+      // Agrupar por usuario
+      const byUser = new Map<string, typeof dayCounts>();
+      for (const c of dayCounts) {
+        const uid = c.user_id ?? "unknown";
+        const arr = byUser.get(uid) ?? [];
+        arr.push(c);
+        byUser.set(uid, arr);
+      }
+
+      const lines: string[] = [];
+      if (byUser.size === 1) {
+        const sorted = [...dayCounts].sort((a, b) =>
+          a.product_name.localeCompare(b.product_name),
+        );
+        for (const c of sorted) lines.push(renderCount(c));
+      } else {
+        for (const [uid, counts] of byUser) {
+          const email = userEmails.get(uid) ?? uid;
+          lines.push(`\n👤 **${email}** (${counts.length} productos):`);
+          const sorted = [...counts].sort((a, b) =>
+            a.product_name.localeCompare(b.product_name),
+          );
+          for (const c of sorted) lines.push(renderCount(c));
+        }
+      }
+
+      return `📋 Conteos del ${date} (${dayCounts.length} productos):\n${lines.join("\n")}`;
     }
 
     // 9. FOOD SERVICE: comparar entre usuarios (solo admin)
@@ -609,6 +682,8 @@ export function ChatIA() {
         system_qty: c.system_qty,
         count_date: c.count_date,
         updated_at: c.updated_at,
+        user_id: c.user_id,
+        user_email: userEmails.get(c.user_id) ?? c.user_id,
       }));
 
       const stream = await askVigiaFn({
