@@ -77,6 +77,51 @@ function buildInventorySummary(ctx: ChatContext): string {
   return lines.join("\n");
 }
 
+function buildFSSummary(ctx: ChatContext): string {
+  const products = ctx.fsProducts ?? [];
+  const counts = ctx.fsCounts ?? [];
+  if (products.length === 0 && counts.length === 0) return "";
+
+  const lines: string[] = [];
+  lines.push("");
+  lines.push("--- FOOD SERVICE ---");
+  lines.push(`Catálogo FS: ${products.length} productos`);
+  lines.push(`Conteos cargados: ${counts.length}${ctx.fsIsAdmin ? " (admin: incluye todos los usuarios)" : ""}`);
+
+  if (products.length > 0) {
+    lines.push("");
+    lines.push("Productos FS (código | nombre | unidad | contenedor | unitario):");
+    const limit = products.slice(0, 40);
+    for (const p of limit) {
+      lines.push(
+        `- ${p.code} | ${p.name} | ${p.unit} | cont=${p.containerWeight} | unit=${p.unitWeight}`,
+      );
+    }
+    if (products.length > 40) {
+      lines.push(`  ... y ${products.length - 40} más`);
+    }
+  }
+
+  if (counts.length > 0) {
+    lines.push("");
+    lines.push("Últimos conteos FS (nombre | abiertos | sellados | sistema | fecha):");
+    const sorted = [...counts].sort((a, b) =>
+      (b.updated_at ?? "").localeCompare(a.updated_at ?? ""),
+    );
+    const limit = sorted.slice(0, 30);
+    for (const c of limit) {
+      lines.push(
+        `- ${c.product_name} | ab=${c.opened ?? "-"} | se=${c.sealed ?? "-"} | sis=${c.system_qty ?? "-"} | ${c.count_date}`,
+      );
+    }
+    if (sorted.length > 30) {
+      lines.push(`  ... y ${sorted.length - 30} más`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 export async function* llamarGemini(
   ctx: ChatContext,
 ): AsyncGenerator<ChatChunk> {
@@ -87,6 +132,7 @@ export async function* llamarGemini(
 
   const ai = new GoogleGenAI({ apiKey });
   const inventory = buildInventorySummary(ctx);
+  const fsBlock = buildFSSummary(ctx);
 
   const contents = [
     ...ctx.history.map((m) => ({
@@ -97,7 +143,7 @@ export async function* llamarGemini(
       role: "user" as const,
       parts: [
         {
-          text: `${ctx.question}\n\n--- INVENTARIO ---\n${inventory}${
+          text: `${ctx.question}\n\n--- INVENTARIO ---\n${inventory}${fsBlock}${
             ctx.focusedProduct
               ? `\n\n--- PRODUCTO ENFOCADO ---\nNombre: ${ctx.focusedProduct.name}\nCantidad: ${ctx.focusedProduct.quantity}\nVence: ${ctx.focusedProduct.expiresAt}\nEstado: ${ctx.focusedProduct.status}`
               : ""

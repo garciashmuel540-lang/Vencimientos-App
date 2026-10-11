@@ -15,6 +15,27 @@ export interface ChatHistoryMsg {
   text: string;
 }
 
+export interface FSProductChat {
+  code: string;
+  name: string;
+  category: string;
+  unit: string;
+  containerWeight: number;
+  unitWeight: number;
+}
+
+export interface FSCountChat {
+  product_code: string;
+  product_name: string;
+  category: string;
+  unit: string;
+  opened: number | null;
+  sealed: number | null;
+  system_qty: number | null;
+  count_date: string;
+  updated_at: string;
+}
+
 export interface CatalogMatch {
   barcode: string;
   name: string;
@@ -33,6 +54,12 @@ export interface ChatContext {
   question: string;
   focusedProduct?: ChatProduct & { brand?: string };
   catalogMatches?: CatalogMatch[];
+  /** Catálogo completo de Food Service */
+  fsProducts?: FSProductChat[];
+  /** Conteos de FS del usuario (últimos 30 días o los que se hayan cargado) */
+  fsCounts?: FSCountChat[];
+  /** Si el usuario actual es admin (para ver consolidados) */
+  fsIsAdmin?: boolean;
 }
 
 export type ChatChunk =
@@ -60,6 +87,7 @@ export const DESTRUCTIVE_ACTIONS = new Set([
   "eliminarProducto",
   "borrarPromociones",
   "eliminarVarios",
+  "guardarFS",
 ]);
 
 export function buildConfirmationLabel(
@@ -75,6 +103,10 @@ export function buildConfirmationLabel(
   if (name === "eliminarVarios") {
     const count = Array.isArray(args.productIds) ? args.productIds.length : 0;
     return `Eliminar ${count} producto(s)`;
+  }
+  if (name === "guardarFS") {
+    const pname = String(args.productName ?? args.product_code ?? "producto FS");
+    return `Guardar conteo de ${pname}`;
   }
   return `Ejecutar ${name}`;
 }

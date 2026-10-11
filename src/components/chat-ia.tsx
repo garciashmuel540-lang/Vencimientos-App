@@ -19,6 +19,14 @@ import { askVigiaFn, type ChatProduct } from "@/lib/vigia/ai-chat";
 import type { Product, ProductCategory, StoreLocation } from "@/lib/vigia/types";
 import { useChatFocus } from "@/lib/vigia/chat-focus";
 import { cn } from "@/lib/utils";
+import { FS_PRODUCTS } from "@/lib/vigia/food-service-catalog";
+import {
+  pullAllFSCounts,
+  pushFSCount,
+  todayISO,
+  type FSCountRow,
+} from "@/lib/data/food-service-supabase";
+import { calcFSItem } from "@/lib/vigia/food-service-calc";
 
 interface Message {
   role: "user" | "model";
@@ -94,6 +102,7 @@ export function ChatIA() {
     args: Record<string, unknown>;
     label: string;
   } | null>(null);
+  const [fsCounts, setFsCounts] = useState<FSCountRow[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const focus = useChatFocus((s) => s.focused);
@@ -328,6 +337,88 @@ export function ChatIA() {
       return `📋 Encontré ${results.length} producto(s) en el catálogo:\n${lineas}`;
     }
 
+    // 7. FOOD SERVICE: guardar conteo
+    if (name === "guardarFS") {
+      const query = String(args.productName ?? args.name ?? "").trim();
+      const opened = typeof args.opened === "number" ? args.opened : null;
+      const sealed = typeof args.sealed === "number" ? args.sealed : null;
+      const system = typeof args.system === "number" ? args.system : null;
+
+      if (!query) {
+        return "⚠️ Necesito el nombre del producto de Food Service.";
+      }
+      if (opened === null || sealed === null || system === null) {
+        return "⚠️ Necesito los 3 valores: abiertos, sellados y sistema.";
+      }
+
+      // Buscar el producto FS por nombre (coincidencia parcial)
+      const q = query.toLowerCase();
+      const exact = FS_PRODUCTS.filter((p) => p.name.toLowerCase() === q);
+      const matches = exact.length > 0
+        ? exact
+        : FS_PRODUCTS.filter(
+            (p) =>
+              p.name.toLowerCase().includes(q) ||
+              p.code.toLowerCase().includes(q),
+          );
+
+      if (matches.length === 0) {
+        return `⚠️ No encontré "${query}" en el catálogo de Food Service.`;
+      }
+      if (matches.length > 1) {
+        const lista = matches
+          .slice(0, 5)
+          .map((p) => `**${p.name}**`)
+          .join(", ");
+        return `🤔 Encontré varios productos FS: ${lista}. Dime el nombre exacto.`;
+      }
+
+      const product = matches[0];
+      const date = todayISO();
+
+      try {
+        const saved = await pushFSCount({
+          product_code: product.code,
+          product_name: product.name,
+          category: product.category,
+          unit: product.unit,
+          container_weight: product.containerWeight,
+          unit_weight: product.unitWeight,
+          opened,
+          sealed,
+          system_qty: system,
+          count_date: date,
+        });
+
+        // Actualizar el estado local (quitar el anterior del mismo producto/fecha)
+        setFsCounts((prev) => {
+          const filtered = prev.filter(
+            (c) =>
+              !(
+                c.product_code === saved.product_code &&
+                c.count_date === saved.count_date
+              ),
+          );
+          return [...filtered, saved];
+        });
+
+        // Calcular para mostrar el resultado
+        const calc = calcFSItem(product, {
+          opened,
+          sealed,
+          system_qty: system,
+        });
+
+        return `✅ Guardado: **${product.name}**
+- Abiertos: ${opened} · Sellados: ${sealed} · Sistema: ${system}
+- Producción: ${calc.production} · Inventario: ${calc.inventory}
+- Resultado: **${calc.label}**`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Error desconocido";
+        return `⚠️ Error al guardar: ${msg}`;
+      }
+    }
+
     return `⚠️ Acción desconocida: ${name}`;
   }
 
@@ -364,6 +455,27 @@ export function ChatIA() {
         .getState()
         .searchCatalog(keywords);
 
+      // Preparar datos de Food Service para el contexto
+      const fsProductsCtx = FS_PRODUCTS.map((p) => ({
+        code: p.code,
+        name: p.name,
+        category: p.category,
+        unit: p.unit,
+        containerWeight: p.containerWeight,
+        unitWeight: p.unitWeight,
+      }));
+      const fsCountsCtx = fsCounts.map((c) => ({
+        product_code: c.product_code,
+        product_name: c.product_name,
+        category: c.category,
+        unit: c.unit,
+        opened: c.opened,
+        sealed: c.sealed,
+        system_qty: c.system_qty,
+        count_date: c.count_date,
+        updated_at: c.updated_at,
+      }));
+
       const stream = await askVigiaFn({
         data: {
           storeName: settings.storeName,
@@ -382,6 +494,8 @@ export function ChatIA() {
                 brand: focus.brand,
               }
             : undefined,
+          fsProducts: fsProductsCtx,
+          fsCounts: fsCountsCtx,
         },
       });
 
