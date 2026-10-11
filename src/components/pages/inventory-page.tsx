@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, User, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { ProductCard } from "@/components/product-card";
 import { ProductSheet } from "@/components/product-sheet";
@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { productStatus } from "@/lib/vigia/dates";
+import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
+import { useUserEmails } from "@/lib/auth/use-user-emails";
 import { useVigiaStore } from "@/lib/vigia/store";
 import {
   CATEGORY_LABEL,
@@ -38,7 +40,10 @@ export function InventoryPage() {
   const settings = useVigiaStore((s) => s.settings);
   const upsert = useVigiaStore((s) => s.upsertProduct);
   const soonWithin = Math.max(...settings.days, 30);
+  const { user, isAdmin } = useSupabaseAuth();
+  const { emails } = useUserEmails();
   const [q, setQ] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState<"all" | "mine" | string>("all");
   const [status, setStatus] = useState<"all" | ProductStatus>("all");
   const [category, setCategory] = useState<"all" | ProductCategory>("all");
   const [subcategory, setSubcategory] = useState<"all" | string>("all");
@@ -46,6 +51,15 @@ export function InventoryPage() {
   const [selected, setSelected] = useState<Product | null>(null);
 
   const [creating, setCreating] = useState(false);
+
+  // Usuarios que tienen productos en el inventario (para el filtro de admin)
+  const ownersInInventory = useMemo(() => {
+    const ids = new Set<string>();
+    for (const p of products) {
+      if (p.userId) ids.add(p.userId);
+    }
+    return Array.from(ids);
+  }, [products]);
 
   const availableSubcategories = useMemo(() => {
     const set = new Set<string>();
@@ -59,6 +73,15 @@ export function InventoryPage() {
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return products.filter((p) => {
+      // Filtro de dueño (solo admin)
+      if (isAdmin && ownerFilter !== "all") {
+        if (ownerFilter === "mine") {
+          if (p.userId && p.userId !== user?.id) return false;
+        } else {
+          // ownerFilter es un userId específico
+          if (p.userId !== ownerFilter) return false;
+        }
+      }
       if (status !== "all" && productStatus(p, soonWithin) !== status) return false;
       if (category !== "all" && p.category !== category) return false;
       if (subcategory !== "all" && p.subcategory !== subcategory) return false;
@@ -70,7 +93,7 @@ export function InventoryPage() {
         p.barcode.includes(needle)
       );
     });
-  }, [products, q, status, category, subcategory, location, soonWithin]);
+  }, [products, q, status, category, subcategory, location, soonWithin, isAdmin, ownerFilter, user?.id]);
 
   return (
     <main>
@@ -96,6 +119,60 @@ export function InventoryPage() {
             aria-label="Buscar productos"
           />
         </div>
+        {isAdmin && ownersInInventory.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
+            <button
+              type="button"
+              onClick={() => setOwnerFilter("all")}
+              className={
+                "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +
+                (ownerFilter === "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80")
+              }
+            >
+              <Users className="size-3.5" />
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setOwnerFilter("mine")}
+              className={
+                "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +
+                (ownerFilter === "mine"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80")
+              }
+            >
+              <User className="size-3.5" />
+              Míos
+            </button>
+            {ownersInInventory
+              .filter((uid) => uid !== user?.id)
+              .map((uid) => {
+                const email = emails.get(uid) ?? "usuario";
+                const short = email.split("@")[0];
+                const active = ownerFilter === uid;
+                return (
+                  <button
+                    key={uid}
+                    type="button"
+                    onClick={() => setOwnerFilter(uid)}
+                    className={
+                      "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors " +
+                      (active
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80")
+                    }
+                  >
+                    <User className="size-3.5" />
+                    {short}
+                  </button>
+                );
+              })}
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-2">
           <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
             <SelectTrigger aria-label="Estado">
