@@ -39,6 +39,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const debounceRef = useRef<number | null>(null);
+  const parcialInputRef = useRef<HTMLInputElement | null>(null);
 
   // Parciales para "Abiertos" (sumadora)
   const [parciales, setParciales] = useState<number[]>([]);
@@ -112,10 +113,15 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
     const next = [...parciales, n];
     setParciales(next);
     setParcialInput("");
-    // NO cerramos el input: el usuario puede seguir agregando
+    // Asegurar que el input siga abierto
+    setAddingParcial(true);
     const suma = next.reduce((a, b) => a + b, 0);
     setOpened(String(suma));
     scheduleSave();
+    // Devolver el foco al input (útil en móvil para no cerrar el teclado)
+    window.setTimeout(() => {
+      parcialInputRef.current?.focus();
+    }, 0);
   };
 
   const removeParcial = (idx: number) => {
@@ -281,6 +287,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
               {addingParcial && !readOnly && (
                 <div className="mt-2 flex gap-2">
                   <Input
+                    ref={parcialInputRef}
                     type="number"
                     inputMode="decimal"
                     value={parcialInput}
