@@ -61,15 +61,6 @@ export function DashboardPage() {
         eyebrow={settings.storeName}
         title="Vigía"
         description={headline}
-        action={
-          <Link
-            to="/escanear"
-            className="inline-flex size-11 items-center justify-center rounded-md bg-primary text-primary-foreground"
-            aria-label="Escanear producto"
-          >
-            <ScanBarcode className="size-5" />
-          </Link>
-        }
       />
 
       {demo ? (
