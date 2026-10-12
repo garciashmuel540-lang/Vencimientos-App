@@ -21,6 +21,7 @@ import { useChatFocus } from "@/lib/vigia/chat-focus";
 import { cn } from "@/lib/utils";
 import { FS_PRODUCTS } from "@/lib/vigia/food-service-catalog";
 import { toShortEmail } from "@/lib/auth/user-utils";
+import { searchCatalogRAG } from "@/lib/data/catalog-rag";
 import {
   pullAllFSCounts,
   pushFSCount,
@@ -673,9 +674,36 @@ export function ChatIA() {
         .split(/\s+/)
         .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
 
-      const catalogMatches = await useVigiaStore
-        .getState()
-        .searchCatalog(keywords);
+      // 1) Intentar RAG primero (búsqueda semántica)
+      let catalogMatches: import("@/lib/vigia/ai/types").CatalogMatch[] = [];
+      try {
+        const rag = await searchCatalogRAG(q, 8);
+        catalogMatches = rag.results
+          .filter((r) => r.name)
+          .map((r) => ({
+            barcode: r.barcode,
+            name: r.name,
+            brand: r.brand ?? "",
+            price: typeof r.price === "number" ? r.price : undefined,
+            priceC: typeof r.price_c === "number" ? r.price_c : undefined,
+            category: r.category,
+          }));
+        if (catalogMatches.length > 0) {
+          console.info(
+            `[chat-ia] RAG devolvió ${catalogMatches.length} productos`,
+          );
+        }
+      } catch (err) {
+        console.warn("[chat-ia] RAG falló:", err);
+      }
+
+      // 2) Fallback a búsqueda por keyword si RAG no dio nada
+      if (catalogMatches.length === 0) {
+        console.info("[chat-ia] RAG vacío, usando keyword search");
+        catalogMatches = await useVigiaStore
+          .getState()
+          .searchCatalog(keywords);
+      }
 
       // Preparar datos de Food Service para el contexto
       const fsProductsCtx = FS_PRODUCTS.map((p) => ({
