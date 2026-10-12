@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { useSupabaseAuth, signOutSupabase } from "@/lib/auth/supabase-auth";
+import { AdminUsersCard } from "@/components/admin-users-card";
 import {
   countCatalogSupabase,
   pushFullCatalog,
@@ -480,6 +481,8 @@ export function SettingsPage() {
           </div>
         </Card>
         )}
+
+        {authUser?.isAdmin && <AdminUsersCard />}
 
         <Card className="p-4">
           <div className="flex items-center gap-2">
