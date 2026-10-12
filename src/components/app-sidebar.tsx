@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/", label: "Inicio", icon: LayoutGrid },
-  { to: "/inventario", label: "Inventario", icon: Package },
+  { to: "/inventario", label: "Vencimientos", icon: Package },
   { to: "/food-service", label: "Food Service", icon: UtensilsCrossed },
   { to: "/escanear", label: "Escanear", icon: ScanBarcode },
   { to: "/precio", label: "Verificador de precios", icon: Tag },

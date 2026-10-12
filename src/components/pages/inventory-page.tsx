@@ -100,9 +100,9 @@ export function InventoryPage() {
   return (
     <main>
       <PageHeader onMenuClick={() => setSidebarOpen(true)}
-        eyebrow="Catálogo"
-        title="Inventario"
-        description={`${filtered.length} de ${products.length} productos`}
+        eyebrow="Control"
+        title="Vencimientos"
+        description={`${filtered.length} de ${products.length} productos en control`}
         action={
           <Button size="icon" aria-label="Alta manual" onClick={() => setCreating(true)}>
             <Plus className="size-5" />
