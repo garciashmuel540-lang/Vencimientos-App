@@ -23,7 +23,7 @@ export function LoginPage() {
     }
     setLoading(true);
     try {
-      await signInWithEmail(email.trim(), password);
+      await signInWithEmail(toEmail(email.trim()), password);
       toast.success("Bienvenido a Vigía");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "No se pudo iniciar sesión.";
