@@ -20,6 +20,7 @@ import type { Product, ProductCategory, StoreLocation } from "@/lib/vigia/types"
 import { useChatFocus } from "@/lib/vigia/chat-focus";
 import { cn } from "@/lib/utils";
 import { FS_PRODUCTS } from "@/lib/vigia/food-service-catalog";
+import { toShortEmail } from "@/lib/auth/user-utils";
 import {
   pullAllFSCounts,
   pushFSCount,

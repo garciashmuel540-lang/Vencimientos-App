@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { toEmail } from "@/lib/auth/user-utils";
 import { LoaderCircle, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -60,10 +61,10 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Usuario</Label>
             <Input
               id="email"
-              type="email"
+              type="text"
               autoComplete="email"
               inputMode="email"
               value={email}

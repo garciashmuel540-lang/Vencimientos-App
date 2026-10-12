@@ -42,6 +42,7 @@ import {
   type AdminUser,
 } from "@/lib/data/admin-users-supabase";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
+import { toEmail, toShortEmail } from "@/lib/auth/user-utils";
 
 export function AdminUsersCard() {
   const { user: currentUser } = useSupabaseAuth();
@@ -90,7 +91,7 @@ export function AdminUsersCard() {
     setSubmitting(true);
     try {
       await createAdminUser({
-        email: newEmail.trim().toLowerCase(),
+        email: toEmail(newEmail),
         password: newPassword,
         role: newRole,
       });
@@ -172,7 +173,7 @@ export function AdminUsersCard() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
-                      {u.email ?? "sin email"}
+                      {toShortEmail(u.email)}
                       {isMe && (
                         <span className="ml-2 text-[10px] uppercase text-primary">
                           (tú)
@@ -239,13 +240,13 @@ export function AdminUsersCard() {
 
           <div className="flex flex-col gap-3">
             <div>
-              <Label htmlFor="new-email">Email</Label>
+              <Label htmlFor="new-email">Usuario</Label>
               <Input
                 id="new-email"
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="empleado@tienda.com"
+                placeholder="Ej. slopez"
                 className="mt-1"
                 autoCapitalize="none"
               />
@@ -318,7 +319,7 @@ export function AdminUsersCard() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Borrar usuario?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se borrará <strong>{pendingDelete?.email}</strong> y todos sus datos
+              Se borrará <strong>{toShortEmail(pendingDelete?.email ?? "")}</strong> y todos sus datos
               (inventario, conteos FS). Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>

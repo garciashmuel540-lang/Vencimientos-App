@@ -25,6 +25,7 @@ import {
 import { productStatus } from "@/lib/vigia/dates";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
 import { useUserEmails } from "@/lib/auth/use-user-emails";
+import { toShortEmail } from "@/lib/auth/user-utils";
 import { useVigiaStore } from "@/lib/vigia/store";
 import {
   CATEGORY_LABEL,
@@ -147,7 +148,7 @@ export function InventoryPage() {
                   .filter((uid) => uid !== user?.id)
                   .map((uid) => {
                     const email = emails.get(uid) ?? "usuario";
-                    const short = email.split("@")[0];
+                    const short = toShortEmail(email);
                     return (
                       <SelectItem key={uid} value={uid}>
                         <span className="inline-flex items-center gap-2">

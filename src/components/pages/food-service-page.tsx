@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
 import { useUserEmails } from "@/lib/auth/use-user-emails";
+import { toShortEmail } from "@/lib/auth/user-utils";
 import {
   FS_PRODUCTS,
   FS_CATEGORY_LABEL,
@@ -329,7 +330,7 @@ export function FoodServicePage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">
-                    {u.email.split("@")[0]}
+                    {toShortEmail(u.email)}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {u.email}
