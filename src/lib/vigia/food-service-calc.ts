@@ -15,7 +15,7 @@
  */
 import type { FSProduct } from "./food-service-catalog";
 
-export const DEFAULT_TOLERANCE = 0.1;
+export const DEFAULT_TOLERANCE = 0;
 
 export interface FSInput {
   opened: number | null;
@@ -69,7 +69,8 @@ export function calcFSItem(
   let status: FSCalcResult["status"];
   let label: string;
 
-  if (Math.abs(difference) < tolerance) {
+  // OK solo si la diferencia es EXACTAMENTE 0 (o dentro de tolerancia)
+  if (Math.abs(difference) <= tolerance) {
     status = "ok";
     label = "OK";
   } else if (difference > 0) {
