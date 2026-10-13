@@ -57,6 +57,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
   );
 
   // Cuando cambia el existing (por pull), actualizar los inputs
+  // IMPORTANTE: NO reseteamos abiertosUnit para no perder la elección del usuario
   useEffect(() => {
     setOpened(existing?.opened != null ? String(existing.opened) : "");
     setSealed(existing?.sealed != null ? String(existing.sealed) : "");
@@ -64,8 +65,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
     setParciales([]);
     setParcialInput("");
     setAddingParcial(false);
-    setAbiertosUnit(product.unit as FSUnit);
-  }, [existing?.id, product.unit]);
+  }, [existing?.id]);
 
   // Cálculo en vivo
   const numOpenedRaw = opened === "" ? null : Number(opened);
@@ -340,7 +340,19 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        addParcial();
+                        // Usar el valor REAL del input (no el estado, que puede estar desactualizado)
+                        const valor = e.currentTarget.value.trim();
+                        if (!valor) return;
+                        const n = Number(valor);
+                        if (!Number.isFinite(n) || n <= 0) return;
+                        const next = [...parciales, n];
+                        setParciales(next);
+                        setParcialInput("");
+                        setAddingParcial(true);
+                        const suma = next.reduce((a, b) => a + b, 0);
+                        setOpened(String(suma));
+                        scheduleSave();
+                        window.setTimeout(() => parcialInputRef.current?.focus(), 0);
                       }
                     }}
                   />
