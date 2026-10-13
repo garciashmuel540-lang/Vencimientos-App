@@ -47,10 +47,9 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
   const debounceRef = useRef<number | null>(null);
   const parcialInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Parciales para "Abiertos" (sumadora)
+  // Parciales para "Abiertos" (sumadora simple)
   const [parciales, setParciales] = useState<number[]>([]);
   const [parcialInput, setParcialInput] = useState("");
-  const [addingParcial, setAddingParcial] = useState(false);
   // Unidad en la que el usuario ingresa los valores de "Abiertos"
   const [abiertosUnit, setAbiertosUnit] = useState<FSUnit>(
     product.unit as FSUnit,
@@ -64,7 +63,6 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
     setSystemQty(existing?.system_qty != null ? String(existing.system_qty) : "");
     setParciales([]);
     setParcialInput("");
-    setAddingParcial(false);
   }, [existing?.id]);
 
   // Cálculo en vivo
@@ -119,43 +117,27 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
     scheduleSave();
   };
 
-  // ============ SUMADORA DE PARCIALES ============
+  // ============ SUMADORA DE PARCIALES (SIMPLE) ============
 
   const sumaParciales = parciales.reduce((a, b) => a + b, 0);
 
+  // Agrega el valor del input a la suma
   const addParcial = () => {
     const n = Number(parcialInput);
     if (!Number.isFinite(n) || n <= 0) return;
     const next = [...parciales, n];
     setParciales(next);
     setParcialInput("");
-    // Asegurar que el input siga abierto
-    setAddingParcial(true);
     const suma = next.reduce((a, b) => a + b, 0);
     setOpened(String(suma));
     scheduleSave();
-    // Devolver el foco al input (útil en móvil para no cerrar el teclado)
-    window.setTimeout(() => {
-      parcialInputRef.current?.focus();
-    }, 0);
+    window.setTimeout(() => parcialInputRef.current?.focus(), 0);
   };
 
-  const removeParcial = (idx: number) => {
-    const next = parciales.filter((_, i) => i !== idx);
-    setParciales(next);
-    if (next.length === 0) {
-      setOpened("");
-    } else {
-      const suma = next.reduce((a, b) => a + b, 0);
-      setOpened(String(suma));
-    }
-    scheduleSave();
-  };
-
+  // Limpia todos los parciales
   const clearParciales = () => {
     setParciales([]);
     setParcialInput("");
-    setAddingParcial(false);
     setOpened("");
     scheduleSave();
   };
@@ -220,16 +202,6 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                 <label className="text-xs font-medium text-muted-foreground">
                   Abiertos ({product.unit})
                 </label>
-                {!readOnly && parciales.length === 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setAddingParcial((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
-                  >
-                    <Plus className="size-3" />
-                    Sumar parciales
-                  </button>
-                )}
                 {!readOnly && parciales.length > 0 && (
                   <button
                     type="button"
@@ -241,16 +213,78 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                   </button>
                 )}
               </div>
+
               <div className="mt-1 flex gap-2">
                 <Input
+                  ref={parcialInputRef}
                   type="number"
                   inputMode="decimal"
-                  value={opened}
-                  onChange={(e) => handleChange(setOpened)(e.target.value)}
+                  value={parciales.length > 0 ? parcialInput : opened}
+                  onChange={(e) => {
+                    if (parciales.length > 0) {
+                      setParcialInput(e.target.value);
+                    } else {
+                      handleChange(setOpened)(e.target.value);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === "Enter" &&
+                      parciales.length > 0 &&
+                      parcialInput.trim()
+                    ) {
+                      e.preventDefault();
+                      const valor = e.currentTarget.value.trim();
+                      const n = Number(valor);
+                      if (Number.isFinite(n) && n > 0) {
+                        const next = [...parciales, n];
+                        setParciales(next);
+                        setParcialInput("");
+                        const suma = next.reduce((a, b) => a + b, 0);
+                        setOpened(String(suma));
+                        scheduleSave();
+                        window.setTimeout(
+                          () => parcialInputRef.current?.focus(),
+                          0,
+                        );
+                      }
+                    }
+                  }}
                   placeholder="0"
                   className="flex-1"
-                  disabled={readOnly || parciales.length > 0}
+                  disabled={readOnly}
                 />
+                {!readOnly && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 rounded-xl px-3"
+                    onClick={() => {
+                      // Primer click: activar modo sumar (agrega el valor actual)
+                      const valor = parciales.length > 0 ? parcialInput : opened;
+                      const n = Number(valor);
+                      if (!Number.isFinite(n) || n <= 0) return;
+                      const next = [...parciales, n];
+                      setParciales(next);
+                      setParcialInput("");
+                      const suma = next.reduce((a, b) => a + b, 0);
+                      setOpened(String(suma));
+                      scheduleSave();
+                      window.setTimeout(
+                        () => parcialInputRef.current?.focus(),
+                        0,
+                      );
+                    }}
+                    disabled={
+                      parciales.length > 0
+                        ? !parcialInput.trim()
+                        : !opened.trim()
+                    }
+                    aria-label="Sumar"
+                  >
+                    <Plus className="size-4" />
+                  </Button>
+                )}
                 <select
                   value={abiertosUnit}
                   onChange={(e) => {
@@ -267,6 +301,19 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                   ))}
                 </select>
               </div>
+
+              {/* Suma acumulada (si hay parciales) */}
+              {parciales.length > 0 && (
+                <div className="mt-2 flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2">
+                  <span className="text-xs font-medium text-primary">
+                    Suma acumulada ({parciales.length})
+                  </span>
+                  <span className="text-base font-semibold tabular text-primary">
+                    {sumaParciales}
+                  </span>
+                </div>
+              )}
+
               {/* Conversión automática si la unidad elegida ≠ unidad de la fórmula */}
               {abiertosUnit !== product.unit &&
                 opened !== "" &&
@@ -277,96 +324,9 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                   </p>
                 )}
 
-              {/* Sumadora de parciales */}
-              {parciales.length > 0 && (
-                <div className="mt-2 rounded-lg bg-background/60 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                      Parciales ({parciales.length})
-                    </p>
-                    {!readOnly && (
-                      <button
-                        type="button"
-                        onClick={() => setAddingParcial((v) => !v)}
-                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
-                      >
-                        <Plus className="size-3" />
-                        {addingParcial ? "Cerrar" : "Añadir"}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {parciales.map((p, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => !readOnly && removeParcial(i)}
-                        disabled={readOnly}
-                        className="group inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-1 text-xs font-medium tabular transition-colors hover:bg-bad-soft disabled:cursor-default"
-                        title={readOnly ? "" : "Toca para quitar"}
-                      >
-                        {formatFSNumber(p)}
-                        {!readOnly && (
-                          <X className="size-3 opacity-40 group-hover:opacity-100" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
 
-                  {/* Total destacado */}
-                  <div className="mt-3 flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2">
-                    <span className="text-xs font-medium text-primary">
-                      Total
-                    </span>
-                    <span className="text-base font-semibold tabular text-primary">
-                      {formatFSNumber(sumaParciales)}
-                    </span>
-                  </div>
-                </div>
-              )}
 
-              {/* Input para agregar parcial */}
-              {addingParcial && !readOnly && (
-                <div className="mt-2 flex gap-2">
-                  <Input
-                    ref={parcialInputRef}
-                    type="number"
-                    inputMode="decimal"
-                    value={parcialInput}
-                    onChange={(e) => setParcialInput(e.target.value)}
-                    placeholder="Ej. 356"
-                    className="flex-1 h-9"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        // Usar el valor REAL del input (no el estado, que puede estar desactualizado)
-                        const valor = e.currentTarget.value.trim();
-                        if (!valor) return;
-                        const n = Number(valor);
-                        if (!Number.isFinite(n) || n <= 0) return;
-                        const next = [...parciales, n];
-                        setParciales(next);
-                        setParcialInput("");
-                        setAddingParcial(true);
-                        const suma = next.reduce((a, b) => a + b, 0);
-                        setOpened(String(suma));
-                        scheduleSave();
-                        window.setTimeout(() => parcialInputRef.current?.focus(), 0);
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-9"
-                    onClick={addParcial}
-                    disabled={!parcialInput.trim()}
-                  >
-                    Añadir
-                  </Button>
-                </div>
-              )}
+
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">
