@@ -302,12 +302,11 @@ export function FoodServicePage() {
     container.style.width = "720px";
     container.style.padding = "24px";
     container.style.background = "#F7F5F1";
-    container.style.zIndex = "99999";
-    // NO usamos opacity porque se aplica a la captura
-    // En su lugar, lo ponemos fuera del viewport pero capturable
+    // z-index negativo: queda detrás de todo el contenido de la app
+    // El navegador SÍ lo renderiza (necesario para domToPng)
+    // pero el usuario no lo ve porque está detrás.
+    container.style.zIndex = "-1000";
     container.style.pointerEvents = "none";
-    // Lo movemos fuera de la vista principal pero sin ser "invisible"
-    container.style.marginLeft = "-10000px";
     container.style.fontFamily =
       "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
