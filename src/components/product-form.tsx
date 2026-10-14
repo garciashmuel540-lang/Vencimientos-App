@@ -227,14 +227,6 @@ export function ProductForm({
             type="date"
             value={draft.expiresAt}
             onChange={(e) => patch("expiresAt", e.target.value)}
-            onClick={(e) => {
-              // Forzar el selector nativo (fix para Vercel)
-              try {
-                (e.currentTarget as HTMLInputElement).showPicker?.();
-              } catch {
-                /* silencioso */
-              }
-            }}
             required
           />
         </Field>
