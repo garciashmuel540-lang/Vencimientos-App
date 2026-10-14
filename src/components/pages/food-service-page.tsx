@@ -4,7 +4,7 @@
  * - Modo "Todos" (admin): lista de usuarios, y al tocar uno se ven sus conteos (solo lectura).
  */
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Search, ChevronDown, Users, User, ArrowLeft, ChevronRight } from "lucide-react";
+import { Calendar, Search, ChevronDown, Users, User, ArrowLeft, ChevronRight, Coffee, Utensils, Package, CupSoda, Sandwich } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
@@ -30,6 +30,53 @@ import {
 } from "@/lib/data/food-service-supabase";
 import { calcFSItem } from "@/lib/vigia/food-service-calc";
 import { FSItemCard } from "@/components/food-service/fs-item-card";
+
+/**
+ * Configuración visual de cada categoría de Food Service.
+ */
+const CATEGORY_META: Record<FSCategory, {
+  icon: typeof Coffee;
+  bg: string;
+  iconColor: string;
+  subtitle: string;
+}> = {
+  cafe: {
+    icon: Coffee,
+    bg: "bg-amber-50 dark:bg-amber-950/30",
+    iconColor: "text-amber-700 dark:text-amber-400",
+    subtitle: "Cappuccino, Nescafé, KIT KAT",
+  },
+  ingredientes: {
+    icon: Utensils,
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+    iconColor: "text-emerald-700 dark:text-emerald-400",
+    subtitle: "Salsas, pan, salchichas",
+  },
+  desechables: {
+    icon: Package,
+    bg: "bg-blue-50 dark:bg-blue-950/30",
+    iconColor: "text-blue-700 dark:text-blue-400",
+    subtitle: "Vasos, tapas, servilletas",
+  },
+  granitas: {
+    icon: CupSoda,
+    bg: "bg-pink-50 dark:bg-pink-950/30",
+    iconColor: "text-pink-700 dark:text-pink-400",
+    subtitle: "Vasos, pajillas, tapas",
+  },
+  pan: {
+    icon: Sandwich,
+    bg: "bg-orange-50 dark:bg-orange-950/30",
+    iconColor: "text-orange-700 dark:text-orange-400",
+    subtitle: "Pan hot dog, salchichas",
+  },
+  salsas: {
+    icon: Utensils,
+    bg: "bg-red-50 dark:bg-red-950/30",
+    iconColor: "text-red-700 dark:text-red-400",
+    subtitle: "Salsas y aderezos",
+  },
+};
 
 export function FoodServicePage() {
   const { user, isAdmin } = useSupabaseAuth();
@@ -389,25 +436,62 @@ export function FoodServicePage() {
                 return (
                   <div
                     key={cat}
-                    className="rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-sm"
+                    className="rounded-2xl border bg-card overflow-hidden transition-all duration-200"
                   >
                     <button
                       type="button"
                       onClick={() => toggleCategory(cat)}
-                      className="w-full flex items-center gap-2 px-4 py-3.5 hover:bg-muted/40 transition-colors duration-200"
+                      className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors duration-200"
                     >
+                      {/* Ícono de la categoría */}
+                      <div
+                        className={cn(
+                          "flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors",
+                          CATEGORY_META[cat].bg,
+                        )}
+                      >
+                        {(() => {
+                          const Icon = CATEGORY_META[cat].icon;
+                          return (
+                            <Icon
+                              className={cn(
+                                "size-5",
+                                CATEGORY_META[cat].iconColor,
+                              )}
+                            />
+                          );
+                        })()}
+                      </div>
+
+                      {/* Nombre y subtítulo */}
+                      <div className="min-w-0 flex-1 text-left">
+                        <h2 className="font-medium leading-tight">
+                          {FS_CATEGORY_LABEL[cat]}
+                        </h2>
+                        <p className="truncate text-xs text-muted-foreground mt-0.5">
+                          {CATEGORY_META[cat].subtitle}
+                        </p>
+                      </div>
+
+                      {/* Contador */}
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular",
+                          catFilled > 0
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        {catFilled}/{items.length}
+                      </span>
+
+                      {/* Chevron */}
                       <ChevronDown
                         className={cn(
-                          "size-4 transition-transform duration-200 text-muted-foreground",
+                          "size-4 shrink-0 transition-transform duration-200 text-muted-foreground",
                           !isOpen && "-rotate-90",
                         )}
                       />
-                      <h2 className="flex-1 text-left font-medium">
-                        {FS_CATEGORY_LABEL[cat]}
-                      </h2>
-                      <span className="text-xs text-muted-foreground">
-                        {catFilled}/{items.length}
-                      </span>
                     </button>
 
                     {isOpen && (
