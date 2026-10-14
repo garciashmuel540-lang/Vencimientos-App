@@ -195,13 +195,19 @@ export async function flushPending(): Promise<number> {
 export async function syncPush(product: Product): Promise<void> {
   const db = getDb();
   try {
+    console.info(`[syncPush] inicio para ${product.name}, qty=${product.quantity}, exp=${product.expiresAt}`);
     const input = mapProductToInput(product);
-    await pushInventoryItem(input);
+    console.info(`[syncPush] input:`, JSON.stringify(input));
+    const result = await pushInventoryItem(input);
+    console.info(`[syncPush] OK:`, JSON.stringify(result));
     // Marcar como sincronizado
     await db.products.update(product.id, { pendingSync: false });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Error desconocido";
-    console.warn(`[inventory-sync] syncPush falló para ${product.id}:`, msg);
+    console.error(`[syncPush] FALLÓ para ${product.id}:`, msg);
+    // Import dinámico para no ensuciar los imports
+    const { toast } = await import("sonner");
+    toast.error(`Sync falló: ${msg}`);
     // Marcar como pendiente para reintentar después
     await db.products.update(product.id, { pendingSync: true });
   }
