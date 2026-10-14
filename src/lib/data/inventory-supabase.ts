@@ -176,8 +176,9 @@ export async function pushInventoryItem(
     price_c: item.price_c ?? null,
     subcategory: item.subcategory ?? null,
   };
-  // Solo mandamos id si viene (si no, Supabase lo genera)
-  if (item.id) payload.id = item.id;
+  // IMPORTANTE: NO mandamos id. Dejamos que el upsert detecte el conflicto
+  // por (user_id, barcode, expires_at). Si mandamos id, choca con la PK
+  // cuando el producto original es de otro usuario.
 
   const { data, error } = await supabase
     .from("inventory_items")
@@ -216,7 +217,7 @@ export async function pushInventoryBatch(
       price_c: it.price_c ?? null,
       subcategory: it.subcategory ?? null,
     };
-    if (it.id) row.id = it.id;
+    // NO mandamos id (mismo motivo que arriba)
     return row;
   });
 
