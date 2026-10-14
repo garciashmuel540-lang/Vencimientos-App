@@ -11,7 +11,7 @@ import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { toPng } from "html-to-image";
+import { domToPng } from "modern-screenshot";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
 import { useUserEmails } from "@/lib/auth/use-user-emails";
 import { toShortEmail } from "@/lib/auth/user-utils";
@@ -419,12 +419,11 @@ export function FoodServicePage() {
         /* silencioso */
       }
 
-      const dataUrl = await toPng(container, {
+      const dataUrl = await domToPng(container, {
         quality: 1,
-        pixelRatio: 2,
+        scale: 2,
         backgroundColor: "#F7F5F1",
-        cacheBust: true,
-        skipFonts: false,
+        debug: false,
       });
 
       // Convertir a Blob
