@@ -74,24 +74,24 @@ export function Splash({ show }: { show: boolean }) {
                   100% { transform: scale(1); opacity: 1; }
                 }
                 .vigia-circle {
-                  transform-origin: center;
-                  animation: vigia-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s both;
+                  transform-origin: 100px 115px;
+                  animation: vigia-pop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
                 }
                 .vigia-leaf {
-                  transform-origin: 65% 85%;
-                  animation: vigia-leaf 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s both;
+                  transform-origin: 108px 45px;
+                  animation: vigia-leaf 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.9s both;
                 }
                 .vigia-stem {
-                  transform-origin: bottom center;
-                  animation: vigia-stem 0.25s ease-out 0.6s both;
+                  transform-origin: 100px 50px;
+                  animation: vigia-stem 0.5s ease-out 1.5s both;
                 }
                 .vigia-check {
                   stroke-dasharray: 200;
-                  animation: vigia-check 0.5s ease-out 0.75s both;
+                  animation: vigia-check 0.8s ease-out 1.8s both;
                 }
                 .vigia-circle-dot {
-                  transform-origin: center;
-                  animation: vigia-circle-dot 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) 1.05s both;
+                  transform-origin: 100px 115px;
+                  animation: vigia-circle-dot 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 2.4s both;
                 }
               `}
             </style>
@@ -146,7 +146,7 @@ export function Splash({ show }: { show: boolean }) {
 
         {/* Texto Vigía */}
         <p
-          className="font-semibold tracking-tight text-[#F3EFE6] animate-[vigia-fade-up_0.4s_ease-out_1.05s_both]"
+          className="font-semibold tracking-tight text-[#F3EFE6] animate-[vigia-fade-up_0.6s_ease-out_2.6s_both]"
           style={{
             fontFamily: "Fraunces, serif",
             fontSize: "2rem",
