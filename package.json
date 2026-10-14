@@ -60,6 +60,7 @@
     "date-fns": "^4.0.0",
     "dexie": "^4.4.6",
     "groq-sdk": "^1.6.0",
+    "html-to-image": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "jose": "6.2.9",
     "kysely": "^0.28.5",

@@ -4,13 +4,14 @@
  * - Modo "Todos" (admin): lista de usuarios, y al tocar uno se ven sus conteos (solo lectura).
  */
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Search, ChevronDown, Users, User, ArrowLeft, ChevronRight, Coffee, Utensils, Package, CupSoda, Sandwich } from "lucide-react";
+import { Calendar, Search, ChevronDown, Users, User, ArrowLeft, ChevronRight, Coffee, Utensils, Package, CupSoda, Sandwich, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toPng } from "html-to-image";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
 import { useUserEmails } from "@/lib/auth/use-user-emails";
 import { toShortEmail } from "@/lib/auth/user-utils";
@@ -267,6 +268,181 @@ export function FoodServicePage() {
   // ========== MODO DETALLE DE UN USUARIO ==========
   const showUserDetail = isAdmin && !onlyMine && Boolean(selectedUserId);
 
+  // Compartir tabla de resultados de una categoría
+  const shareCategoryTable = async (cat: FSCategory) => {
+    const items = grouped[cat];
+    if (!items || items.length === 0) {
+      toast.error("No hay productos en esta categoría");
+      return;
+    }
+
+    // Preparar las filas
+    const rowsData = items.map((product) => {
+      const count = rowsByCode.get(product.code) ?? null;
+      const hasData =
+        count &&
+        count.opened != null &&
+        count.sealed != null &&
+        count.system_qty != null;
+      const calc = hasData
+        ? calcFSItem(product, {
+            opened: count.opened,
+            sealed: count.sealed,
+            system_qty: count.system_qty,
+          })
+        : null;
+      return { product, calc, hasData, count };
+    });
+
+    // Construir HTML temporal (oculto)
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    container.style.width = "720px";
+    container.style.padding = "24px";
+    container.style.background = "#F7F5F1";
+    container.style.fontFamily =
+      "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+
+    const dateFormatted = new Date(date + "T12:00:00").toLocaleDateString(
+      "es",
+      { day: "numeric", month: "long", year: "numeric" },
+    );
+
+    const rowsHtml = rowsData
+      .map(({ product, calc, hasData, count }) => {
+        const name = product.name
+          .replace(/^FSI /, "")
+          .replace(/\s+/g, " ")
+          .slice(0, 40);
+        if (!hasData || !calc) {
+          return `
+            <tr style="border-bottom:1px solid #E5E1D8">
+              <td style="padding:10px 12px;font-size:13px;color:#6b6b6b">${name}</td>
+              <td style="padding:10px 12px;text-align:center;color:#a8a5a0">—</td>
+              <td style="padding:10px 12px;text-align:center;color:#a8a5a0">—</td>
+              <td style="padding:10px 12px;text-align:center;color:#a8a5a0">—</td>
+              <td style="padding:10px 12px;text-align:right;font-size:12px;color:#a8a5a0">Sin datos</td>
+            </tr>`;
+        }
+        const diff = calc.difference;
+        const diffText =
+          diff === 0
+            ? "0.00"
+            : diff > 0
+              ? `+${diff.toFixed(2)}`
+              : diff.toFixed(2);
+        const statusColor =
+          calc.status === "ok"
+            ? "#2A5547"
+            : calc.status === "sobra"
+              ? "#B8860B"
+              : "#B04A3C";
+        const statusBg =
+          calc.status === "ok"
+            ? "#E3EBE6"
+            : calc.status === "sobra"
+              ? "#F5EBD8"
+              : "#F5DAD6";
+        const systemQty = count?.system_qty ?? 0;
+        return `
+            <tr style="border-bottom:1px solid #E5E1D8">
+              <td style="padding:10px 12px;font-size:13px;color:#1a1a1a;font-weight:500">${name}</td>
+              <td style="padding:10px 12px;text-align:center;font-size:13px;color:#1a1a1a;font-variant-numeric:tabular-nums">${calc.inventory.toFixed(2)}</td>
+              <td style="padding:10px 12px;text-align:center;font-size:13px;color:#1a1a1a;font-variant-numeric:tabular-nums">${systemQty.toFixed(2)}</td>
+              <td style="padding:10px 12px;text-align:center;font-size:13px;color:${statusColor};font-weight:600;font-variant-numeric:tabular-nums">${diffText}</td>
+              <td style="padding:10px 12px;text-align:right">
+                <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;color:${statusColor};background:${statusBg}">
+                  ${calc.status === "ok" ? "OK" : calc.status === "sobra" ? "Sobra" : "Falta"}
+                </span>
+              </td>
+            </tr>`;
+      })
+      .join("");
+
+    const okCount = rowsData.filter((r) => r.calc?.status === "ok").length;
+    const diffCount = rowsData.filter(
+      (r) => r.calc && r.calc.status !== "ok" && r.calc.status !== "incompleto",
+    ).length;
+
+    container.innerHTML = `
+      <div style="background:#FFFFFF;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(26,26,26,0.06)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+          <div style="width:44px;height:44px;border-radius:12px;background:#2A5547;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px">V</div>
+          <div>
+            <div style="font-size:11px;letter-spacing:2px;color:#6b6b6b;text-transform:uppercase">Food Service</div>
+            <div style="font-size:20px;font-weight:600;color:#1a1a1a">${FS_CATEGORY_LABEL[cat]}</div>
+          </div>
+        </div>
+
+        <div style="font-size:12px;color:#6b6b6b;margin-bottom:16px">${dateFormatted}</div>
+
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="border-bottom:2px solid #1a1a1a">
+              <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Producto</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Físico</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Sistema</th>
+              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Diferencia</th>
+              <th style="padding:10px 12px;text-align:right;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #E5E1D8;display:flex;justify-content:space-between;font-size:12px;color:#6b6b6b">
+          <span>${rowsData.length} producto${rowsData.length === 1 ? "" : "s"}</span>
+          <span>${okCount} OK · ${diffCount} con diferencia</span>
+        </div>
+
+        <div style="margin-top:14px;text-align:center;font-size:11px;color:#a8a5a0">
+          Generado con Vigía
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(container);
+
+    try {
+      const dataUrl = await toPng(container, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: "#F7F5F1",
+      });
+
+      // Convertir a Blob
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `vigia-${cat}.png`, {
+        type: "image/png",
+      });
+
+      // Compartir
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Vigía - ${FS_CATEGORY_LABEL[cat]}`,
+          text: `Resultados de ${FS_CATEGORY_LABEL[cat]} - ${dateFormatted}`,
+        });
+      } else {
+        // Fallback: descargar la imagen
+        const link = document.createElement("a");
+        link.download = `vigia-${cat}.png`;
+        link.href = dataUrl;
+        link.click();
+        toast.success("Imagen descargada");
+      }
+    } catch (err) {
+      console.error("[share] error:", err);
+      toast.error("No se pudo compartir la imagen");
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
   return (
     <main className="pb-24">
       <PageHeader
@@ -472,6 +648,20 @@ export function FoodServicePage() {
                           {CATEGORY_META[cat].subtitle}
                         </p>
                       </div>
+
+                      {/* Botón compartir */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void shareCategoryTable(cat);
+                        }}
+                        className="shrink-0 flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                        aria-label="Compartir tabla"
+                        title="Compartir tabla"
+                      >
+                        <Share2 className="size-3.5" />
+                      </button>
 
                       {/* Contador */}
                       <span
