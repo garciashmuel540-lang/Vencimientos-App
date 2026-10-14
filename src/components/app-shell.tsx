@@ -11,7 +11,7 @@ import { useVigiaStore } from "@/lib/vigia/store";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
 
 const TOUR_KEY = "vigia-tour-done";
-const SPLASH_MIN_MS = 3200;
+const SPLASH_MIN_MS = 3800;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const hydrate = useVigiaStore((s) => s.hydrate);

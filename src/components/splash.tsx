@@ -117,15 +117,6 @@ export function Splash({ show }: { show: boolean }) {
             fill="none"
           />
 
-          {/* Punto blanco (dentro del check) */}
-          <circle
-            className="vigia-circle-dot"
-            cx="100"
-            cy="115"
-            r="8"
-            fill="#FFFFFF"
-          />
-
           {/* Tallo oscuro */}
           <path
             className="vigia-stem"
@@ -146,7 +137,7 @@ export function Splash({ show }: { show: boolean }) {
 
         {/* Texto Vigía */}
         <p
-          className="font-semibold tracking-tight text-[#F3EFE6] animate-[vigia-fade-up_0.6s_ease-out_2.6s_both]"
+          className="font-semibold tracking-tight text-[#F3EFE6] animate-[vigia-fade-up_0.5s_ease-out_2.2s_both]"
           style={{
             fontFamily: "Fraunces, serif",
             fontSize: "2rem",
