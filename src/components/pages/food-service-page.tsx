@@ -297,11 +297,13 @@ export function FoodServicePage() {
     // Construir HTML temporal (oculto)
     const container = document.createElement("div");
     container.style.position = "fixed";
-    container.style.left = "-9999px";
     container.style.top = "0";
+    container.style.left = "0";
     container.style.width = "720px";
     container.style.padding = "24px";
     container.style.background = "#F7F5F1";
+    container.style.zIndex = "-1";
+    container.style.opacity = "0.01";
     container.style.fontFamily =
       "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
@@ -407,10 +409,22 @@ export function FoodServicePage() {
     document.body.appendChild(container);
 
     try {
+      // Esperar un momento para que el navegador renderice todo
+      await new Promise((r) => setTimeout(r, 200));
+
+      // Intentar esperar las fuentes (si están disponibles)
+      try {
+        await document.fonts.ready;
+      } catch {
+        /* silencioso */
+      }
+
       const dataUrl = await toPng(container, {
         quality: 1,
         pixelRatio: 2,
         backgroundColor: "#F7F5F1",
+        cacheBust: true,
+        skipFonts: false,
       });
 
       // Convertir a Blob
