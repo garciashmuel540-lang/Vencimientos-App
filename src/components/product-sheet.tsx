@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Minus, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,40 @@ export function ProductSheet({
   const soonWithin = Math.max(...useVigiaStore((s) => s.settings.days), 30);
   const consume = useVigiaStore((s) => s.consume);
   const remove = useVigiaStore((s) => s.remove);
+
+  // Memoizamos el initial del form para que no se regenere en cada render.
+  // Sin esto, el useEffect de ProductForm resetea el draft constantemente.
+  const initialData = useMemo(
+    () =>
+      product
+        ? {
+            barcode: product.barcode,
+            name: product.name,
+            brand: product.brand,
+            presentation: product.presentation,
+            category: product.category,
+            expiresAt: product.expiresAt,
+            quantity: product.quantity,
+            location: product.location,
+            notes: product.notes,
+            image: product.image,
+            source: product.source,
+          }
+        : null,
+    [
+      product?.barcode,
+      product?.name,
+      product?.brand,
+      product?.presentation,
+      product?.category,
+      product?.expiresAt,
+      product?.quantity,
+      product?.location,
+      product?.notes,
+      product?.image,
+      product?.source,
+    ],
+  );
   const upsert = useVigiaStore((s) => s.upsertProduct);
   const focusOn = useChatFocus((s) => s.focusOn);
   const [editing, setEditing] = useState(false);
@@ -64,19 +98,7 @@ export function ProductSheet({
               </SheetHeader>
               <div className="mt-4">
                 <ProductForm
-                  initial={{
-                    barcode: product.barcode,
-                    name: product.name,
-                    brand: product.brand,
-                    presentation: product.presentation,
-                    category: product.category,
-                    expiresAt: product.expiresAt,
-                    quantity: product.quantity,
-                    location: product.location,
-                    notes: product.notes,
-                    image: product.image,
-                    source: product.source,
-                  }}
+                  initial={initialData!}
                   submitLabel="Guardar cambios"
                   onCancel={() => setEditing(false)}
                   onSubmit={async (draft) => {

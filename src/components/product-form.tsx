@@ -77,8 +77,14 @@ export function ProductForm({
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Solo resetear el draft si el initial cambia REALMENTE (por identidad de contenido)
+  // Esto evita que se resetee cuando el padre re-renderiza
+  const lastInitialRef = useRef(initial);
   useEffect(() => {
-    setDraft(initial);
+    if (lastInitialRef.current !== initial) {
+      lastInitialRef.current = initial;
+      setDraft(initial);
+    }
   }, [initial]);
 
   function patch<K extends keyof ProductDraft>(key: K, value: ProductDraft[K]) {
