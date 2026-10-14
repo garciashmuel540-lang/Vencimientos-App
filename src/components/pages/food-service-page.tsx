@@ -409,8 +409,13 @@ export function FoodServicePage() {
     document.body.appendChild(container);
 
     try {
+      // Toast con info del HTML
+      const htmlLen = container.innerHTML.length;
+      const rect = container.getBoundingClientRect();
+      console.info(`[share] html=${htmlLen}px, w=${rect.width}, h=${rect.height}`);
+
       // Esperar un momento para que el navegador renderice todo
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 300));
 
       // Intentar esperar las fuentes (si están disponibles)
       try {
@@ -419,12 +424,24 @@ export function FoodServicePage() {
         /* silencioso */
       }
 
+      console.info("[share] antes de domToPng");
       const dataUrl = await domToPng(container, {
         quality: 1,
         scale: 2,
         backgroundColor: "#F7F5F1",
         debug: false,
       });
+      console.info(
+        `[share] dataUrl length=${dataUrl.length}, prefix=${dataUrl.slice(0, 30)}`,
+      );
+
+      // Verificar si es una imagen en blanco
+      const { toast } = await import("sonner");
+      if (dataUrl.length < 5000) {
+        toast.error(`Imagen vacía (${dataUrl.length} chars)`);
+      } else {
+        toast.success(`Imagen OK (${Math.round(dataUrl.length / 1024)}KB)`);
+      }
 
       // Convertir a Blob
       const res = await fetch(dataUrl);
