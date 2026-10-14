@@ -180,13 +180,21 @@ export async function pushInventoryItem(
   // por (user_id, barcode, expires_at). Si mandamos id, choca con la PK
   // cuando el producto original es de otro usuario.
 
+  console.info("[pushInventoryItem] payload:", JSON.stringify(payload));
+
   const { data, error } = await supabase
     .from("inventory_items")
     .upsert(payload, { onConflict: "user_id,barcode,expires_at" })
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("[pushInventoryItem] error:", error);
+    // Toast temporal para debug
+    const { toast } = await import("sonner");
+    toast.error(`Payload: ${JSON.stringify(payload).slice(0, 200)}`);
+    throw new Error(error.message);
+  }
   return data as InventoryRow;
 }
 
