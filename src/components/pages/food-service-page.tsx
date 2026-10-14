@@ -440,7 +440,8 @@ export function FoodServicePage() {
       if (dataUrl.length < 5000) {
         toast.error(`Imagen vacía (${dataUrl.length} chars)`);
       } else {
-        toast.success(`Imagen OK (${Math.round(dataUrl.length / 1024)}KB)`);
+        const prefix = dataUrl.slice(0, 50);
+        toast.success(`OK ${Math.round(dataUrl.length / 1024)}KB · ${prefix}`);
       }
 
       // Convertir a Blob
@@ -451,12 +452,24 @@ export function FoodServicePage() {
       });
 
       // Compartir
+      console.info(
+        `[share] blob size=${blob.size}, type=${blob.type}, canShare=${navigator.canShare?.({ files: [file] })}`,
+      );
+
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Vigía - ${FS_CATEGORY_LABEL[cat]}`,
-          text: `Resultados de ${FS_CATEGORY_LABEL[cat]} - ${dateFormatted}`,
-        });
+        try {
+          await navigator.share({
+            files: [file],
+            title: `Vigía - ${FS_CATEGORY_LABEL[cat]}`,
+            text: `Resultados de ${FS_CATEGORY_LABEL[cat]} - ${dateFormatted}`,
+          });
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") {
+            console.info("[share] usuario canceló");
+            return;
+          }
+          throw err;
+        }
       } else {
         // Fallback: descargar la imagen
         const link = document.createElement("a");
