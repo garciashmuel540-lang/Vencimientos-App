@@ -110,7 +110,7 @@ export function PriceCheckPage() {
 
   return (
     <main>
-      <PageHeader onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader mood="thinking" tip="Tené el código de barras a mano." onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Cámara"
         title="Precios"
         description="Escanea un código para ver la información y el precio."

@@ -60,7 +60,7 @@ export function ReportsPage() {
 
   return (
     <main>
-      <PageHeader onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader mood="thinking" tip="Tu resumen se puede compartir." onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Papelería"
         title="Reportes"
         description="Exporta, imprime o envía el resumen del día."
