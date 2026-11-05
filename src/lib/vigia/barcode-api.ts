@@ -168,6 +168,16 @@ async function fetchOpenProductsFacts(barcode: string): Promise<LookupResult | n
   };
 }
 
+/**
+ * Envuelve una promesa con timeout. Si excede los ms, devuelve null.
+ */
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 export const lookupBarcodeFn = createServerFn({ method: "POST" })
   .validator((raw: unknown) => {
     const barcode =
@@ -181,11 +191,12 @@ export const lookupBarcodeFn = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }): Promise<LookupResult> => {
     const { barcode } = data;
+    const TIMEOUT_MS = 5000;
     const settled = await Promise.allSettled([
-      fetchOpenFoodFacts(barcode),
-      fetchUpcItemDb(barcode),
-      fetchOpenBeautyFacts(barcode),
-      fetchOpenProductsFacts(barcode),
+      withTimeout(fetchOpenFoodFacts(barcode), TIMEOUT_MS),
+      withTimeout(fetchUpcItemDb(barcode), TIMEOUT_MS),
+      withTimeout(fetchOpenBeautyFacts(barcode), TIMEOUT_MS),
+      withTimeout(fetchOpenProductsFacts(barcode), TIMEOUT_MS),
     ]);
     const off = settled[0].status === "fulfilled" ? settled[0].value : null;
     const upc = settled[1].status === "fulfilled" ? settled[1].value : null;

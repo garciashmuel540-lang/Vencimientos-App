@@ -83,14 +83,17 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
     return localHit;
   }
 
+  // Si el catálogo tiene el producto (aunque no tenga precio), usarlo directo
+  // sin llamar a las APIs externas (que pueden tardar o fallar).
+  if (localHit) {
+    return localHit;
+  }
+
   if (cacheFresh?.found) {
     return {
       ...cacheFresh,
       sourcesTried: ["cache", ...(cacheFresh.sourcesTried ?? [])],
     };
-  }
-  if (localHit?.found) {
-    return localHit;
   }
 
   try {
