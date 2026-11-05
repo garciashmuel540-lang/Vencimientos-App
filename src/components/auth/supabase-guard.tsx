@@ -61,8 +61,8 @@ export function SupabaseGuard({ children }: { children: ReactNode }) {
   // Sesión cargando → pantalla vacía mientras decide
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#23483C]">
-        <div className="size-10 animate-spin rounded-full border-4 border-[#F3EFE6]/30 border-t-[#F3EFE6]" />
+      <div className="flex min-h-dvh items-center justify-center bg-background">
+        <div className="size-10 animate-spin rounded-full border-4 border-secondary border-t-primary" />
       </div>
     );
   }

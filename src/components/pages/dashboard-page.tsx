@@ -65,27 +65,14 @@ export function DashboardPage() {
 
   return (
     <main>
-      <div className="relative">
+      <div className="nari-hero">
         <PageHeader
           onMenuClick={() => setSidebarOpen(true)}
           eyebrow={settings.storeName}
           title="Vigía"
           description={headline}
         />
-        <div className="absolute right-4 top-2 z-10">
-          <Mascot
-            mood={mascotMood}
-            size={80}
-            showBubble
-            bubbleText={
-              mascotMood === "wave"
-                ? "¡Hola! 👋"
-                : mascotMood === "thinking"
-                  ? "Uy, hay vencidos…"
-                  : "¿Qué revisamos?"
-            }
-          />
-        </div>
+        <Mascot mood={mascotMood} size={108} className="nari-sticker" />
       </div>
 
       {demo ? (

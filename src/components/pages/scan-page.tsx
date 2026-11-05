@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
@@ -17,13 +17,17 @@ export function ScanPage() {
   const [draft, setDraft] = useState<ProductDraft | null>(null);
   const [paused, setPaused] = useState(false);
 
+  const requestId = useRef(0);
+
   async function handleCode(code: string) {
+    const request = ++requestId.current;
     setPaused(true);
     setLookingUp(true);
     setFoundFromApi(false);
     setDraft({ ...emptyDraft(code), barcode: code });
     try {
       const result = await lookupProduct(code);
+      if (request !== requestId.current) return;
       setDraft({
         barcode: result.barcode,
         name: result.name,
@@ -42,9 +46,10 @@ export function ScanPage() {
         toast.message("No estaba en los catálogos. Complétalo una vez y queda guardado.");
       }
     } catch {
+      if (request !== requestId.current) return;
       toast.error("Sin conexión a los catálogos. Puedes registrarlo a mano.");
     } finally {
-      setLookingUp(false);
+      if (request === requestId.current) setLookingUp(false);
     }
   }
 
@@ -58,7 +63,8 @@ export function ScanPage() {
       <div className="px-4">
         <Scanner onDetect={(c) => void handleCode(c)} paused={paused && Boolean(draft)} />
       </div>
-      {draft ? (
+      {lookingUp ? <p role="status" className="p-4 text-sm">Consultando el catálogo…</p> : null}
+      {draft && !lookingUp ? (
         <section className="mt-6 px-4 pb-4">
           <h2 className="mb-3 font-display text-xl font-medium">Registrar lote</h2>
           <ProductForm

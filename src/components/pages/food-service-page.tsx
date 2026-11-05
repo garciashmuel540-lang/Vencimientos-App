@@ -734,7 +734,7 @@ export function FoodServicePage() {
                       <div className="flex flex-col gap-2 border-t bg-muted/20 p-3">
                         {items.map((product) => (
                           <FSItemCard
-                            key={product.code}
+                            key={JSON.stringify([date, selectedUserId ?? user?.id, product.code])}
                             product={product}
                             existing={rowsByCode.get(product.code) ?? null}
                             date={date}

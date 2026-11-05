@@ -1,3 +1,4 @@
+import { Mascot } from "@/components/mascot";
 import { useState, type FormEvent } from "react";
 import { toEmail } from "@/lib/auth/user-utils";
 import { LoaderCircle, LogIn } from "lucide-react";
@@ -41,17 +42,8 @@ export function LoginPage() {
     <main className="flex min-h-dvh items-center justify-center px-4">
       <Card className="w-full max-w-sm p-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <img
-            src="/icon-192.png"
-            alt=""
-            width={72}
-            height={72}
-            className="size-16 rounded-2xl shadow-md"
-          />
-          <h1
-            className="font-display text-2xl font-medium tracking-tight"
-            style={{ fontFamily: "Fraunces, serif" }}
-          >
+          <Mascot mood="wave" size={104} />
+          <h1 className="font-display text-4xl font-bold tracking-tight">
             Vigía
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -65,7 +57,9 @@ export function LoginPage() {
             <Input
               id="email"
               type="text"
-              autoComplete="email"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               inputMode="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -95,13 +89,9 @@ export function LoginPage() {
           ) : null}
 
           <Button
-            type="button"
+            type="submit"
             size="lg"
             disabled={loading}
-            onClick={() => {
-              const fakeEvent = { preventDefault: () => {} } as FormEvent;
-              void handleSubmit(fakeEvent);
-            }}
           >
             {loading ? (
               <>

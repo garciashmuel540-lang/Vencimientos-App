@@ -45,6 +45,7 @@ const DAY_OPTIONS = [60, 30, 15, 7, 3, 1];
 
 export function SettingsPage() {
   const settings = useVigiaStore((s) => s.settings);
+  const [storeName, setStoreName] = useState<string | null>(null);
   const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const update = useVigiaStore((s) => s.updateSettings);
   const products = useVigiaStore((s) => s.products);
@@ -235,8 +236,18 @@ export function SettingsPage() {
           <Input
             id="store"
             className="mt-2"
-            value={settings.storeName}
-            onChange={(e) => void update({ storeName: e.target.value })}
+            value={storeName ?? settings.storeName}
+            onChange={(e) => setStoreName(e.target.value)}
+            onBlur={async () => {
+              if (storeName === null || storeName === settings.storeName) return;
+              try {
+                await update({ storeName });
+                setStoreName(current => current === storeName ? null : current);
+              } catch {
+                toast.error("No se pudo guardar el nombre de la tienda.");
+              }
+            }}
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
           />
         </Card>
 

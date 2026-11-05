@@ -11,7 +11,7 @@ import { useVigiaStore } from "@/lib/vigia/store";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
 
 const TOUR_KEY = "vigia-tour-done";
-const SPLASH_MIN_MS = 3800;
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const hydrate = useVigiaStore((s) => s.hydrate);
@@ -26,21 +26,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/escanear") ||
     pathname.startsWith("/precio");
   const [tour, setTour] = useState(false);
-  const [splash, setSplash] = useState(true);
-  const [minTimeDone, setMinTimeDone] = useState(false);
+  const splash = !ready;
 
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setMinTimeDone(true), SPLASH_MIN_MS);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    if (ready && minTimeDone) setSplash(false);
-  }, [ready, minTimeDone]);
 
   useEffect(() => {
     if (!ready || splash) return;
