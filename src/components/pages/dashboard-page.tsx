@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, PackageCheck, ScanBarcode, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { Mascot } from "@/components/mascot";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { ProductCard } from "@/components/product-card";
 import { ProductSheet } from "@/components/product-sheet";
@@ -20,6 +21,21 @@ export function DashboardPage() {
   const demo = useVigiaStore((s) => s.demo);
   const soonWithin = Math.max(...settings.days, 30);
   const [selected, setSelected] = useState<Product | null>(null);
+  const [mascotMood, setMascotMood] = useState<"happy" | "wave" | "thinking">(
+    "wave",
+  );
+
+  // La mascota saluda al abrir y luego pasa a "happy"
+  useEffect(() => {
+    const t = window.setTimeout(() => setMascotMood("happy"), 2500);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  // Si hay vencidos, la mascota piensa
+  useEffect(() => {
+    const hasExpired = products.some((p) => productStatus(p, soonWithin) === "expired");
+    if (hasExpired) setMascotMood("thinking");
+  }, [products, soonWithin]);
 
   const stats = useMemo(() => {
     const live = products.filter((p) => p.quantity > 0);
@@ -57,11 +73,27 @@ export function DashboardPage() {
 
   return (
     <main>
-      <PageHeader onMenuClick={() => setSidebarOpen(true)}
-        eyebrow={settings.storeName}
-        title="Vigía"
-        description={headline}
-      />
+      <div className="relative">
+        <PageHeader onMenuClick={() => setSidebarOpen(true)}
+          eyebrow={settings.storeName}
+          title="Vigía"
+          description={headline}
+        />
+        <div className="absolute right-4 top-2 z-10">
+          <Mascot
+            mood={mascotMood}
+            size={80}
+            showBubble
+            bubbleText={
+              mascotMood === "wave"
+                ? "¡Hola! 👋"
+                : mascotMood === "thinking"
+                  ? "Uy, hay vencidos…"
+                  : "¿Qué revisamos?"
+            }
+          />
+        </div>
+      </div>
 
       {demo ? (
         <p className="mx-4 mb-4 rounded-md bg-accent px-3 py-2 text-sm text-accent-foreground">

@@ -4,60 +4,64 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
 
-  --color-background: #f7f5f1;
-  --color-foreground: #1a1a1a;
+  /* Base cálida y cítrica */
+  --color-background: #fff7ed;
+  --color-foreground: #3a2415;
   --color-card: #ffffff;
-  --color-card-foreground: #1a1a1a;
-  --color-muted: #ebe8e1;
-  --color-muted-foreground: #6b6b6b;
-  --color-primary: #2a5547;
-  --color-primary-foreground: #f5f3ef;
-  --color-secondary: #eeebe4;
-  --color-secondary-foreground: #1a1a1a;
-  --color-accent: #e3ebe6;
-  --color-accent-foreground: #1a1a1a;
-  --color-destructive: #b04a3c;
-  --color-destructive-foreground: #fbf9f6;
-  --color-border: #e5e1d8;
-  --color-input: #e5e1d8;
-  --color-ring: #2a5547;
-  --color-ok: #2f6a4a;
-  --color-ok-fg: #f3faf6;
-  --color-ok-soft: #e4f0e8;
-  --color-warn: #8a5a1f;
-  --color-warn-fg: #fff8ee;
-  --color-warn-soft: #f4ead8;
-  --color-bad: #8c322c;
-  --color-bad-fg: #fff6f4;
-  --color-bad-soft: #f3e2df;
-  --color-ink-soft: #3f3b35;
+  --color-card-foreground: #3a2415;
+  --color-muted: #fbe8d3;
+  --color-muted-foreground: #8a6a4f;
+  --color-primary: #ff8c42;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #ffd7b5;
+  --color-secondary-foreground: #3a2415;
+  --color-accent: #ffe3c4;
+  --color-accent-foreground: #3a2415;
+  --color-destructive: #e05353;
+  --color-destructive-foreground: #fff7ed;
+  --color-border: #f3d9be;
+  --color-input: #f3d9be;
+  --color-ring: #ff8c42;
 
-  --radius-xs: 6px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 22px;
-  --radius-2xl: 28px;
+  /* Estados */
+  --color-ok: #4caf7a;
+  --color-ok-fg: #f4fdf8;
+  --color-ok-soft: #daf5e6;
+  --color-warn: #d97706;
+  --color-warn-fg: #fff7ed;
+  --color-warn-soft: #ffe8c7;
+  --color-bad: #dc2626;
+  --color-bad-fg: #fff5f5;
+  --color-bad-soft: #fde2e2;
+  --color-ink-soft: #6b4a32;
 
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 26px;
+  --radius-2xl: 32px;
+
+  /* Sombra con tinte naranja + glass */
   --shadow-border:
-    0px 0px 0px 1px rgba(26, 26, 26, 0.05),
-    0px 1px 3px -1px rgba(26, 26, 26, 0.08),
-    0px 4px 12px -4px rgba(26, 26, 26, 0.06);
+    0px 0px 0px 1px rgba(255, 140, 66, 0.10),
+    0px 2px 6px -2px rgba(255, 140, 66, 0.15),
+    0px 8px 20px -8px rgba(255, 140, 66, 0.12);
 }
 
 html.dark {
-  --color-background: #121110;
-  --color-foreground: #f2f0eb;
-  --color-card: #1c1b18;
-  --color-card-foreground: #f2f0eb;
-  --color-muted: #262421;
-  --color-muted-foreground: #a8a5a0;
-  --color-primary: #c8d6ce;
-  --color-primary-foreground: #172a22;
-  --color-secondary: #232120;
+  --color-background: #1a0f08;
+  --color-foreground: #fff5eb;
+  --color-card: #2a1810;
+  --color-card-foreground: #fff5eb;
+  --color-muted: #3a2415;
+  --color-muted-foreground: #c9a789;
+  --color-primary: #ffa866;
+  --color-primary-foreground: #1a0f08;
+  --color-secondary: #3a2415;
   --color-secondary-foreground: #f2f0eb;
   --color-accent: #243029;
   --color-accent-foreground: #f2f0eb;
@@ -219,4 +223,78 @@ button, a, [role="button"] {
 @keyframes vigia-cursor {
   0%, 50% { opacity: 1; }
   50.01%, 100% { opacity: 0; }
+}
+
+/* === VIGÍA ORANGE KAWAII === */
+
+/* Liquid Glass para tarjetas y modales */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 8px 32px -8px rgba(255, 140, 66, 0.18),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+}
+
+html.dark .liquid-glass {
+  background: rgba(42, 24, 16, 0.55);
+  border: 1px solid rgba(255, 168, 102, 0.15);
+  box-shadow:
+    0 8px 32px -8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Mascota naranja - animaciones */
+@keyframes naranja-bounce {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-10px) rotate(2deg); }
+}
+@keyframes naranja-wave {
+  0%, 100% { transform: rotate(-12deg); }
+  50%      { transform: rotate(12deg); }
+}
+@keyframes naranja-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%           { transform: scaleY(0.1); }
+}
+@keyframes naranja-talk {
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.3); }
+}
+@keyframes naranja-float-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.8); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-naranja-bounce { animation: naranja-bounce 2.5s ease-in-out infinite; }
+.animate-naranja-wave   { animation: naranja-wave 1.2s ease-in-out infinite; transform-origin: 20% 80%; }
+.animate-naranja-blink  { animation: naranja-blink 4s ease-in-out infinite; transform-origin: center; }
+.animate-naranja-talk   { animation: naranja-talk 0.18s ease-in-out infinite; }
+.animate-naranja-in     { animation: naranja-float-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Burbuja de la mascota */
+.naranja-bubble {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px -6px rgba(255, 140, 66, 0.3);
+  position: relative;
+}
+.naranja-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -8px;
+  left: 24px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  transform: rotate(45deg);
+  border-radius: 3px;
+}
+
+/* Tipografía más redondeada */
+.font-kawaii {
+  font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
