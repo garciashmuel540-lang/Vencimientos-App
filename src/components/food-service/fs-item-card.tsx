@@ -8,14 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { FSProduct, FSUnit } from "@/lib/vigia/food-service-catalog";
-import {
-  FS_UNIT_LABEL,
-  FS_UNIT_SHORT,
-  convertUnit,
-  getCompatibleUnits,
-} from "@/lib/vigia/food-service-catalog";
+import { FS_UNIT_LABEL, convertUnit, getCompatibleUnits } from "@/lib/vigia/food-service-catalog";
 import { calcFSItem, formatFSNumber } from "@/lib/vigia/food-service-calc";
 import type { FSCountRow, FSCountInput } from "@/lib/data/food-service-supabase";
+
+function parseCount(raw: string) {
+  return raw === "" ? null : Number(raw.replace(",", "."));
+}
+
+const countDraft = /^\d*(?:[.,]\d*)?$/;
 
 interface Props {
   product: FSProduct;
@@ -51,29 +52,36 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
   const [parciales, setParciales] = useState<number[]>([]);
   const [parcialInput, setParcialInput] = useState("");
   // Unidad en la que el usuario ingresa los valores de "Abiertos"
-  const [abiertosUnit, setAbiertosUnit] = useState<FSUnit>(
-    product.unit as FSUnit,
-  );
+  const [abiertosUnit, setAbiertosUnit] = useState<FSUnit>(product.unit as FSUnit);
+
+  const localEdit = useRef(false);
+  const writeQueue = useRef(Promise.resolve());
+  const previousId = useRef(existing?.id);
 
   // Cuando cambia el existing (por pull), actualizar los inputs
   // IMPORTANTE: NO reseteamos abiertosUnit para no perder la elección del usuario
   useEffect(() => {
+    const deleted = previousId.current && !existing;
+    previousId.current = existing?.id;
+    if (localEdit.current && !deleted) return;
+    localEdit.current = false;
+    setAbiertosUnit(product.unit as FSUnit);
     setOpened(existing?.opened != null ? String(existing.opened) : "");
     setSealed(existing?.sealed != null ? String(existing.sealed) : "");
     setSystemQty(existing?.system_qty != null ? String(existing.system_qty) : "");
     setParciales([]);
     setParcialInput("");
-  }, [existing?.id]);
+  }, [existing?.id, existing?.opened, existing?.sealed, existing?.system_qty, product.unit]);
 
   // Cálculo en vivo
-  const numOpenedRaw = opened === "" ? null : Number(opened);
+  const numOpenedRaw = parseCount(opened);
   // Convertir el valor ingresado a la unidad de la fórmula (product.unit)
   const numOpened =
     numOpenedRaw != null && Number.isFinite(numOpenedRaw)
       ? convertUnit(numOpenedRaw, abiertosUnit, product.unit as FSUnit)
       : null;
-  const numSealed = sealed === "" ? null : Number(sealed);
-  const numSystem = systemQty === "" ? null : Number(systemQty);
+  const numSealed = parseCount(sealed);
+  const numSystem = parseCount(systemQty);
 
   const result = calcFSItem(product, {
     opened: Number.isFinite(numOpened) ? numOpened : null,
@@ -81,40 +89,48 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
     system_qty: Number.isFinite(numSystem) ? numSystem : null,
   });
 
-  // Auto-save con debounce de 800ms
-  const scheduleSave = () => {
+  // Cada guardado lleva los valores de la edición que lo originó.
+  const scheduleSave = (
+    next: Partial<{ opened: string; sealed: string; system: string; unit: FSUnit }>,
+  ) => {
     if (readOnly) return;
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    debounceRef.current = window.setTimeout(async () => {
-      // Solo guardar si hay al menos un valor
-      if (opened === "" && sealed === "" && systemQty === "") return;
-      setSaving(true);
-      try {
-        await onSave({
-          product_code: product.code,
-          product_name: product.name,
-          category: product.category,
-          unit: product.unit,
-          container_weight: product.containerWeight,
-          unit_weight: product.unitWeight,
-          opened: Number.isFinite(numOpened) ? numOpened : null,
-          sealed: Number.isFinite(numSealed) ? numSealed : null,
-          system_qty: Number.isFinite(numSystem) ? numSystem : null,
-          count_date: date,
-        });
-        setSaved(true);
-        window.setTimeout(() => setSaved(false), 1500);
-      } catch (err) {
-        console.error("[fs-item-card] save falló:", err);
-      } finally {
-        setSaving(false);
-      }
-    }, 800);
-  };
-
-  const handleChange = (setter: (v: string) => void) => (v: string) => {
-    setter(v);
-    scheduleSave();
+    localEdit.current = true;
+    setSaved(false);
+    const raw = next.opened ?? opened;
+    const closed = next.sealed ?? sealed;
+    const system = next.system ?? systemQty;
+    const amount = parseCount(raw);
+    const numbers = [amount, parseCount(closed), parseCount(system)];
+    if (numbers.some((v) => v !== null && !Number.isFinite(v))) return;
+    debounceRef.current = window.setTimeout(() => {
+      writeQueue.current = writeQueue.current.then(async () => {
+        setSaving(true);
+        try {
+          await onSave({
+            product_code: product.code,
+            product_name: product.name,
+            category: product.category,
+            unit: product.unit,
+            container_weight: product.containerWeight,
+            unit_weight: product.unitWeight,
+            opened:
+              amount === null
+                ? null
+                : convertUnit(amount, next.unit ?? abiertosUnit, product.unit as FSUnit),
+            sealed: parseCount(closed),
+            system_qty: parseCount(system),
+            count_date: date,
+          });
+          setSaved(true);
+          window.setTimeout(() => setSaved(false), 1500);
+        } catch (err) {
+          console.error("[fs-item-card] save falló:", err);
+        } finally {
+          setSaving(false);
+        }
+      });
+    }, 500);
   };
 
   // ============ SUMADORA DE PARCIALES (SIMPLE) ============
@@ -123,14 +139,14 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
 
   // Agrega el valor del input a la suma
   const addParcial = () => {
-    const n = Number(parcialInput);
+    const n = Number((parciales.length ? parcialInput : opened).replace(",", "."));
     if (!Number.isFinite(n) || n <= 0) return;
     const next = [...parciales, n];
     setParciales(next);
     setParcialInput("");
     const suma = next.reduce((a, b) => a + b, 0);
     setOpened(String(suma));
-    scheduleSave();
+    scheduleSave({ opened: String(suma) });
     window.setTimeout(() => parcialInputRef.current?.focus(), 0);
   };
 
@@ -139,7 +155,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
     setParciales([]);
     setParcialInput("");
     setOpened("");
-    scheduleSave();
+    scheduleSave({ opened: "" });
   };
 
   const statusIcon = {
@@ -181,17 +197,11 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
         {hasData && (
           <div className="flex items-center gap-2 shrink-0">
             {statusIcon}
-            <span className={cn("text-xs font-medium", statusColor)}>
-              {result.label}
-            </span>
+            <span className={cn("text-xs font-medium", statusColor)}>{result.label}</span>
           </div>
         )}
-        {saving && (
-          <span className="text-xs text-muted-foreground shrink-0">…</span>
-        )}
-        {saved && !saving && (
-          <Save className="size-3.5 text-emerald-600 shrink-0" />
-        )}
+        {saving && <span className="text-xs text-muted-foreground shrink-0">…</span>}
+        {saved && !saving && <Save className="size-3.5 text-emerald-600 shrink-0" />}
       </button>
 
       {expanded && (
@@ -217,37 +227,23 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
               <div className="mt-1 flex gap-2">
                 <Input
                   ref={parcialInputRef}
-                  type="number"
+                  type="text"
                   inputMode="decimal"
                   value={parciales.length > 0 ? parcialInput : opened}
+                  aria-label="Abiertos"
                   onChange={(e) => {
+                    if (!countDraft.test(e.target.value)) return;
                     if (parciales.length > 0) {
                       setParcialInput(e.target.value);
                     } else {
-                      handleChange(setOpened)(e.target.value);
+                      setOpened(e.target.value);
+                      scheduleSave({ opened: e.target.value });
                     }
                   }}
                   onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      parciales.length > 0 &&
-                      parcialInput.trim()
-                    ) {
+                    if (e.key === "Enter") {
                       e.preventDefault();
-                      const valor = e.currentTarget.value.trim();
-                      const n = Number(valor);
-                      if (Number.isFinite(n) && n > 0) {
-                        const next = [...parciales, n];
-                        setParciales(next);
-                        setParcialInput("");
-                        const suma = next.reduce((a, b) => a + b, 0);
-                        setOpened(String(suma));
-                        scheduleSave();
-                        window.setTimeout(
-                          () => parcialInputRef.current?.focus(),
-                          0,
-                        );
-                      }
+                      addParcial();
                     }
                   }}
                   placeholder="0"
@@ -259,27 +255,8 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                     type="button"
                     variant="outline"
                     className="h-11 rounded-xl px-3"
-                    onClick={() => {
-                      // Primer click: activar modo sumar (agrega el valor actual)
-                      const valor = parciales.length > 0 ? parcialInput : opened;
-                      const n = Number(valor);
-                      if (!Number.isFinite(n) || n <= 0) return;
-                      const next = [...parciales, n];
-                      setParciales(next);
-                      setParcialInput("");
-                      const suma = next.reduce((a, b) => a + b, 0);
-                      setOpened(String(suma));
-                      scheduleSave();
-                      window.setTimeout(
-                        () => parcialInputRef.current?.focus(),
-                        0,
-                      );
-                    }}
-                    disabled={
-                      parciales.length > 0
-                        ? !parcialInput.trim()
-                        : !opened.trim()
-                    }
+                    onClick={addParcial}
+                    disabled={parciales.length > 0 ? !parcialInput.trim() : !opened.trim()}
                     aria-label="Sumar"
                   >
                     <Plus className="size-4" />
@@ -289,7 +266,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                   value={abiertosUnit}
                   onChange={(e) => {
                     setAbiertosUnit(e.target.value as FSUnit);
-                    scheduleSave();
+                    scheduleSave({ unit: e.target.value as FSUnit });
                   }}
                   disabled={readOnly}
                   className="h-11 rounded-xl border border-transparent bg-muted/50 px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus:bg-card focus:border-input focus:ring-2 focus:ring-ring/20 disabled:opacity-50"
@@ -317,40 +294,42 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
               {/* Conversión automática si la unidad elegida ≠ unidad de la fórmula */}
               {abiertosUnit !== product.unit &&
                 opened !== "" &&
-                Number.isFinite(Number(opened)) && (
+                numOpened != null && (
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    ≈ {convertUnit(Number(opened), abiertosUnit, product.unit as FSUnit).toFixed(2)}{" "}
+                    ≈ {numOpened.toFixed(2)}{" "}
                     {FS_UNIT_LABEL[product.unit as FSUnit]}
                   </p>
                 )}
-
-
-
-
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Sellados
-              </label>
+              <label className="text-xs font-medium text-muted-foreground">Sellados</label>
               <Input
-                type="number"
+                type="text"
                 inputMode="decimal"
                 value={sealed}
-                onChange={(e) => handleChange(setSealed)(e.target.value)}
+                aria-label="Sellados"
+                onChange={(e) => {
+                  if (!countDraft.test(e.target.value)) return;
+                  setSealed(e.target.value);
+                  scheduleSave({ sealed: e.target.value });
+                }}
                 placeholder="0"
                 className="mt-1"
                 disabled={readOnly}
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground">
-                Sistema
-              </label>
+              <label className="text-xs font-medium text-muted-foreground">Sistema</label>
               <Input
-                type="number"
+                type="text"
                 inputMode="decimal"
                 value={systemQty}
-                onChange={(e) => handleChange(setSystemQty)(e.target.value)}
+                aria-label="Sistema"
+                onChange={(e) => {
+                  if (!countDraft.test(e.target.value)) return;
+                  setSystemQty(e.target.value);
+                  scheduleSave({ system: e.target.value });
+                }}
                 placeholder="0"
                 className="mt-1"
                 disabled={readOnly}
@@ -389,7 +368,11 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                 variant="ghost"
                 size="sm"
                 className="h-7 text-xs text-red-600 hover:text-red-700"
-                onClick={() => void onDelete(existing.id)}
+                onClick={async () => {
+                  if (debounceRef.current) window.clearTimeout(debounceRef.current);
+                  await writeQueue.current;
+                  await onDelete(existing.id);
+                }}
               >
                 Borrar
               </Button>

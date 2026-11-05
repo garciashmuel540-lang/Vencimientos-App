@@ -1,3 +1,4 @@
+import { editPrices, readPrices } from "@/lib/vigia/price-input";
 import { useState } from "react";
 import { Pencil, Plus, RefreshCw, Tag } from "lucide-react";
 import { toast } from "sonner";
@@ -40,8 +41,9 @@ export function PriceCheckPage() {
   const [paused, setPaused] = useState(false);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<ProductDraft | null>(null);
+  const [savingPrice, setSavingPrice] = useState(false);
   const [editingPrice, setEditingPrice] = useState(false);
-  const [priceForm, setPriceForm] = useState({ price: 0, priceC: 0, cost: 0 });
+  const [priceForm, setPriceForm] = useState(() => editPrices({}));
   const [promotion, setPromotion] = useState<Promotion | null>(null);
 
   async function handleCode(c: string) {
@@ -253,11 +255,7 @@ export function PriceCheckPage() {
                     size="lg"
                     variant="secondary"
                     onClick={() => {
-                      setPriceForm({
-                        price: result.price ?? 0,
-                        priceC: result.priceC ?? 0,
-                        cost: result.cost ?? 0,
-                      });
+                      setPriceForm(editPrices(result));
                       setEditingPrice(true);
                     }}
                   >
@@ -356,13 +354,11 @@ export function PriceCheckPage() {
               <Label htmlFor="price-edit">Precio interno (sin IVA)</Label>
               <Input
                 id="price-edit"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
-                min="0"
                 value={priceForm.price}
                 onChange={(e) =>
-                  setPriceForm((p) => ({ ...p, price: Number(e.target.value) }))
+                  setPriceForm({ ...priceForm, price: e.target.value })
                 }
               />
             </div>
@@ -370,13 +366,11 @@ export function PriceCheckPage() {
               <Label htmlFor="priceC-edit">Precio al consumidor (con IVA)</Label>
               <Input
                 id="priceC-edit"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
-                min="0"
                 value={priceForm.priceC}
                 onChange={(e) =>
-                  setPriceForm((p) => ({ ...p, priceC: Number(e.target.value) }))
+                  setPriceForm({ ...priceForm, priceC: e.target.value })
                 }
               />
             </div>
@@ -384,35 +378,37 @@ export function PriceCheckPage() {
               <Label htmlFor="cost-edit">Costo interno (C$)</Label>
               <Input
                 id="cost-edit"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
-                min="0"
                 value={priceForm.cost}
                 onChange={(e) =>
-                  setPriceForm((p) => ({ ...p, cost: Number(e.target.value) }))
+                  setPriceForm({ ...priceForm, cost: e.target.value })
                 }
               />
             </div>
             <div className="mt-2 flex flex-col gap-2">
               <Button
                 size="lg"
+                disabled={savingPrice}
                 onClick={async () => {
-                  if (!result) return;
-                  await useVigiaStore.getState().updatePrices(
-                    result.barcode,
-                    priceForm,
-                    {
+                  if (!result || savingPrice) return;
+                  setSavingPrice(true);
+                  try {
+                    const values = readPrices(priceForm);
+                    await useVigiaStore.getState().updatePrices(result.barcode, values, {
                       name: result.name,
                       brand: result.brand,
                       category: result.category,
                       presentation: result.presentation,
-                    },
-                  );
-                  toast.success("Precio actualizado");
-                  setEditingPrice(false);
-                  const fresh = await lookupProduct(result.barcode);
-                  setResult(fresh);
+                    });
+                    setResult({ ...result, ...values });
+                    setEditingPrice(false);
+                    toast.success("Precio actualizado");
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "No se pudo guardar el precio.");
+                  } finally {
+                    setSavingPrice(false);
+                  }
                 }}
               >
                 Guardar precio

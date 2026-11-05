@@ -54,6 +54,7 @@ export function InventoryPage() {
   const [selected, setSelected] = useState<Product | null>(null);
 
   const [creating, setCreating] = useState(false);
+  const [newProduct, setNewProduct] = useState(() => emptyDraft());
 
   // Usuarios que tienen productos en el inventario (para el filtro de admin)
   const ownersInInventory = useMemo(() => {
@@ -105,7 +106,7 @@ export function InventoryPage() {
         title="Vencimientos"
         description={`${filtered.length} de ${products.length} productos en control`}
         action={
-          <Button size="icon" aria-label="Alta manual" onClick={() => setCreating(true)}>
+          <Button size="icon" aria-label="Alta manual" onClick={() => { setNewProduct(emptyDraft()); setCreating(true); }}>
             <Plus className="size-5" />
           </Button>
         }
@@ -253,7 +254,7 @@ export function InventoryPage() {
             </DialogDescription>
           </DialogHeader>
           <ProductForm
-            initial={emptyDraft()}
+            initial={newProduct}
             submitLabel="Guardar producto"
             onCancel={() => setCreating(false)}
             onSubmit={async (draft) => {

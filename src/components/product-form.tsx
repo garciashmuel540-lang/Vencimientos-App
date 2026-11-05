@@ -1,3 +1,4 @@
+import { editPrices, readPrices } from "@/lib/vigia/price-input";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Camera, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ export function ProductForm({
 }) {
   const [draft, setDraft] = useState<ProductDraft>(initial);
   const [quantityInput, setQuantityInput] = useState(() => String(initial.quantity ?? 1));
+  const [prices, setPrices] = useState(() => editPrices(initial));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -85,6 +87,7 @@ export function ProductForm({
     if (lastInitialRef.current !== initial) {
       lastInitialRef.current = initial;
       setDraft(initial);
+      setPrices(editPrices(initial));
       setQuantityInput(String(initial.quantity ?? 1));
     }
   }, [initial]);
@@ -124,7 +127,7 @@ export function ProductForm({
     }
     setSaving(true);
     try {
-      await onSubmit({ ...draft, quantity });
+      await onSubmit({ ...draft, ...(showPrices ? readPrices(prices) : {}), quantity });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
       setSaving(false);
@@ -295,43 +298,31 @@ export function ProductForm({
 
       {showPrices ? (
         <>
-          <Field label="Precio al consumidor (con IVA)">
+          <Field label="Precio interno (sin IVA)" htmlFor="product-price">
             <Input
-              type="number"
+              id="product-price"
               inputMode="decimal"
-              step="0.01"
-              min="0"
               placeholder="0.00"
-              value={draft.price ?? ""}
-              onChange={(e) =>
-                patch("price", e.target.value === "" ? undefined : Number(e.target.value))
-              }
+              value={prices.price}
+              onChange={(e) => setPrices({ ...prices, price: e.target.value })}
             />
           </Field>
-          <Field label="Precio interno (sin IVA)">
+          <Field label="Precio al consumidor (con IVA)" htmlFor="product-priceC">
             <Input
-              type="number"
+              id="product-priceC"
               inputMode="decimal"
-              step="0.01"
-              min="0"
               placeholder="0.00"
-              value={draft.priceC ?? ""}
-              onChange={(e) =>
-                patch("priceC", e.target.value === "" ? undefined : Number(e.target.value))
-              }
+              value={prices.priceC}
+              onChange={(e) => setPrices({ ...prices, priceC: e.target.value })}
             />
           </Field>
-          <Field label="Costo interno (C$)">
+          <Field label="Costo interno (C$)" htmlFor="product-cost">
             <Input
-              type="number"
+              id="product-cost"
               inputMode="decimal"
-              step="0.01"
-              min="0"
               placeholder="0.00"
-              value={draft.cost ?? ""}
-              onChange={(e) =>
-                patch("cost", e.target.value === "" ? undefined : Number(e.target.value))
-              }
+              value={prices.cost}
+              onChange={(e) => setPrices({ ...prices, cost: e.target.value })}
             />
           </Field>
         </>

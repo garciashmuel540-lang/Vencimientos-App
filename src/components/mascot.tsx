@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 export type MascotMood = "happy" | "thinking" | "sleeping" | "wave";
@@ -25,20 +24,6 @@ export function Mascot({
   showBubble = false,
   bubbleText,
 }: MascotProps) {
-  const [blink, setBlink] = useState(false);
-
-  // Parpadeo aleatorio
-  useEffect(() => {
-    const id = window.setInterval(
-      () => {
-        setBlink(true);
-        window.setTimeout(() => setBlink(false), 150);
-      },
-      3500 + Math.random() * 2000,
-    );
-    return () => window.clearInterval(id);
-  }, []);
-
   const text = bubbleText ?? MASCOT_MESSAGES[mood];
 
   return (
@@ -57,102 +42,64 @@ export function Mascot({
         aria-label="Nari, la naranja de Vigía"
       >
         <title>Nari, la naranja de Vigía</title>
-        {/* Hojita */}
-        <path
-          d="M52 18 Q 59 7 72 10 Q 67 21 54 22 Z"
-          fill="#4caf7a"
-          stroke="#2f6a4a"
-          strokeWidth="1.2"
-        />
-        <path d="M52 18 Q 50 12 50 8" stroke="#2f6a4a" strokeWidth="1.2" fill="none" />
-        {/* Cuerpo de la naranja */}
-        <circle cx="50" cy="55" r="34" fill="#ff8c42" stroke="#e9772f" strokeWidth="1.5" />
-        <ellipse cx="50" cy="22" rx="7" ry="2.5" fill="#ffab66" opacity="0.75" />
-        {/* Brillo */}
-        <ellipse cx="40" cy="42" rx="10" ry="6" fill="#ffb27a" opacity="0.7" />
-        {/* Cachetes */}
-        <circle cx="34" cy="62" r="5" fill="#ffb27a" opacity="0.6" />
-        <circle cx="66" cy="62" r="5" fill="#ffb27a" opacity="0.6" />
-        {/* Ojitos */}
-        <g className={blink ? "" : ""}>
-          {blink ? (
-            <>
-              <line
-                x1="36"
-                y1="52"
-                x2="42"
-                y2="52"
-                stroke="#3a2415"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <line
-                x1="58"
-                y1="52"
-                x2="64"
-                y2="52"
-                stroke="#3a2415"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </>
-          ) : (
-            <>
-              <circle cx="39" cy="52" r="3" fill="#3a2415" />
-              <circle cx="61" cy="52" r="3" fill="#3a2415" />
-              <circle cx="40" cy="51" r="1" fill="#fff" />
-              <circle cx="62" cy="51" r="1" fill="#fff" />
-            </>
-          )}
-        </g>
-        {/* Sonrisa */}
-        {mood === "thinking" ? (
+        <ellipse cx="50" cy="92" rx="29" ry="4" fill="#a66a49" opacity=".16" />
+        <g stroke="#653922" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round">
+          <ellipse cx="36" cy="85" rx="8" ry="5" fill="#ee9550" />
+          <ellipse cx="65" cy="85" rx="8" ry="5" fill="#ee9550" />
           <path
-            d="M44 68 Q 50 64 56 68"
-            stroke="#3a2415"
-            strokeWidth="2"
+            d="M49 23C28 16 12 33 12 56c0 20 16 31 38 31s39-11 39-31c0-23-18-40-40-33Z"
+            fill="#ffa339"
+          />
+          <path d="M45 24Q40 15 45 10" fill="none" />
+          <path d="M47 20Q50 4 74 8Q66 26 47 20Z" fill="#91b96d" />
+          <path d="M49 19Q57 14 65 12" stroke="#527647" strokeWidth="1.4" />
+          <path
+            d={mood === "wave" ? "M16 60Q4 59 5 46Q9 41 13 51" : "M16 60Q5 64 9 70Q14 73 19 65"}
+            fill="#ffb354"
+          />
+          <path d="M83 61Q95 61 92 69Q88 73 82 66" fill="#ffb354" />
+        </g>
+        <path
+          d="M23 40Q27 32 34 31"
+          fill="none"
+          stroke="#ffdda1"
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
+        <g fill="#df7952">
+          <circle cx="70" cy="36" r="1.4" />
+          <circle cx="75" cy="40" r="1" />
+          <circle cx="70" cy="42" r=".9" />
+        </g>
+        <g fill="#f48277">
+          <ellipse cx="29" cy="63" rx="7" ry="4" />
+          <ellipse cx="72" cy="63" rx="7" ry="4" />
+        </g>
+        {mood === "sleeping" ? (
+          <path
+            d="M31 55q5 5 10 0m17 0q5 5 10 0"
             fill="none"
+            stroke="#503224"
+            strokeWidth="3"
             strokeLinecap="round"
           />
         ) : (
-          <path
-            d="M42 66 Q 50 74 58 66"
-            stroke="#3a2415"
-            strokeWidth="2"
-            fill="none"
-            strokeLinecap="round"
-          />
+          <g className="nari-eyes">
+            <g fill="#503224">
+              <ellipse cx="36" cy="54" rx="4.5" ry="5.5" />
+              <ellipse cx="64" cy="54" rx="4.5" ry="5.5" />
+            </g>
+            <g fill="white">
+              <circle cx="35" cy="52" r="1.5" />
+              <circle cx="63" cy="52" r="1.5" />
+            </g>
+          </g>
         )}
-        {/* Brazos */}
         <path
-          d="M27 84 Q 25 91 28 93"
-          stroke="#d96a2c"
-          strokeWidth="2.5"
+          d={mood === "thinking" ? "M47 66q3-3 6-1" : "M44 63q3 6 6 1q3 5 6-1"}
           fill="none"
-          strokeLinecap="round"
-        />
-        <path
-          d="M69 84 Q 72 91 69 93"
-          stroke="#d96a2c"
-          strokeWidth="2.5"
-          fill="none"
-          strokeLinecap="round"
-        />
-        <g className={mood === "wave" ? "animate-naranja-wave mascot-wave-arm" : "mascot-wave-arm"}>
-          <path
-            d="M17 58 Q 9 55 7 47"
-            stroke="#d96a2c"
-            strokeWidth="2.5"
-            fill="none"
-            strokeLinecap="round"
-          />
-          <circle cx="7" cy="45" r="3.5" fill="#ff8c42" stroke="#d96a2c" strokeWidth="1.2" />
-        </g>
-        <path
-          d="M83 58 Q 91 62 93 67"
-          stroke="#d96a2c"
-          strokeWidth="2.5"
-          fill="none"
+          stroke="#613621"
+          strokeWidth="2.4"
           strokeLinecap="round"
         />
       </svg>

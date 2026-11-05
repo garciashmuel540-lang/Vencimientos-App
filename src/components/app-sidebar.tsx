@@ -1,3 +1,4 @@
+import { Mascot } from "@/components/mascot";
 /**
  * Menú lateral (sidebar) con navegación principal.
  * Se abre desde el botón hamburguesa o desde el borde izquierdo.
@@ -56,11 +57,12 @@ export function AppSidebar({ open, onClose }: Props) {
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="left" className="flex flex-col p-0">
         {/* Header */}
-        <div className="border-b px-5 py-5">
+        <div className="relative border-b bg-accent px-5 py-5">
+          <Mascot size={58} className="absolute bottom-2 right-10" />
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Vigía
           </p>
-          <h2 className="mt-1 font-serif text-2xl font-semibold">
+          <h2 className="mt-1 font-display text-2xl font-semibold">
             Menú
           </h2>
         </div>
@@ -80,7 +82,7 @@ export function AppSidebar({ open, onClose }: Props) {
                     to={item.to}
                     onClick={onClose}
                     className={cn(
-                      "flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors",
+                      "mx-2 my-0.5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
                       active
                         ? "bg-primary/10 text-primary"
                         : "text-foreground hover:bg-muted/60",
