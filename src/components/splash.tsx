@@ -40,7 +40,7 @@ export function Splash({ show }: { show: boolean }) {
       aria-hidden={!show}
     >
       <div className="liquid-glass flex w-full max-w-xs flex-col items-center rounded-[2rem] px-7 py-8 text-center">
-        <Mascot mood="wave" size={142} showBubble bubbleText="¡Hola! Soy Nari 🍊" />
+        <Mascot mood="wave" size={142} showBubble bubbleText="¡Hola! Soy Som 🍊" />
         <p className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground">
           Vigía
         </p>

@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <TooltipProvider delayDuration={250}>
-      <div className="min-h-dvh bg-background text-foreground">
+      <div className="som-scene min-h-dvh bg-background text-foreground">
         <Splash show={splash} />
 
         <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col pb-24">

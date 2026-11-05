@@ -39,7 +39,7 @@ export function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4">
+    <main className="som-scene flex min-h-dvh items-center justify-center px-4">
       <Card className="w-full max-w-sm p-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <Mascot mood="wave" size={104} />
