@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 export type MascotMood = "happy" | "thinking" | "sleeping" | "wave";
@@ -24,6 +25,8 @@ export function Mascot({
   showBubble = false,
   bubbleText,
 }: MascotProps) {
+  const id = useId();
+  const paint = (part: string) => "url(#" + id + "-" + part + ")";
   const text = bubbleText ?? MASCOT_MESSAGES[mood];
 
   return (
@@ -37,44 +40,42 @@ export function Mascot({
         width={size}
         height={size}
         viewBox="0 0 100 100"
-        className="animate-naranja-bounce select-none"
+        className="som-figure select-none"
         role="img"
-        aria-label="Nari, la naranja de Vigía"
+        aria-label="Som, la naranja de Vigía"
       >
-        <title>Nari, la naranja de Vigía</title>
-        <ellipse cx="50" cy="92" rx="29" ry="4" fill="#a66a49" opacity=".16" />
-        <g stroke="#653922" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round">
-          <ellipse cx="36" cy="85" rx="8" ry="5" fill="#ee9550" />
-          <ellipse cx="65" cy="85" rx="8" ry="5" fill="#ee9550" />
-          <path
-            d="M49 23C28 16 12 33 12 56c0 20 16 31 38 31s39-11 39-31c0-23-18-40-40-33Z"
-            fill="#ffa339"
-          />
-          <path d="M45 24Q40 15 45 10" fill="none" />
-          <path d="M47 20Q50 4 74 8Q66 26 47 20Z" fill="#91b96d" />
-          <path d="M49 19Q57 14 65 12" stroke="#527647" strokeWidth="1.4" />
-          <path
-            d={mood === "wave" ? "M16 60Q4 59 5 46Q9 41 13 51" : "M16 60Q5 64 9 70Q14 73 19 65"}
-            fill="#ffb354"
-          />
-          <path d="M83 61Q95 61 92 69Q88 73 82 66" fill="#ffb354" />
-        </g>
-        <path
-          d="M23 40Q27 32 34 31"
-          fill="none"
-          stroke="#ffdda1"
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
-        <g fill="#df7952">
-          <circle cx="70" cy="36" r="1.4" />
-          <circle cx="75" cy="40" r="1" />
-          <circle cx="70" cy="42" r=".9" />
-        </g>
-        <g fill="#f48277">
-          <ellipse cx="29" cy="63" rx="7" ry="4" />
-          <ellipse cx="72" cy="63" rx="7" ry="4" />
-        </g>
+        <title>Som, la naranja de Vigía</title>
+        <defs>
+          <radialGradient id={id+"-peel"} cx=".32" cy=".27" r=".76">
+            <stop stopColor="#fff4ad"/><stop offset=".22" stopColor="#ffc65a"/>
+            <stop offset=".54" stopColor="#ff9b28"/><stop offset=".81" stopColor="#f17519"/>
+            <stop offset=".95" stopColor="#ce5120"/><stop offset="1" stopColor="#ee8944"/>
+          </radialGradient>
+          <linearGradient id={id+"-leaf"} x2=".8" y2="1">
+            <stop stopColor="#effa96"/><stop offset=".42" stopColor="#9ed160"/><stop offset="1" stopColor="#46804f"/>
+          </linearGradient>
+          <radialGradient id={id+"-cheek"}><stop stopColor="#f15e72"/><stop offset="1" stopColor="#ff9b6a" stopOpacity=".1"/></radialGradient>
+          <radialGradient id={id+"-shadow"}><stop stopColor="#954528" stopOpacity=".32"/><stop offset="1" stopColor="#954528" stopOpacity="0"/></radialGradient>
+          <linearGradient id={id+"-glint"} x2=".6" y2="1"><stop stopColor="white" stopOpacity=".94"/><stop offset="1" stopColor="#fffad8" stopOpacity=".12"/></linearGradient>
+        </defs>
+        <ellipse cx="50" cy="92" rx="33" ry="6" fill={paint("shadow")}/>
+        <g className="som-body">
+          <g fill={paint("peel")} stroke="#d06c2b" strokeWidth="1">
+            <ellipse cx="36" cy="84" rx="8" ry="6"/><ellipse cx="65" cy="84" rx="8" ry="6"/>
+            <path className={mood === "wave" ? "som-wave" : undefined} d="M20 65C10 71 2 57 5 50c2-5 7-2 8 3l9 4Z"/>
+            <path d="M82 57c12-1 15 9 10 13-5 4-10-2-13-5Z"/>
+            <path d="M50 23C31 16 13 30 12 53 10 74 25 87 49 88c24 1 41-13 40-34-1-23-17-38-39-31Z"/>
+          </g>
+          <path d="M47 25q-6-7-3-15" fill="none" stroke="#845732" strokeWidth="3.5" strokeLinecap="round"/>
+          <g className="som-leaf">
+            <path d="M47 22C44 11 57 2 77 7 71 20 59 27 47 22Z" fill={paint("leaf")} stroke="#659656" strokeWidth="1"/>
+            <path d="M49 21q10-8 20-11" fill="none" stroke="#e2f392" strokeWidth="1.3"/>
+          </g>
+          <ellipse cx="32" cy="35" rx="10" ry="4.2" transform="rotate(-32 32 35)" fill={paint("glint")}/>
+          <ellipse cx="21" cy="44" rx="2" ry="2.8" fill="#fff3bc"/>
+          <path d="M66 78q10-3 15-11" fill="none" stroke="#ffc782" strokeWidth="2" strokeLinecap="round" opacity=".65"/>
+          <g fill="#e98123"><circle cx="71" cy="34" r="1"/><circle cx="75" cy="38" r=".8"/><circle cx="70" cy="40" r=".7"/></g>
+          <g fill={paint("cheek")}><ellipse cx="29" cy="62" rx="9" ry="6"/><ellipse cx="72" cy="62" rx="9" ry="6"/></g>
         {mood === "sleeping" ? (
           <path
             d="M31 55q5 5 10 0m17 0q5 5 10 0"
@@ -84,7 +85,7 @@ export function Mascot({
             strokeLinecap="round"
           />
         ) : (
-          <g className="nari-eyes">
+          <g className="som-eyes">
             <g fill="#503224">
               <ellipse cx="36" cy="54" rx="4.5" ry="5.5" />
               <ellipse cx="64" cy="54" rx="4.5" ry="5.5" />
@@ -102,6 +103,7 @@ export function Mascot({
           strokeWidth="2.4"
           strokeLinecap="round"
         />
+        </g>
       </svg>
     </div>
   );

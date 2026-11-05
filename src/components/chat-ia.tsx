@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, Send, X, Loader2 } from "lucide-react";
+import { Mascot } from "@/components/mascot";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Send, X, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
@@ -95,7 +97,8 @@ function findMatches(products: Product[], query: string): Product[] {
 }
 
 export function ChatIA() {
-  const [open, setOpen] = useState(false);
+  const open = useChatFocus((s) => s.autoOpen);
+  const openChat = useChatFocus((s) => s.openChat);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -109,7 +112,7 @@ export function ChatIA() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const focus = useChatFocus((s) => s.focused);
-  const autoOpen = useChatFocus((s) => s.autoOpen);
+
   const clearFocus = useChatFocus((s) => s.clear);
   const products = useVigiaStore((s) => s.products);
   const settings = useVigiaStore((s) => s.settings);
@@ -123,7 +126,7 @@ export function ChatIA() {
 
   // Cargar conteos de FS y mapa de emails al abrir el chat
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!open || typeof window === "undefined") return;
     let cancelled = false;
     void (async () => {
       try {
@@ -160,8 +163,7 @@ export function ChatIA() {
 
   // Auto-abrir cuando se enfoca un producto desde ProductSheet
   useEffect(() => {
-    if (autoOpen && focus) {
-      setOpen(true);
+    if (open && focus) {
       setMessages([
         {
           role: "model",
@@ -169,7 +171,7 @@ export function ChatIA() {
         },
       ]);
     }
-  }, [autoOpen, focus]);
+  }, [open, focus]);
 
   function appendToLastModel(text: string) {
     setMessages((prev) => {
@@ -800,36 +802,21 @@ export function ChatIA() {
 
   return (
     <>
-      {!open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Abrir chat con IA"
-          className="no-print fixed bottom-24 right-4 z-40 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95"
-        >
-          <MessageCircle className="size-5" />
-        </button>
-      )}
-      {open && (
-        <div className="no-print fixed inset-x-0 bottom-0 z-50 flex h-[80dvh] flex-col rounded-t-2xl border-t border-border bg-card shadow-2xl">
-          <header className="flex items-center justify-between border-b border-border px-4 py-3">
-            <div>
-              <p className="text-sm font-semibold">Asistente Vigía</p>
-              <p className="text-xs text-muted-foreground">
-                Pregunta o pídele acciones a tu inventario
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setOpen(false);
-                clearFocus();
-              }}
-              aria-label="Cerrar chat"
-            >
-              <X className="size-5" />
-            </Button>
+      <Dialog.Root open={open} onOpenChange={(next) => next ? openChat() : clearFocus()}>
+        <Dialog.Trigger asChild>
+          <button type="button" aria-label="Hablar con Som" title="Hablar con Som"
+            className="som-launcher no-print fixed bottom-24 right-4 z-40">
+            <Mascot size={64} mood="wave" />
+            <span aria-hidden="true">Som</span>
+          </button>
+        </Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Overlay className="no-print fixed inset-0 z-50 bg-black/20" />
+          <Dialog.Content aria-describedby={undefined} className="som-panel no-print fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[80dvh] max-w-xl flex-col rounded-t-2xl border border-border bg-card shadow-2xl">
+          <header className="som-panel-heading flex items-center gap-3 rounded-t-2xl border-b border-border px-4 py-2">
+            <Mascot mood={loading ? "thinking" : "happy"} size={44}/>
+            <Dialog.Title className="flex-1 text-lg font-bold">Som</Dialog.Title>
+            <Dialog.Close asChild><Button variant="ghost" size="icon" aria-label="Cerrar conversación"><X className="size-5"/></Button></Dialog.Close>
           </header>
           <div
             ref={scrollRef}
@@ -838,7 +825,7 @@ export function ChatIA() {
             {messages.length === 0 && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Hola 👋 Puedo revisar tu inventario, sugerirte qué hacer, y
+                  ¡Hola! Soy Som 🍊 Puedo revisar tu inventario, sugerirte qué hacer, y
                   agregar, eliminar o actualizar productos si me lo pides.
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -901,6 +888,7 @@ export function ChatIA() {
             }}
           >
             <input
+              aria-label="Mensaje para Som"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe tu pregunta o pídele algo…"
@@ -916,8 +904,9 @@ export function ChatIA() {
               <Send className="size-4" />
             </Button>
           </form>
-        </div>
-      )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
       <AlertDialog
         open={Boolean(pendingAction)}
         onOpenChange={(v) => {

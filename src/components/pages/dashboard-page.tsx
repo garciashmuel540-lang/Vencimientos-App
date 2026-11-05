@@ -1,3 +1,4 @@
+import { useChatFocus } from "@/lib/vigia/chat-focus";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, PackageCheck, ScanBarcode, TriangleAlert } from "lucide-react";
@@ -65,14 +66,14 @@ export function DashboardPage() {
 
   return (
     <main>
-      <div className="nari-hero">
+      <div className="som-hero">
         <PageHeader
           onMenuClick={() => setSidebarOpen(true)}
           eyebrow={settings.storeName}
           title="Vigía"
           description={headline}
         />
-        <Mascot mood={mascotMood} size={108} className="nari-sticker" />
+        <button type="button" className="som-hero-pet" aria-label="Hablar con Som desde el inicio" onClick={() => useChatFocus.getState().openChat()}><Mascot mood={mascotMood} size={108}/></button>
       </div>
 
       {demo ? (

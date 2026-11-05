@@ -149,7 +149,7 @@ export function ProductSheet({
                   }}
                 >
                   <Sparkles className="size-4" />
-                  Preguntar a la IA
+                  Preguntarle a Som
                 </Button>
                 <Button
                   size="lg"

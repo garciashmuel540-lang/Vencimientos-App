@@ -240,29 +240,57 @@ a,
 
 /* === VIGÍA ORANGE KAWAII === */
 
-/* Tarjetas de papel crema y cabecera ilustrada */
-.liquid-glass {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 3px 0 color-mix(in srgb, var(--color-border) 48%, transparent);
+/* Luz cítrica sobre superficies de vidrio. Las listas no necesitan desenfoque. */
+.som-scene {
+  background-color: var(--color-background);
+  background-image: radial-gradient(ellipse 33rem 18rem at 96% 0%, color-mix(in srgb, #ffa94b 29%, transparent), transparent),
+    radial-gradient(ellipse 24rem 23rem at 0% 23rem, color-mix(in srgb, #aac98b 19%, transparent), transparent);
 }
-.nari-hero {
+.liquid-glass, .som-hero, .som-panel-heading {
+  background-color: color-mix(in srgb, var(--color-card) 86%, transparent);
+  background-image: linear-gradient(145deg, rgb(255 255 255 / .16), transparent 45%, rgb(255 178 98 / .08));
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, white);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / .52), inset 0 -1px 2px rgb(176 108 58 / .10), 0 6px 18px -13px #8e522e80;
+}
+[role="dialog"].liquid-glass { background-color: color-mix(in srgb, var(--color-card) 96%, transparent); }
+.som-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   margin: 1rem 1rem 1.25rem;
   padding-right: clamp(.5rem, 3vw, 1.5rem);
-  border: 1px solid var(--color-border);
   border-radius: 1.75rem;
-  background-color: var(--color-accent);
-  background-image: radial-gradient(color-mix(in srgb, var(--color-primary) 14%, transparent) 1px, transparent 1px);
-  background-size: 9px 9px;
+  background-image: radial-gradient(ellipse at 94% 100%, rgb(255 159 68 / .46), transparent 48%),
+    linear-gradient(130deg, rgb(255 229 165 / .32), transparent 50%, rgb(255 255 255 / .23) 51%, transparent 70%);
 }
-.nari-hero header { padding-block: 1.5rem; }
-.nari-hero h1 { font-weight: 800; font-size: clamp(2.25rem, 7vw, 3.5rem); }
-.nari-sticker svg { width: clamp(4.25rem, 21vw, 7rem); height: auto; filter: drop-shadow(0 2px 0 var(--color-card)); }
-.nari-eyes { transform-box: fill-box; transform-origin: center; animation: nari-blink 5s infinite; }
-@keyframes nari-blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+.som-hero header { padding-block: 1.5rem; }
+.som-hero h1 { font-weight: 800; font-size: clamp(2.25rem, 7vw, 3.5rem); }
+.som-hero-pet { border-radius: 45%; line-height: 0; }
+.som-hero-pet svg { width: clamp(4.5rem, 23vw, 7rem); height: auto; }
+.som-launcher {
+  display: grid; place-items: center; width: 4.25rem; height: 4.5rem;
+  border-radius: 50% 50% 44% 44%; border: 1px solid var(--color-border);
+  background: linear-gradient(145deg, rgb(255 255 255 / .48), transparent 44%), color-mix(in srgb, var(--color-card) 80%, transparent);
+  box-shadow: inset 0 2px 1px rgb(255 255 255 / .7), 0 5px 14px #6b3b2829;
+}
+.som-launcher > span { position: absolute; bottom: -.15rem; padding: 0 .48rem; border-radius: 1rem; background: var(--color-foreground); color: var(--color-card); font: 700 .66rem/1.45 var(--font-sans); }
+.som-launcher:active, .som-hero-pet:active { transform: scale(.94); }
+.som-panel-heading { background-color: var(--color-accent); }
+@supports (backdrop-filter: blur(6px)) {
+  .som-launcher, .som-hero { backdrop-filter: blur(6px) saturate(1.12); }
+}
+.som-body { transform-origin: 50px 88px; animation: som-breathe 4s ease-in-out infinite; }
+.som-eyes { transform-box: fill-box; transform-origin: center; animation: som-blink 5.3s infinite; }
+.som-wave { transform-origin: 19px 61px; animation: som-wave 4s ease-in-out infinite; }
+.som-leaf { transform-origin: 48px 22px; }
+button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-out; }
+@keyframes som-breathe { 50% { transform: translateY(-2px) rotate(1.5deg); } }
+@keyframes som-blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.12); } }
+@keyframes som-wave { 0%, 18%, 100% { transform: rotate(0); } 6%, 13% { transform: rotate(14deg); } 10% { transform: rotate(-8deg); } }
+@keyframes som-sway { 35% { transform: rotate(-12deg); } 70% { transform: rotate(7deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .som-figure *, button .som-leaf { animation: none !important; }
+}
 
 /* Mascota naranja - animaciones */
 @keyframes naranja-bounce {

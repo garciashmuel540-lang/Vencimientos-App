@@ -1,3 +1,4 @@
+import { useChatFocus } from "@/lib/vigia/chat-focus";
 import { Mascot } from "@/components/mascot";
 /**
  * Menú lateral (sidebar) con navegación principal.
@@ -58,7 +59,7 @@ export function AppSidebar({ open, onClose }: Props) {
       <SheetContent side="left" className="flex flex-col p-0">
         {/* Header */}
         <div className="relative border-b bg-accent px-5 py-5">
-          <Mascot size={58} className="absolute bottom-2 right-10" />
+          <button type="button" aria-label="Hablar con Som desde el menú" className="absolute bottom-2 right-10" onClick={() => { onClose(); useChatFocus.getState().openChat(); }}><Mascot size={58}/></button>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Vigía
           </p>
