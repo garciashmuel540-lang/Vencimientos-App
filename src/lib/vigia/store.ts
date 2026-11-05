@@ -1,18 +1,11 @@
 /** Estado de inventario en el cliente, respaldado por IndexedDB. */
 import { create } from "zustand";
 import { addHistory, getDb, getKv, getSettings, saveSettings, setKv } from "./db";
-import {
-  syncOnLogin,
-  syncPush,
-  syncDelete,
-} from "@/lib/data/inventory-sync";
+import { syncOnLogin, syncPush, syncDelete } from "@/lib/data/inventory-sync";
 import { rememberCatalog } from "./lookup";
 import { parsePromotionsFile } from "./promotions-parser";
 import { parseCatalogFile } from "./catalog-parser";
-import {
-  syncCatalogFromSupabase,
-  pushFullCatalog,
-} from "@/lib/data/catalog-supabase";
+import { syncCatalogFromSupabase, pushFullCatalog } from "@/lib/data/catalog-supabase";
 import {
   pushPromotionsBatch,
   deletePromotionsSourceSupabase,
@@ -103,9 +96,7 @@ interface VigiaState {
   importPromotions: (file: File) => Promise<{ count: number; warnings: string[] }>;
   removePromotionSource: (sourceFile: string) => Promise<void>;
   clearAllPromotions: () => Promise<void>;
-  listPromotionSources: () => Promise<
-    { sourceFile: string; count: number; importedAt: string }[]
-  >;
+  listPromotionSources: () => Promise<{ sourceFile: string; count: number; importedAt: string }[]>;
   getActivePromotion: (barcode: string) => Promise<Promotion | null>;
   previewCatalogUpdate: (file: File) => Promise<{
     totalInExcel: number;
@@ -197,8 +188,7 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
           price: typeof item.price === "number" ? item.price : undefined,
           priceC: typeof item.priceC === "number" ? item.priceC : undefined,
           cost: typeof item.cost === "number" ? item.cost : undefined,
-          qtySnapshot:
-            typeof item.qtySnapshot === "number" ? item.qtySnapshot : undefined,
+          qtySnapshot: typeof item.qtySnapshot === "number" ? item.qtySnapshot : undefined,
           inactive: Boolean(item.inactive),
         }));
         await db.catalog.bulkPut(entries);
@@ -216,9 +206,7 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         if (result.error) {
           console.warn("[vigia] sync catálogo:", result.error);
         } else if (result.count > 0) {
-          console.info(
-            `[vigia] catálogo actualizado desde la nube: ${result.count} productos`,
-          );
+          console.info(`[vigia] catálogo actualizado desde la nube: ${result.count} productos`);
         }
       } catch (err) {
         console.warn("[vigia] sync catálogo falló:", err);
@@ -232,9 +220,7 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         if (result.error) {
           console.warn("[vigia] sync promociones:", result.error);
         } else if (result.count > 0) {
-          console.info(
-            `[vigia] promociones actualizadas desde la nube: ${result.count}`,
-          );
+          console.info(`[vigia] promociones actualizadas desde la nube: ${result.count}`);
         }
       } catch (err) {
         console.warn("[vigia] sync promociones falló:", err);
@@ -269,10 +255,11 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
   },
 
   upsertProduct: async (draft, id) => {
+    if (!Number.isSafeInteger(draft.quantity) || draft.quantity < 1) {
+      throw new Error("La cantidad debe ser un número entero mayor que cero.");
+    }
     const now = new Date().toISOString();
-    const existing = id
-      ? await getDb().products.get(id)
-      : undefined;
+    const existing = id ? await getDb().products.get(id) : undefined;
     const product: Product = {
       id: existing?.id ?? crypto.randomUUID(),
       createdAt: existing?.createdAt ?? now,
@@ -283,15 +270,14 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       presentation: draft.presentation.trim(),
       category: draft.category,
       expiresAt: draft.expiresAt,
-      quantity: Math.max(1, Math.round(draft.quantity) || 1),
+      quantity: draft.quantity,
       location: draft.location,
       notes: draft.notes.trim(),
       image: draft.image,
       source: draft.source,
       price: typeof draft.price === "number" ? draft.price : existing?.price,
       priceC: typeof draft.priceC === "number" ? draft.priceC : existing?.priceC,
-      subcategory:
-        draft.subcategory?.trim() || existing?.subcategory,
+      subcategory: draft.subcategory?.trim() || existing?.subcategory,
     };
     await getDb().products.put(product);
     await rememberCatalog({
@@ -327,27 +313,21 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     if (entry) {
       await db.catalog.put({
         ...entry,
-        price:
-          typeof prices.price === "number" ? prices.price : entry.price,
-        priceC:
-          typeof prices.priceC === "number" ? prices.priceC : entry.priceC,
+        price: typeof prices.price === "number" ? prices.price : entry.price,
+        priceC: typeof prices.priceC === "number" ? prices.priceC : entry.priceC,
         cost: typeof prices.cost === "number" ? prices.cost : entry.cost,
         name: context?.name?.trim() || entry.name,
         brand: context?.brand?.trim() ?? entry.brand,
         presentation: context?.presentation?.trim() ?? entry.presentation,
       });
     } else {
-      const product = await db.products
-        .filter((p) => p.barcode === code)
-        .first();
-      const finalName =
-        context?.name?.trim() || product?.name?.trim() || `Producto ${code}`;
+      const product = await db.products.filter((p) => p.barcode === code).first();
+      const finalName = context?.name?.trim() || product?.name?.trim() || `Producto ${code}`;
       await db.catalog.put({
         barcode: code,
         name: finalName,
         brand: context?.brand?.trim() ?? product?.brand ?? "",
-        presentation:
-          context?.presentation?.trim() ?? product?.presentation ?? "",
+        presentation: context?.presentation?.trim() ?? product?.presentation ?? "",
         category: (context?.category || product?.category || "otros") as ProductCategory,
         image: product?.image ?? null,
         source: "manual",
@@ -359,16 +339,12 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     }
 
     // 2. Actualizar producto en inventario si existe
-    const product = await db.products
-      .filter((p) => p.barcode === code)
-      .first();
+    const product = await db.products.filter((p) => p.barcode === code).first();
     if (product) {
       const before = product.price;
       await db.products.update(product.id, {
-        price:
-          typeof prices.price === "number" ? prices.price : product.price,
-        priceC:
-          typeof prices.priceC === "number" ? prices.priceC : product.priceC,
+        price: typeof prices.price === "number" ? prices.price : product.price,
+        priceC: typeof prices.priceC === "number" ? prices.priceC : product.priceC,
         updatedAt: new Date().toISOString(),
       });
       // 3. Guardar historial
@@ -450,19 +426,14 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       return { count: 0, warnings: [...warnings, "No se encontraron promociones válidas."] };
     }
     // Eliminar cualquier promo anterior del mismo archivo (local)
-    await getDb()
-      .promotions.where("sourceFile")
-      .equals(file.name)
-      .delete();
+    await getDb().promotions.where("sourceFile").equals(file.name).delete();
     await getDb().promotions.bulkPut(promotions);
 
     // Subir a Supabase (en background, no bloquea)
     void (async () => {
       try {
         await pushPromotionsBatch(promotions);
-        console.info(
-          `[vigia] ${promotions.length} promociones subidas a Supabase`,
-        );
+        console.info(`[vigia] ${promotions.length} promociones subidas a Supabase`);
       } catch (err) {
         console.warn("[vigia] no se pudo subir promociones:", err);
       }
@@ -497,10 +468,7 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
 
   listPromotionSources: async () => {
     const all = await getDb().promotions.toArray();
-    const map = new Map<
-      string,
-      { sourceFile: string; count: number; importedAt: string }
-    >();
+    const map = new Map<string, { sourceFile: string; count: number; importedAt: string }>();
     for (const p of all) {
       const prev = map.get(p.sourceFile);
       if (prev) {
@@ -514,27 +482,18 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         });
       }
     }
-    return Array.from(map.values()).sort((a, b) =>
-      b.importedAt.localeCompare(a.importedAt),
-    );
+    return Array.from(map.values()).sort((a, b) => b.importedAt.localeCompare(a.importedAt));
   },
 
   getActivePromotion: async (barcode) => {
     const code = barcode.replace(/\s/g, "");
-    const all = await getDb()
-      .promotions.where("barcode")
-      .equals(code)
-      .toArray();
+    const all = await getDb().promotions.where("barcode").equals(code).toArray();
     if (all.length === 0) return null;
     const today = new Date().toISOString().slice(0, 10);
-    const active = all.filter(
-      (p) => !p.endDate || p.endDate >= today,
-    );
+    const active = all.filter((p) => !p.endDate || p.endDate >= today);
     if (active.length === 0) return null;
     // Elegir la más reciente
-    return active.sort((a, b) =>
-      (b.importedAt ?? "").localeCompare(a.importedAt ?? ""),
-    )[0];
+    return active.sort((a, b) => (b.importedAt ?? "").localeCompare(a.importedAt ?? ""))[0];
   },
 
   previewCatalogUpdate: async (file) => {
@@ -559,13 +518,9 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       if (!prev) {
         newProducts++;
       } else {
-        const priceChanged =
-          typeof entry.price === "number" &&
-          entry.price !== prev.price;
-        const costChanged =
-          typeof entry.cost === "number" && entry.cost !== prev.cost;
-        const priceCChanged =
-          typeof entry.priceC === "number" && entry.priceC !== prev.priceC;
+        const priceChanged = typeof entry.price === "number" && entry.price !== prev.price;
+        const costChanged = typeof entry.cost === "number" && entry.cost !== prev.cost;
+        const priceCChanged = typeof entry.priceC === "number" && entry.priceC !== prev.priceC;
         if (priceChanged || costChanged || priceCChanged) updates++;
         else unchanged++;
       }
@@ -614,9 +569,7 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
         await db.catalog.put(finalEntry);
 
         // Actualizar el producto del inventario si existe
-        const product = await db.products
-          .filter((p) => p.barcode === entry.barcode)
-          .first();
+        const product = await db.products.filter((p) => p.barcode === entry.barcode).first();
         if (product && typeof entry.price === "number") {
           await db.products.update(product.id, {
             price: entry.price,
@@ -656,9 +609,7 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
   },
 
   searchCatalog: async (keywords) => {
-    const words = keywords
-      .map((w) => w.toLowerCase().trim())
-      .filter((w) => w.length >= 3);
+    const words = keywords.map((w) => w.toLowerCase().trim()).filter((w) => w.length >= 3);
     if (words.length === 0) return [];
     const db = getDb();
     const all = await db.catalog.toArray();
@@ -698,9 +649,7 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     return all
       .filter(
         (e) =>
-          e.barcode === q ||
-          e.name.toLowerCase().includes(q) ||
-          e.brand.toLowerCase().includes(q),
+          e.barcode === q || e.name.toLowerCase().includes(q) || e.brand.toLowerCase().includes(q),
       )
       .slice(0, 10)
       .map((e) => ({

@@ -21,21 +21,16 @@ export function DashboardPage() {
   const demo = useVigiaStore((s) => s.demo);
   const soonWithin = Math.max(...settings.days, 30);
   const [selected, setSelected] = useState<Product | null>(null);
-  const [mascotMood, setMascotMood] = useState<"happy" | "wave" | "thinking">(
-    "wave",
-  );
+  const [greetingDone, setGreetingDone] = useState(false);
 
   // La mascota saluda al abrir y luego pasa a "happy"
   useEffect(() => {
-    const t = window.setTimeout(() => setMascotMood("happy"), 2500);
+    const t = window.setTimeout(() => setGreetingDone(true), 2500);
     return () => window.clearTimeout(t);
   }, []);
 
-  // Si hay vencidos, la mascota piensa
-  useEffect(() => {
-    const hasExpired = products.some((p) => productStatus(p, soonWithin) === "expired");
-    if (hasExpired) setMascotMood("thinking");
-  }, [products, soonWithin]);
+  const hasExpired = products.some((p) => productStatus(p, soonWithin) === "expired");
+  const mascotMood = hasExpired ? "thinking" : greetingDone ? "happy" : "wave";
 
   const stats = useMemo(() => {
     const live = products.filter((p) => p.quantity > 0);
@@ -53,10 +48,7 @@ export function DashboardPage() {
     return { ok, soon, expired, total: live.length, units };
   }, [products, soonWithin]);
 
-  const alerts = useMemo(
-    () => computeAlerts(products, settings),
-    [products, settings],
-  );
+  const alerts = useMemo(() => computeAlerts(products, settings), [products, settings]);
   const urgent = products
     .filter((p) => {
       const st = productStatus(p, soonWithin);
@@ -74,7 +66,8 @@ export function DashboardPage() {
   return (
     <main>
       <div className="relative">
-        <PageHeader onMenuClick={() => setSidebarOpen(true)}
+        <PageHeader
+          onMenuClick={() => setSidebarOpen(true)}
           eyebrow={settings.storeName}
           title="Vigía"
           description={headline}
@@ -106,31 +99,16 @@ export function DashboardPage() {
           <Bell className="mt-0.5 size-4 shrink-0" />
           <p>
             {alerts.filter((a) => a.level === "expired").length} vencidos y{" "}
-            {alerts.filter((a) => a.level !== "expired").length} por vencer. Revisa la
-            lista de abajo o abre Reportes.
+            {alerts.filter((a) => a.level !== "expired").length} por vencer. Revisa la lista de
+            abajo o abre Reportes.
           </p>
         </div>
       ) : null}
 
       <section className="grid grid-cols-2 gap-3 px-4">
-        <Stat
-          label="Vigentes"
-          value={stats.ok}
-          tone="ok"
-          delay="vigia-enter-delay-1"
-        />
-        <Stat
-          label="Por vencer"
-          value={stats.soon}
-          tone="soon"
-          delay="vigia-enter-delay-2"
-        />
-        <Stat
-          label="Vencidos"
-          value={stats.expired}
-          tone="expired"
-          delay="vigia-enter-delay-3"
-        />
+        <Stat label="Vigentes" value={stats.ok} tone="ok" delay="vigia-enter-delay-1" />
+        <Stat label="Por vencer" value={stats.soon} tone="soon" delay="vigia-enter-delay-2" />
+        <Stat label="Vencidos" value={stats.expired} tone="expired" delay="vigia-enter-delay-3" />
         <Stat
           label="En inventario"
           value={stats.total}
@@ -143,7 +121,10 @@ export function DashboardPage() {
       <section className="mt-8 px-4">
         <div className="mb-3 flex items-end justify-between">
           <h2 className="font-display text-xl font-medium">Lo urgente</h2>
-          <Link to="/inventario" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
+          <Link
+            to="/inventario"
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
             Ver todo
           </Link>
         </div>
@@ -178,8 +159,8 @@ export function DashboardPage() {
           <div>
             <p className="font-medium">Consejo rápido</p>
             <p className="text-sm text-muted-foreground">
-              Escanea al recibir mercadería y anota la fecha del empaque. Toma menos
-              de quince segundos por producto.
+              Escanea al recibir mercadería y anota la fecha del empaque. Toma menos de quince
+              segundos por producto.
             </p>
           </div>
         </Card>
@@ -217,12 +198,8 @@ function Stat({
           : "text-foreground";
   return (
     <Card className={cn("vigia-enter p-4", delay)}>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className={cn("mt-2 font-display text-4xl tabular leading-none", toneClass)}>
-        {value}
-      </p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={cn("mt-2 font-display text-4xl tabular leading-none", toneClass)}>{value}</p>
       {hint ? <p className="mt-2 text-xs text-muted-foreground">{hint}</p> : null}
     </Card>
   );

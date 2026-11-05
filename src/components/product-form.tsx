@@ -73,6 +73,7 @@ export function ProductForm({
   showPrices?: boolean;
 }) {
   const [draft, setDraft] = useState<ProductDraft>(initial);
+  const [quantityInput, setQuantityInput] = useState(() => String(initial.quantity ?? 1));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -84,6 +85,7 @@ export function ProductForm({
     if (lastInitialRef.current !== initial) {
       lastInitialRef.current = initial;
       setDraft(initial);
+      setQuantityInput(String(initial.quantity ?? 1));
     }
   }, [initial]);
 
@@ -115,9 +117,14 @@ export function ProductForm({
       setError("Elige la fecha de vencimiento.");
       return;
     }
+    const quantity = Number(quantityInput);
+    if (!Number.isSafeInteger(quantity) || quantity < 1) {
+      setError("La cantidad debe ser un número entero mayor que cero.");
+      return;
+    }
     setSaving(true);
     try {
-      await onSubmit(draft);
+      await onSubmit({ ...draft, quantity });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
       setSaving(false);
@@ -231,15 +238,21 @@ export function ProductForm({
           />
         </Field>
         <Field label="Cantidad" htmlFor="quantity">
-          <Input
-            id="quantity"
-            type="number"
-            min={1}
-            inputMode="numeric"
-            value={draft.quantity}
-            onChange={(e) => patch("quantity", Number(e.target.value))}
-            required
-          />
+          <div className="space-y-1.5">
+            <Input
+              id="quantity"
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              value={quantityInput}
+              onChange={(e) => setQuantityInput(e.target.value)}
+              aria-describedby="quantity-hint"
+            />
+            <p id="quantity-hint" className="text-xs text-muted-foreground">
+              Registra cuántas unidades tiene este lote.
+            </p>
+          </div>
         </Field>
       </div>
 
@@ -291,10 +304,7 @@ export function ProductForm({
               placeholder="0.00"
               value={draft.price ?? ""}
               onChange={(e) =>
-                patch(
-                  "price",
-                  e.target.value === "" ? undefined : Number(e.target.value),
-                )
+                patch("price", e.target.value === "" ? undefined : Number(e.target.value))
               }
             />
           </Field>
@@ -307,10 +317,7 @@ export function ProductForm({
               placeholder="0.00"
               value={draft.priceC ?? ""}
               onChange={(e) =>
-                patch(
-                  "priceC",
-                  e.target.value === "" ? undefined : Number(e.target.value),
-                )
+                patch("priceC", e.target.value === "" ? undefined : Number(e.target.value))
               }
             />
           </Field>
@@ -323,10 +330,7 @@ export function ProductForm({
               placeholder="0.00"
               value={draft.cost ?? ""}
               onChange={(e) =>
-                patch(
-                  "cost",
-                  e.target.value === "" ? undefined : Number(e.target.value),
-                )
+                patch("cost", e.target.value === "" ? undefined : Number(e.target.value))
               }
             />
           </Field>

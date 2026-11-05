@@ -29,10 +29,13 @@ export function Mascot({
 
   // Parpadeo aleatorio
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setBlink(true);
-      window.setTimeout(() => setBlink(false), 150);
-    }, 3500 + Math.random() * 2000);
+    const id = window.setInterval(
+      () => {
+        setBlink(true);
+        window.setTimeout(() => setBlink(false), 150);
+      },
+      3500 + Math.random() * 2000,
+    );
     return () => window.clearInterval(id);
   }, []);
 
@@ -50,18 +53,21 @@ export function Mascot({
         height={size}
         viewBox="0 0 100 100"
         className="animate-naranja-bounce select-none"
-        aria-hidden
+        role="img"
+        aria-label="Nari, la naranja de Vigía"
       >
+        <title>Nari, la naranja de Vigía</title>
         {/* Hojita */}
         <path
-          d="M52 18 Q 58 8 70 10 Q 66 20 54 22 Z"
+          d="M52 18 Q 59 7 72 10 Q 67 21 54 22 Z"
           fill="#4caf7a"
           stroke="#2f6a4a"
           strokeWidth="1.2"
         />
         <path d="M52 18 Q 50 12 50 8" stroke="#2f6a4a" strokeWidth="1.2" fill="none" />
         {/* Cuerpo de la naranja */}
-        <circle cx="50" cy="55" r="34" fill="#ff8c42" stroke="#d96a2c" strokeWidth="1.5" />
+        <circle cx="50" cy="55" r="34" fill="#ff8c42" stroke="#e9772f" strokeWidth="1.5" />
+        <ellipse cx="50" cy="22" rx="7" ry="2.5" fill="#ffab66" opacity="0.75" />
         {/* Brillo */}
         <ellipse cx="40" cy="42" rx="10" ry="6" fill="#ffb27a" opacity="0.7" />
         {/* Cachetes */}
@@ -71,8 +77,24 @@ export function Mascot({
         <g className={blink ? "" : ""}>
           {blink ? (
             <>
-              <line x1="36" y1="52" x2="42" y2="52" stroke="#3a2415" strokeWidth="2" strokeLinecap="round" />
-              <line x1="58" y1="52" x2="64" y2="52" stroke="#3a2415" strokeWidth="2" strokeLinecap="round" />
+              <line
+                x1="36"
+                y1="52"
+                x2="42"
+                y2="52"
+                stroke="#3a2415"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <line
+                x1="58"
+                y1="52"
+                x2="64"
+                y2="52"
+                stroke="#3a2415"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </>
           ) : (
             <>
@@ -85,15 +107,54 @@ export function Mascot({
         </g>
         {/* Sonrisa */}
         {mood === "thinking" ? (
-          <path d="M44 68 Q 50 64 56 68" stroke="#3a2415" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path
+            d="M44 68 Q 50 64 56 68"
+            stroke="#3a2415"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+          />
         ) : (
-          <path d="M42 66 Q 50 74 58 66" stroke="#3a2415" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path
+            d="M42 66 Q 50 74 58 66"
+            stroke="#3a2415"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+          />
         )}
         {/* Brazos */}
-        <g className={mood === "wave" ? "animate-naranja-wave" : ""} style={{ transformOrigin: "18px 60px" }}>
-          <path d="M16 58 Q 8 52 6 46" stroke="#d96a2c" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <path
+          d="M27 84 Q 25 91 28 93"
+          stroke="#d96a2c"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <path
+          d="M69 84 Q 72 91 69 93"
+          stroke="#d96a2c"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <g className={mood === "wave" ? "animate-naranja-wave mascot-wave-arm" : "mascot-wave-arm"}>
+          <path
+            d="M17 58 Q 9 55 7 47"
+            stroke="#d96a2c"
+            strokeWidth="2.5"
+            fill="none"
+            strokeLinecap="round"
+          />
+          <circle cx="7" cy="45" r="3.5" fill="#ff8c42" stroke="#d96a2c" strokeWidth="1.2" />
         </g>
-        <path d="M84 58 Q 92 62 94 68" stroke="#d96a2c" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <path
+          d="M83 58 Q 91 62 93 67"
+          stroke="#d96a2c"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+        />
       </svg>
     </div>
   );
