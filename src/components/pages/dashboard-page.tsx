@@ -1,9 +1,7 @@
-import { useChatFocus } from "@/lib/vigia/chat-focus";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, PackageCheck, ScanBarcode, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Mascot } from "@/components/mascot";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { ProductCard } from "@/components/product-card";
 import { ProductSheet } from "@/components/product-sheet";
@@ -22,17 +20,6 @@ export function DashboardPage() {
   const demo = useVigiaStore((s) => s.demo);
   const soonWithin = Math.max(...settings.days, 30);
   const [selected, setSelected] = useState<Product | null>(null);
-  const [greetingDone, setGreetingDone] = useState(false);
-
-  // La mascota saluda al abrir y luego pasa a "happy"
-  useEffect(() => {
-    const t = window.setTimeout(() => setGreetingDone(true), 2500);
-    return () => window.clearTimeout(t);
-  }, []);
-
-  const hasExpired = products.some((p) => productStatus(p, soonWithin) === "expired");
-  const mascotMood = hasExpired ? "thinking" : greetingDone ? "happy" : "wave";
-
   const stats = useMemo(() => {
     const live = products.filter((p) => p.quantity > 0);
     let ok = 0;
@@ -67,13 +54,13 @@ export function DashboardPage() {
   return (
     <main>
       <div className="som-hero">
-        <PageHeader
+        <PageHeader tip="¿Revisamos lo que vence primero?"
           onMenuClick={() => setSidebarOpen(true)}
           eyebrow={settings.storeName}
           title="Vigía"
+          mood={stats.expired ? "thinking" : "happy"}
           description={headline}
         />
-        <button type="button" className="som-hero-pet" aria-label="Hablar con Som desde el inicio" onClick={() => useChatFocus.getState().openChat()}><Mascot mood={mascotMood} size={108}/></button>
       </div>
 
       {demo ? (

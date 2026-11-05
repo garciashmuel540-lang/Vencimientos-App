@@ -101,7 +101,7 @@ export function InventoryPage() {
 
   return (
     <main>
-      <PageHeader onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader tip="Podés buscar por nombre o código." onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Control"
         title="Vencimientos"
         description={`${filtered.length} de ${products.length} productos en control`}

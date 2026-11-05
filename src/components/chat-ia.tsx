@@ -96,6 +96,20 @@ function findMatches(products: Product[], query: string): Product[] {
   );
 }
 
+function animateSomArrival(target: HTMLDivElement | null) {
+  if (!target || !target.animate || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const source = document.querySelector("#som-page-trigger svg")?.getBoundingClientRect();
+  if (!source || source.bottom < 0 || source.top > window.innerHeight) return;
+  const end = target.getBoundingClientRect();
+  const dx = source.left + source.width / 2 - end.left - end.width / 2;
+  const dy = source.top + source.height / 2 - end.top - end.height / 2;
+  target.animate([
+    { transform: `translate(${dx}px, ${dy}px) scale(${source.width / end.width})` },
+    { transform: `translate(${dx * .45}px, ${dy * .57 - 12}px) scale(1.2) rotate(-7deg)`, offset: .48 },
+    { transform: "none" }
+  ], { duration: 440, easing: "cubic-bezier(.25,.72,.25,1)" });
+}
+
 export function ChatIA() {
   const open = useChatFocus((s) => s.autoOpen);
   const openChat = useChatFocus((s) => s.openChat);
@@ -803,18 +817,17 @@ export function ChatIA() {
   return (
     <>
       <Dialog.Root open={open} onOpenChange={(next) => next ? openChat() : clearFocus()}>
-        <Dialog.Trigger asChild>
-          <button type="button" aria-label="Hablar con Som" title="Hablar con Som"
-            className="som-launcher no-print fixed bottom-24 right-4 z-40">
-            <Mascot size={64} mood="wave" />
-            <span aria-hidden="true">Som</span>
-          </button>
-        </Dialog.Trigger>
         <Dialog.Portal>
           <Dialog.Overlay className="no-print fixed inset-0 z-50 bg-black/20" />
-          <Dialog.Content aria-describedby={undefined} className="som-panel no-print fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[80dvh] max-w-xl flex-col rounded-t-2xl border border-border bg-card shadow-2xl">
+          <Dialog.Content aria-describedby={undefined}
+            onCloseAutoFocus={(event) => {
+              const trigger = document.getElementById("som-page-trigger");
+              if (trigger) { event.preventDefault(); trigger.focus({ preventScroll: true }); }
+            }} className="som-panel no-print fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[80dvh] max-w-xl flex-col rounded-t-2xl border border-border bg-card shadow-2xl">
           <header className="som-panel-heading flex items-center gap-3 rounded-t-2xl border-b border-border px-4 py-2">
-            <Mascot mood={loading ? "thinking" : "happy"} size={44}/>
+            <div className="som-chat-avatar" ref={animateSomArrival}>
+              <Mascot mood={loading ? "thinking" : "happy"} size={44}/>
+            </div>
             <Dialog.Title className="flex-1 text-lg font-bold">Som</Dialog.Title>
             <Dialog.Close asChild><Button variant="ghost" size="icon" aria-label="Cerrar conversación"><X className="size-5"/></Button></Dialog.Close>
           </header>

@@ -491,7 +491,7 @@ export function FoodServicePage() {
 
   return (
     <main className="pb-24">
-      <PageHeader
+      <PageHeader tip="Empezá por los productos abiertos."
         onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Conteo diario"
         title="Food Service"
