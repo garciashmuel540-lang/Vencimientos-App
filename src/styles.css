@@ -215,18 +215,6 @@ a,
   }
 }
 
-@keyframes splash-bar {
-  0% {
-    transform: scaleX(0.2);
-  }
-  50% {
-    transform: scaleX(1);
-  }
-  100% {
-    transform: scaleX(0.2);
-  }
-}
-
 @keyframes vigia-cursor {
   0%,
   50% {

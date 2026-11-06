@@ -12,11 +12,12 @@ const THEME_BOOT = `try{var t=localStorage.getItem("vigia-theme");if(t==="dark"|
 /** Splash visible desde el primer paint (antes de hidratar React). */
 const BOOT_SPLASH = `
 <style>
-  #vigia-boot{position:fixed;inset:0;z-index:9999;display:grid;place-content:center;justify-items:center;background:var(--color-background,#fff9ef);color:var(--color-foreground,#503224);transition:opacity .2s ease}
+  #vigia-boot{position:fixed;inset:0;z-index:9999;display:grid;place-content:center;justify-items:center;background:var(--color-background,#fff9ef);color:var(--color-foreground,#503224);transition:opacity 160ms ease-out}
   #vigia-boot.done{opacity:0;pointer-events:none}
+  @media(prefers-reduced-motion:reduce){#vigia-boot{transition:none}}
   #vigia-boot p{margin:0;font:700 1.8rem system-ui}
 </style>
-<div id="vigia-boot" aria-hidden="true">
+<div id="vigia-boot" role="status" aria-label="Cargando Vigía">
   <span style="font-size:4rem">🍊</span>
   <p class="v-text">Vigía</p>
 </div>

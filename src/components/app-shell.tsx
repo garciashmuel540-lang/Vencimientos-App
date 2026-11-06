@@ -5,7 +5,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Onboarding } from "@/components/onboarding";
 import { AppSidebar } from "@/components/app-sidebar";
-import { Splash } from "@/components/splash";
+import { dismissBootSplash } from "@/lib/vigia/boot-splash";
 import { ChatIA } from "@/components/chat-ia";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
@@ -26,18 +26,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/escanear") ||
     pathname.startsWith("/precio");
   const [tour, setTour] = useState(false);
-  const splash = !ready;
 
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
 
   useEffect(() => {
-    if (!ready || splash) return;
+    if (!ready || isLoginPage) return;
     if (!localStorage.getItem(TOUR_KEY)) setTour(true);
     const t = window.setTimeout(() => void fireOpenAlerts(), 600);
     return () => window.clearTimeout(t);
-  }, [ready, splash, fireOpenAlerts]);
+  }, [ready, isLoginPage, fireOpenAlerts]);
+
+  useEffect(() => {
+    if (ready && !isLoginPage) dismissBootSplash();
+  }, [ready, isLoginPage]);
 
   // En /login: solo mostrar el contenido, sin menú ni chat
   if (isLoginPage) {
@@ -47,8 +50,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider delayDuration={250}>
       <div className="som-scene min-h-dvh bg-background text-foreground">
-        <Splash show={splash} />
-
         <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col pb-24">
           {children}
         </div>

@@ -7,23 +7,18 @@ import { Navigate, useRouterState } from "@tanstack/react-router";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
 import { useVigiaStore } from "@/lib/vigia/store";
 
-const LOGIN_PATH = "/login";
+import { dismissBootSplash } from "@/lib/vigia/boot-splash";
 
-function hideBootSplash() {
-  const el = document.getElementById("vigia-boot");
-  if (!el) return;
-  el.classList.add("done");
-  window.setTimeout(() => el.remove(), 400);
-}
+const LOGIN_PATH = "/login";
 
 export function SupabaseGuard({ children }: { children: ReactNode }) {
   const { user, loading } = useSupabaseAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  // Ocultar el splash HTML de boot en cuanto el guard se monta
+  // Conservar el mismo splash hasta que el destino esté listo.
   useEffect(() => {
-    hideBootSplash();
-  }, []);
+    if (pathname === LOGIN_PATH && !loading && !user) dismissBootSplash();
+  }, [pathname, loading, user]);
 
   // Sincronizar inventario con Supabase al loguearse
   useEffect(() => {
@@ -58,14 +53,8 @@ export function SupabaseGuard({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  // Sesión cargando → pantalla vacía mientras decide
-  if (loading) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-background">
-        <div className="size-10 animate-spin rounded-full border-4 border-secondary border-t-primary" />
-      </div>
-    );
-  }
+  // La pantalla inicial cubre la comprobación de sesión.
+  if (loading) return null;
 
   // Sin sesión → redirigir a login
   if (!user) {
