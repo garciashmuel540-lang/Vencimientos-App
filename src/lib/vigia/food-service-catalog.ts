@@ -19,6 +19,8 @@ export type FSCategory =
 export interface FSProduct {
   /** Código único interno (ej. "FSI_CAPP_ORIG_750") */
   code: string;
+  /** Código del artículo en la hoja de inventario; separado del ID de los conteos. */
+  itemCode?: string;
   /** Nombre visible (ej. "FSI Bolsa Cappuccino Orig 750G") */
   name: string;
   /** Categoría para agrupar en la UI */
@@ -58,6 +60,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   // ========== CAFÉ / NESCAFÉ ==========
   {
     code: "FSI_CAPP_ORIG_750",
+    itemCode: "7501058636973",
     name: "FSI Bolsa Cappuccino Orig 750G",
     category: "cafe",
     unit: "gramo",
@@ -66,6 +69,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_CAPP_VAIN_750",
+    itemCode: "7501058636980",
     name: "FSI Bolsa Cappuccino Vain 750G",
     category: "cafe",
     unit: "gramo",
@@ -74,6 +78,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_CAPP_ORIG_1K",
+    itemCode: "AMPMFSI0326",
     name: "FSI CapuccOriginal S/Azúcar 1Kg",
     category: "cafe",
     unit: "gramo",
@@ -82,6 +87,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_KITKAT_1300",
+    itemCode: "7891000433614",
     name: "FSI KIT KAT Chocolate Polvo 1.3Kg",
     category: "cafe",
     unit: "gramo",
@@ -90,6 +96,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_COCOA_680",
+    itemCode: "50000122424",
     name: "FSI Nestle Cocoa Mix 680gr",
     category: "cafe",
     unit: "gramo",
@@ -98,6 +105,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_NESCAFE_CLASICO_1K",
+    itemCode: "AMPMFSI0218",
     name: "FSI Nescafe Clasico Grano 1K",
     category: "cafe",
     unit: "gramo",
