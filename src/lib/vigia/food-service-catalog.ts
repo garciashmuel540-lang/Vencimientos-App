@@ -96,7 +96,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_COCOA_680",
-    itemCode: "50000122424",
+    itemCode: "050000122424",
     name: "FSI Nestle Cocoa Mix 680gr",
     category: "cafe",
     unit: "gramo",
@@ -124,6 +124,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   // ========== INGREDIENTES ==========
   {
     code: "FSI_AZUCAR_2000",
+    itemCode: "AMPMFSI0065",
     name: "FSI AZUCAR REFINADA 2000 UND",
     category: "ingredientes",
     unit: "libra",
@@ -133,6 +134,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_CHILE_JALAPENO",
+    itemCode: "702000",
     name: "FSI Chile jalapeño en rodaja",
     category: "ingredientes",
     unit: "libra",
@@ -141,6 +143,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_SALSA_TOMATE_114",
+    itemCode: "027000382516",
     name: "FSI Galón SalsaDeTomate 114oz",
     category: "ingredientes",
     unit: "libra",
@@ -149,6 +152,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_MAYONESA_3500",
+    itemCode: "7401004201821",
     name: "FSI Mayonesa Regia Galon 3500g",
     category: "ingredientes",
     unit: "libra",
@@ -157,6 +161,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_MOSTAZA_3500",
+    itemCode: "7401004202231",
     name: "FSI Mostaza Regia Galon 3500g",
     category: "ingredientes",
     unit: "libra",
@@ -165,6 +170,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_RELISH_128",
+    itemCode: "009300002073",
     name: "FSI RELISH 128 ONZ",
     category: "ingredientes",
     unit: "libra",
@@ -173,6 +179,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_SALSA_PICANTE_DJ",
+    itemCode: "AMPMFSI0045",
     name: "FSI Salsa Picante Don Julio Ga",
     category: "ingredientes",
     unit: "libra",
@@ -181,6 +188,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_SPLENDA_700",
+    itemCode: "AMPMFSI0321",
     name: "FSI Splenda Endulzante 700 sobres",
     category: "ingredientes",
     unit: "libra",
@@ -192,6 +200,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   // ========== PAN Y SALCHICHAS ==========
   {
     code: "FSI_PAN_HOTDOG_AURAMI_6",
+    itemCode: "7434000460114",
     name: "FSI PAN HOT DOG 6 UN AURAMI",
     category: "pan",
     unit: "unidad",
@@ -200,6 +209,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_PAN_HOTDOG_BIMBO_12",
+    itemCode: "AMPMFSI0322",
     name: "FSI PAN HOTDOG BIMBO 12 UND",
     category: "pan",
     unit: "unidad",
@@ -208,6 +218,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_SALCHICHA_DELMOR_15",
+    itemCode: "AMPMFSI0217",
     name: "FSI Salchicha delmor 15 uni",
     category: "pan",
     unit: "unidad",
@@ -220,6 +231,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   // ========== DESECHABLES ==========
   {
     code: "FSI_BANDEJA_HOTDOG",
+    itemCode: "7415605700324",
     name: "FSI BANDEJA DE HOT DOG POR UN",
     category: "desechables",
     unit: "unidad",
@@ -228,6 +240,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_BANDEJA_NACHO_125",
+    itemCode: "093901220530",
     name: "FSI BANDEJA DE NACHO 125 UN",
     category: "desechables",
     unit: "unidad",
@@ -236,6 +249,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_BOTELLON_AGUA",
+    itemCode: "AMPMFSI0066",
     name: "FSI BOTELLON DE AGUA",
     category: "desechables",
     unit: "unidad",
@@ -244,6 +258,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_CUCHARAS_12",
+    itemCode: "AMPMFSI0067",
     name: "FSI Cucharas Medianas 12 und",
     category: "desechables",
     unit: "unidad",
@@ -252,6 +267,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_CUCHILLOS_12",
+    itemCode: "AMPMFSI0069",
     name: "FSI Cuchillos x paquete d 12 und",
     category: "desechables",
     unit: "unidad",
@@ -268,6 +284,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_GUANTES_FS",
+    itemCode: "AMPMFSI0169",
     name: "FSI Guantes Food Service",
     category: "desechables",
     unit: "unidad",
@@ -276,6 +293,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_HIELO_10LB",
+    itemCode: "AMPMFSI0107",
     name: "FSI Hielo 10 lbs",
     category: "desechables",
     unit: "libra",
@@ -284,6 +302,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_NACHOS_3OZ",
+    itemCode: "AMPMFSI0203",
     name: "FSI NACHOS 3 OZ",
     category: "desechables",
     unit: "unidad",
@@ -292,6 +311,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_PAPEL_DELI_500",
+    itemCode: "AMPMFSI0052",
     name: "FSI Papel para Deli x caja 500",
     category: "desechables",
     unit: "libra",
@@ -300,6 +320,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_PLASTIC_WRAP",
+    itemCode: "AMPMFSI0200",
     name: "FSI Plastic wrap",
     category: "desechables",
     unit: "libra",
@@ -324,6 +345,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_PLATOS_REPOSTERIA_25",
+    itemCode: "400002461838",
     name: "FSI PLATOS REPOSTERIA 25 UND",
     category: "desechables",
     unit: "unidad",
@@ -332,6 +354,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_PORTA_VASOS_NESCAFE",
+    itemCode: "AMPMFSI0202",
     name: "FSI Porta Vasos Nescafe",
     category: "desechables",
     unit: "unidad",
@@ -340,6 +363,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_REMOVEDOR_CAFE_500",
+    itemCode: "AMPMFSI0063",
     name: "FSI REMOVEDOR DE CAFE 500 UND",
     category: "desechables",
     unit: "onza",
@@ -348,6 +372,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_SERVILLETAS_100",
+    itemCode: "AMPMFSI0249",
     name: "FSI SERVILLETAS 100 UN",
     category: "desechables",
     unit: "onza",
@@ -356,6 +381,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_TAPA_CAFE_14",
+    itemCode: "AMPMFSI0179",
     name: "FSI Tapa Café 14 onz Und",
     category: "desechables",
     unit: "unidad",
@@ -364,6 +390,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_TAPAS_8OZ_100",
+    itemCode: "AMPMFSI0062",
     name: "FSI TAPAS 8 onz 100 UND",
     category: "desechables",
     unit: "unidad",
@@ -372,6 +399,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_TENEDORES_12",
+    itemCode: "AMPMFSI0068",
     name: "FSI Tenedores 12 und",
     category: "desechables",
     unit: "unidad",
@@ -380,6 +408,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_VASOS_8OZ_100",
+    itemCode: "AMPMFSI0061",
     name: "FSI VASOS 8 onz 100 UND",
     category: "desechables",
     unit: "unidad",
@@ -388,6 +417,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_VASOS_CAFE_14",
+    itemCode: "AMPMFSI0178",
     name: "FSI Vasos Café 14 onz Und",
     category: "desechables",
     unit: "unidad",
@@ -398,6 +428,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   // ========== GRANITAS ==========
   {
     code: "FSI_PAJILLAS_500",
+    itemCode: "7415603400301",
     name: "FSI PAJILLAS 500 UND",
     category: "granitas",
     unit: "onza",
@@ -406,6 +437,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_TAPA_VASO_GRANITA_50",
+    itemCode: "AMPMFSI0216",
     name: "FSI Tapa Vaso de granita 50 und",
     category: "granitas",
     unit: "unidad",
@@ -414,6 +446,7 @@ export const FS_PRODUCTS: FSProduct[] = [
   },
   {
     code: "FSI_VASOS_GRANITA_12OZ_50",
+    itemCode: "AMPMFSI0215",
     name: "FSI Vasos granita 12oz 50und",
     category: "granitas",
     unit: "unidad",

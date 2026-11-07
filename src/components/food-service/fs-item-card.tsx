@@ -189,15 +189,13 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
         />
         <div className="min-w-0 flex-1">
           <p className="font-medium text-sm break-words">{product.name}</p>
-          {product.category === "cafe" && (
-            <p className="mt-1 text-xs font-medium text-foreground break-all">
-              {product.itemCode ? (
-                <>Código: <span className="font-mono">{product.itemCode}</span></>
-              ) : (
-                <span className="text-muted-foreground">Código pendiente</span>
-              )}
-            </p>
-          )}
+          <p className="mt-1 text-xs font-medium text-foreground break-all">
+            {product.itemCode ? (
+              <>Código: <span className="font-mono">{product.itemCode}</span></>
+            ) : (
+              <span className="text-muted-foreground">Código pendiente</span>
+            )}
+          </p>
           <p className="text-xs text-muted-foreground">
             {product.unitWeight}
             {product.unit === "gramo" ? "g" : ""} · {product.unit}

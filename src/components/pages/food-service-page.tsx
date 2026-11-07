@@ -185,7 +185,8 @@ export function FoodServicePage() {
     return FS_PRODUCTS.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        p.code.toLowerCase().includes(q),
+        p.code.toLowerCase().includes(q) ||
+        p.itemCode?.toLowerCase().includes(q),
     );
   }, [search]);
 
