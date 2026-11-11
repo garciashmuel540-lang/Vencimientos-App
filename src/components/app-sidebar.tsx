@@ -4,6 +4,7 @@
  */
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  ClipboardList,
   BarChart3,
   LayoutGrid,
   LogOut,
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/", label: "Inicio", icon: LayoutGrid },
   { to: "/inventario", label: "Vencimientos", icon: Package },
   { to: "/food-service", label: "Food Service", icon: UtensilsCrossed },
+  { to: "/recuentos", label: "Recuentos", icon: ClipboardList },
   { to: "/escanear", label: "Escanear", icon: ScanBarcode },
   { to: "/precio", label: "Verificador de precios", icon: Tag },
   { to: "/reportes", label: "Reportes", icon: BarChart3 },

@@ -2,6 +2,7 @@
  * Persistencia local con IndexedDB (Dexie).
  * Todo el inventario vive en el dispositivo: funciona sin conexión.
  */
+import type { Recount } from "./recounts";
 import Dexie, { type Table } from "dexie";
 import type {
   AlertSettings,
@@ -14,6 +15,7 @@ import type {
 import { DEFAULT_SETTINGS } from "./types";
 
 export class VigiaDB extends Dexie {
+  recounts!: Table<Recount, string>;
   products!: Table<Product, string>;
   catalog!: Table<CatalogEntry, string>;
   history!: Table<HistoryEntry, string>;
@@ -37,6 +39,7 @@ export class VigiaDB extends Dexie {
       promotions: "id, barcode, sourceFile, endDate, importedAt",
       products: "id, barcode, name, category, location, expiresAt, updatedAt, pendingSync",
     });
+    this.version(4).stores({ recounts: "id, userId, date, updatedAt" });
   }
 }
 

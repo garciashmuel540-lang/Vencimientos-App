@@ -8,3 +8,5 @@ dist/
 nixpacks.toml
 .env.local
 .vercel
+
+/public/ocr/

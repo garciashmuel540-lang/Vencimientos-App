@@ -16,6 +16,7 @@ import { Route as FoodServiceRouteImport } from './routes/food-service'
 import { Route as InventarioRouteImport } from './routes/inventario'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrecioRouteImport } from './routes/precio'
+import { Route as RecuentosRouteImport } from './routes/recuentos'
 import { Route as ReportesRouteImport } from './routes/reportes'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const PrecioRoute = PrecioRouteImport.update({
   path: '/precio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecuentosRoute = RecuentosRouteImport.update({
+  id: '/recuentos',
+  path: '/recuentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportesRoute = ReportesRouteImport.update({
   id: '/reportes',
   path: '/reportes',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/inventario': typeof InventarioRoute
   '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
+  '/recuentos': typeof RecuentosRoute
   '/reportes': typeof ReportesRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/inventario': typeof InventarioRoute
   '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
+  '/recuentos': typeof RecuentosRoute
   '/reportes': typeof ReportesRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/inventario': typeof InventarioRoute
   '/login': typeof LoginRoute
   '/precio': typeof PrecioRoute
+  '/recuentos': typeof RecuentosRoute
   '/reportes': typeof ReportesRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/login'
     | '/precio'
+    | '/recuentos'
     | '/reportes'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/login'
     | '/precio'
+    | '/recuentos'
     | '/reportes'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/inventario'
     | '/login'
     | '/precio'
+    | '/recuentos'
     | '/reportes'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   InventarioRoute: typeof InventarioRoute
   LoginRoute: typeof LoginRoute
   PrecioRoute: typeof PrecioRoute
+  RecuentosRoute: typeof RecuentosRoute
   ReportesRoute: typeof ReportesRoute
 }
 
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrecioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recuentos': {
+      id: '/recuentos'
+      path: '/recuentos'
+      fullPath: '/recuentos'
+      preLoaderRoute: typeof RecuentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reportes': {
       id: '/reportes'
       path: '/reportes'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   InventarioRoute: InventarioRoute,
   LoginRoute: LoginRoute,
   PrecioRoute: PrecioRoute,
+  RecuentosRoute: RecuentosRoute,
   ReportesRoute: ReportesRoute,
 }
 export const routeTree = rootRouteImport
