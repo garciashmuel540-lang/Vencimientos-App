@@ -3,7 +3,7 @@
  * - Modo "Míos": edita tus propios conteos.
  * - Modo "Todos" (admin): lista de usuarios, y al tocar uno se ven sus conteos (solo lectura).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, Search, ChevronDown, Users, User, ArrowLeft, ChevronRight, Coffee, Utensils, Package, CupSoda, Sandwich, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { domToPng } from "modern-screenshot";
+import { buildFSShareHtml, FS_SHARE_WIDTH, FS_SHARE_PAGE_SIZE, hasFSShareData } from "@/lib/vigia/food-service-share";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
 import { useUserEmails } from "@/lib/auth/use-user-emails";
 import { toShortEmail } from "@/lib/auth/user-utils";
@@ -88,6 +89,8 @@ export function FoodServicePage() {
   const [rows, setRows] = useState<FSCountRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const shareLock = useRef(false);
   const [expandedCats, setExpandedCats] = useState<Set<FSCategory>>(
     () => new Set(["cafe"]),
   );
@@ -270,12 +273,18 @@ export function FoodServicePage() {
   const showUserDetail = isAdmin && !onlyMine && Boolean(selectedUserId);
 
   // Compartir tabla de resultados de una categoría
-  const shareCategoryTable = async (cat: FSCategory) => {
-    const items = grouped[cat];
+  const shareCategoryTable = async (cat?: FSCategory) => {
+    if (shareLock.current || loading || showUsersList) return;
+    const items = FS_PRODUCTS.filter((product) =>
+      (!cat || product.category === cat) && hasFSShareData(rowsByCode.get(product.code)),
+    );
     if (!items || items.length === 0) {
-      toast.error("No hay productos en esta categoría");
+      toast.info("No hay ítems con información para compartir en esta fecha.");
       return;
     }
+
+    shareLock.current = true;
+    setSharing(true);
 
     // Preparar las filas
     const rowsData = items.map((product) => {
@@ -295,198 +304,85 @@ export function FoodServicePage() {
       return { product, calc, hasData, count };
     });
 
-    // Construir HTML temporal (oculto)
-    const container = document.createElement("div");
-    container.style.position = "fixed";
-    container.style.top = "0";
-    container.style.left = "0";
-    container.style.width = "720px";
-    container.style.padding = "24px";
-    container.style.background = "#F7F5F1";
-    // z-index negativo: queda detrás de todo el contenido de la app
-    // El navegador SÍ lo renderiza (necesario para domToPng)
-    // pero el usuario no lo ve porque está detrás.
-    container.style.zIndex = "-1000";
-    container.style.pointerEvents = "none";
-    container.style.fontFamily =
-      "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-
     const dateFormatted = new Date(date + "T12:00:00").toLocaleDateString(
-      "es",
-      { day: "numeric", month: "long", year: "numeric" },
+      "es", { day: "numeric", month: "long", year: "numeric" },
     );
-
-    const rowsHtml = rowsData
-      .map(({ product, calc, hasData, count }) => {
-        const name = product.name
-          .replace(/^FSI /, "")
-          .replace(/\s+/g, " ")
-          .slice(0, 40);
-        if (!hasData || !calc) {
-          return `
-            <tr style="border-bottom:1px solid #E5E1D8">
-              <td style="padding:10px 12px;font-size:13px;color:#6b6b6b">${name}</td>
-              <td style="padding:10px 12px;text-align:center;color:#a8a5a0">—</td>
-              <td style="padding:10px 12px;text-align:center;color:#a8a5a0">—</td>
-              <td style="padding:10px 12px;text-align:center;color:#a8a5a0">—</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;color:#a8a5a0">Sin datos</td>
-            </tr>`;
-        }
-        const diff = calc.difference;
-        const diffText =
-          diff === 0
-            ? "0.00"
-            : diff > 0
-              ? `+${diff.toFixed(2)}`
-              : diff.toFixed(2);
-        const statusColor =
-          calc.status === "ok"
-            ? "#2A5547"
-            : calc.status === "sobra"
-              ? "#B8860B"
-              : "#B04A3C";
-        const statusBg =
-          calc.status === "ok"
-            ? "#E3EBE6"
-            : calc.status === "sobra"
-              ? "#F5EBD8"
-              : "#F5DAD6";
-        const systemQty = count?.system_qty ?? 0;
-        return `
-            <tr style="border-bottom:1px solid #E5E1D8">
-              <td style="padding:10px 12px;font-size:13px;color:#1a1a1a;font-weight:500">${name}</td>
-              <td style="padding:10px 12px;text-align:center;font-size:13px;color:#1a1a1a;font-variant-numeric:tabular-nums">${calc.inventory.toFixed(2)}</td>
-              <td style="padding:10px 12px;text-align:center;font-size:13px;color:#1a1a1a;font-variant-numeric:tabular-nums">${systemQty.toFixed(2)}</td>
-              <td style="padding:10px 12px;text-align:center;font-size:13px;color:${statusColor};font-weight:600;font-variant-numeric:tabular-nums">${diffText}</td>
-              <td style="padding:10px 12px;text-align:right">
-                <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;color:${statusColor};background:${statusBg}">
-                  ${calc.status === "ok" ? "OK" : calc.status === "sobra" ? "Sobra" : "Falta"}
-                </span>
-              </td>
-            </tr>`;
-      })
-      .join("");
-
-    const okCount = rowsData.filter((r) => r.calc?.status === "ok").length;
-    const diffCount = rowsData.filter(
-      (r) => r.calc && r.calc.status !== "ok" && r.calc.status !== "incompleto",
-    ).length;
-
-    container.innerHTML = `
-      <div style="background:#FFFFFF;border-radius:20px;padding:28px;box-shadow:0 2px 12px rgba(26,26,26,0.06)">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-          <div style="width:44px;height:44px;border-radius:12px;background:#2A5547;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px">V</div>
-          <div>
-            <div style="font-size:11px;letter-spacing:2px;color:#6b6b6b;text-transform:uppercase">Food Service</div>
-            <div style="font-size:20px;font-weight:600;color:#1a1a1a">${FS_CATEGORY_LABEL[cat]}</div>
-          </div>
-        </div>
-
-        <div style="font-size:12px;color:#6b6b6b;margin-bottom:16px">${dateFormatted}</div>
-
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="border-bottom:2px solid #1a1a1a">
-              <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Producto</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Físico</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Sistema</th>
-              <th style="padding:10px 12px;text-align:center;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Diferencia</th>
-              <th style="padding:10px 12px;text-align:right;font-size:11px;color:#6b6b6b;text-transform:uppercase;letter-spacing:1px;font-weight:600">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-          </tbody>
-        </table>
-
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #E5E1D8;display:flex;justify-content:space-between;font-size:12px;color:#6b6b6b">
-          <span>${rowsData.length} producto${rowsData.length === 1 ? "" : "s"}</span>
-          <span>${okCount} OK · ${diffCount} con diferencia</span>
-        </div>
-
-        <div style="margin-top:14px;text-align:center;font-size:11px;color:#a8a5a0">
-          Generado con Vigía
-        </div>
-      </div>
-    `;
+    const container = document.createElement("div");
+    Object.assign(container.style, {
+      position: "fixed", top: "0", left: "0", width: `${FS_SHARE_WIDTH}px`,
+      zIndex: "-1000", pointerEvents: "none", background: "#F1F5F2",
+    });
+    container.setAttribute("aria-hidden", "true");
+    const title = cat ? FS_CATEGORY_LABEL[cat] : "Inventario general";
 
     document.body.appendChild(container);
 
     try {
-      // Toast con info del HTML
-      const htmlLen = container.innerHTML.length;
-      const rect = container.getBoundingClientRect();
-      console.info(`[share] html=${htmlLen}px, w=${rect.width}, h=${rect.height}`);
-
-      // Esperar un momento para que el navegador renderice todo
-      await new Promise((r) => setTimeout(r, 300));
-
-      // Intentar esperar las fuentes (si están disponibles)
-      try {
-        await document.fonts.ready;
-      } catch {
-        /* silencioso */
+      await document.fonts.ready;
+      const files: File[] = [];
+      const images: string[] = [];
+      const pages = Math.ceil(rowsData.length / FS_SHARE_PAGE_SIZE);
+      for (let page = 0; page < pages; page++) {
+        const pageRows = rowsData.slice(page * FS_SHARE_PAGE_SIZE, (page + 1) * FS_SHARE_PAGE_SIZE);
+        container.innerHTML = buildFSShareHtml(title, dateFormatted, pageRows, FS_CATEGORY_LABEL, page + 1, pages);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const dataUrl = await domToPng(container, {
+          quality: 1, scale: 2, backgroundColor: "#F1F5F2", debug: false,
+        });
+        const blob = await (await fetch(dataUrl)).blob();
+        files.push(new File([blob], `vigia-${cat ?? "general"}-${date}-${page + 1}.png`, { type: "image/png" }));
+        images.push(dataUrl);
       }
-
-      console.info("[share] antes de domToPng");
-      const dataUrl = await domToPng(container, {
-        quality: 1,
-        scale: 2,
-        backgroundColor: "#F7F5F1",
-        debug: false,
-      });
-      console.info(
-        `[share] dataUrl length=${dataUrl.length}, prefix=${dataUrl.slice(0, 30)}`,
-      );
-
-      // Verificar si es una imagen en blanco
-      const { toast } = await import("sonner");
-      if (dataUrl.length < 5000) {
-        toast.error(`Imagen vacía (${dataUrl.length} chars)`);
-      } else {
-        const prefix = dataUrl.slice(0, 50);
-        toast.success(`OK ${Math.round(dataUrl.length / 1024)}KB · ${prefix}`);
-      }
-
-      // Convertir a Blob
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const file = new File([blob], `vigia-${cat}.png`, {
-        type: "image/png",
-      });
 
       // Compartir
-      console.info(
-        `[share] blob size=${blob.size}, type=${blob.type}, canShare=${navigator.canShare?.({ files: [file] })}`,
-      );
-
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      if (navigator.share && navigator.canShare?.({ files })) {
         try {
           await navigator.share({
-            files: [file],
-            title: `Vigía - ${FS_CATEGORY_LABEL[cat]}`,
-            text: `Resultados de ${FS_CATEGORY_LABEL[cat]} - ${dateFormatted}`,
+            files,
+            title: `Vigía - ${title}`,
+            text: `Resultados de ${title} - ${dateFormatted}`,
           });
         } catch (err) {
           if (err instanceof Error && err.name === "AbortError") {
             console.info("[share] usuario canceló");
             return;
           }
+          if (err instanceof Error && err.name === "NotAllowedError") {
+            toast.info("Imágenes listas. Tocá Compartir para enviarlas.", {
+              duration: Infinity,
+              action: {
+                label: "Compartir",
+                onClick: () => {
+                  void navigator.share({ files, title: `Vigía - ${title}` }).catch((error) => {
+                    if (!(error instanceof Error && error.name === "AbortError")) {
+                      toast.error("No se pudieron compartir las imágenes.");
+                    }
+                  });
+                },
+              },
+            });
+            return;
+          }
           throw err;
         }
       } else {
-        // Fallback: descargar la imagen
-        const link = document.createElement("a");
-        link.download = `vigia-${cat}.png`;
-        link.href = dataUrl;
-        link.click();
-        toast.success("Imagen descargada");
+        for (let i = 0; i < files.length; i++) {
+          const link = document.createElement("a");
+          link.download = files[i].name;
+          link.href = images[i];
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }
+        toast.success(files.length === 1 ? "Imagen descargada" : `${files.length} imágenes descargadas`);
       }
     } catch (err) {
       console.error("[share] error:", err);
       toast.error("No se pudo compartir la imagen");
     } finally {
-      document.body.removeChild(container);
+      container.remove();
+      shareLock.current = false;
+      setSharing(false);
     }
   };
 
@@ -638,6 +534,14 @@ export function FoodServicePage() {
             </div>
           )}
 
+          <div className="mb-4 px-4">
+            <Button type="button" className="w-full min-h-11 gap-2" disabled={loading || sharing}
+              onClick={() => void shareCategoryTable()}>
+              <Share2 className="size-4" />
+              {sharing ? "Preparando imágenes…" : "Compartir ítems"}
+            </Button>
+            <p className="mt-2 text-xs text-muted-foreground">Todos los ítems con datos de esta fecha, organizados por apartado.</p>
+          </div>
           <div className="flex flex-col gap-2 px-4">
             {loading ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
@@ -661,11 +565,9 @@ export function FoodServicePage() {
                     key={cat}
                     className="rounded-2xl border bg-card overflow-hidden transition-all duration-200"
                   >
-                    <button
-                      type="button"
-                      onClick={() => toggleCategory(cat)}
-                      className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 transition-colors duration-200"
-                    >
+                    <div className="flex items-center gap-2 px-4 py-3.5">
+                    <button type="button" onClick={() => toggleCategory(cat)} aria-expanded={isOpen}
+                      className="min-w-0 flex-1 flex items-center gap-3 text-left">
                       {/* Ícono de la categoría */}
                       <div
                         className={cn(
@@ -696,6 +598,7 @@ export function FoodServicePage() {
                         </p>
                       </div>
 
+                    </button>
                       {/* Botón compartir */}
                       <button
                         type="button"
@@ -704,7 +607,8 @@ export function FoodServicePage() {
                           void shareCategoryTable(cat);
                         }}
                         className="shrink-0 flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-                        aria-label="Compartir tabla"
+                        disabled={sharing || loading}
+                        aria-label={`Compartir ${FS_CATEGORY_LABEL[cat]}`}
                         title="Compartir tabla"
                       >
                         <Share2 className="size-3.5" />
@@ -729,7 +633,7 @@ export function FoodServicePage() {
                           !isOpen && "-rotate-90",
                         )}
                       />
-                    </button>
+                    </div>
 
                     {isOpen && (
                       <div className="flex flex-col gap-2 border-t bg-muted/20 p-3">
