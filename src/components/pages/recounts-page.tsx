@@ -66,7 +66,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(""),
     [search, setSearch] = useState(""),
     [saved, setSaved] = useState("");
-  const [readyFiles, setReadyFiles] = useState<File[]>([]),
+  const [readyImage, setReadyImage] = useState<File | null>(null),
     [sources, setSources] = useState(false);
   const camera = useRef<HTMLInputElement>(null),
     upload = useRef<HTMLInputElement>(null);
@@ -99,7 +99,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     setSearch("");
     setSelectedId(null);
     setSources(false);
-    setReadyFiles([]);
+    setReadyImage(null);
     setSaveError(false);
   }
   useEffect(() => {
@@ -157,7 +157,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     next = { ...next, updatedAt: new Date().toISOString() };
     current.current = next;
     setDoc(next);
-    setReadyFiles([]);
+    setReadyImage(null);
     setSaved("Guardando…");
     setSaveError(false);
     setHistory((old) => [summarizeRecount(next), ...old.filter((d) => d.id !== next.id)]);
@@ -223,7 +223,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     current.current = null;
     syncedPhotos.current = null;
     setDoc(null);
-    setReadyFiles([]);
+    setReadyImage(null);
     setSelectedId(null);
     sessionStorage.removeItem(resumeKey);
   }
@@ -383,13 +383,13 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
   async function prepareShare() {
     if (!doc || lock.current) return;
     lock.current = true;
-    setBusy("Preparando imágenes Full HD…");
+    setBusy("Preparando imagen del conteo…");
     try {
-      const { makeRecountImages } = await import("@/lib/vigia/recount-share");
-      const files = await makeRecountImages(doc);
+      const { makeRecountImage } = await import("@/lib/vigia/recount-share");
+      const file = await makeRecountImage(doc);
       if (mounted.current) {
-        setReadyFiles(files);
-        toast.success("Imágenes listas para compartir.");
+        setReadyImage(file);
+        toast.success("Imagen lista para compartir.");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo preparar el reporte.");
@@ -399,20 +399,20 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     }
   }
   async function sendFiles() {
+    if (!readyImage) return;
     try {
-      if (navigator.canShare?.({ files: readyFiles })) {
-        await navigator.share({ files: readyFiles, title: doc?.title ?? "Recuento" });
+      const files = [readyImage];
+      if (navigator.canShare?.({ files })) {
+        await navigator.share({ files, title: doc?.title ?? "Recuento" });
       } else {
-        for (const file of readyFiles) {
-          const url = URL.createObjectURL(file),
-            a = document.createElement("a");
-          a.href = url;
-          a.download = file.name;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 60000);
-        }
+        const url = URL.createObjectURL(readyImage);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = readyImage.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
         toast.success("Reporte descargado.");
       }
     } catch (e) {
@@ -831,7 +831,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                     className="w-full"
                     onClick={() => {
                       persist({ ...doc, reviewed: false });
-                      setReadyFiles([]);
+                      setReadyImage(null);
                     }}
                   >
                     Revisar documento o agregar páginas
@@ -863,16 +863,11 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                 {busy}
               </p>
             )}
-            {readyFiles.length > 0 && (
+            {readyImage && (
               <div className="rounded-xl border border-primary p-4">
-                <p className="mb-3 text-sm">
-                  {readyFiles.length === 1
-                    ? "1 imagen horizontal"
-                    : `${readyFiles.length} imágenes horizontales`}{" "}
-                  Full HD con los ítems contados.
-                </p>
+                <p className="mb-3 text-sm">Una imagen tipo A4 con todos los ítems contados.</p>
                 <Button className="w-full" onClick={() => void sendFiles()}>
-                  Enviar imágenes
+                  Enviar imagen
                 </Button>
               </div>
             )}
