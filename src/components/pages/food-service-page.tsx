@@ -11,8 +11,10 @@ import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { createElement } from "react";
+import { Mascot } from "@/components/mascot";
 import { domToPng } from "modern-screenshot";
-import { buildFSShareHtml, FS_SHARE_WIDTH, FS_SHARE_PAGE_SIZE, hasFSShareData } from "@/lib/vigia/food-service-share";
+import { buildFSShareHtml, FS_SHARE_WIDTH, FS_SHARE_HEIGHT, FS_SHARE_PAGE_SIZE, hasFSShareData } from "@/lib/vigia/food-service-share";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
 import { useUserEmails } from "@/lib/auth/use-user-emails";
 import { toShortEmail } from "@/lib/auth/user-utils";
@@ -309,7 +311,7 @@ export function FoodServicePage() {
     );
     const container = document.createElement("div");
     Object.assign(container.style, {
-      position: "fixed", top: "0", left: "0", width: `${FS_SHARE_WIDTH}px`,
+      position: "fixed", top: "0", left: "0", width: `${FS_SHARE_WIDTH}px`, height: `${FS_SHARE_HEIGHT}px`,
       zIndex: "-1000", pointerEvents: "none", background: "#F1F5F2",
     });
     container.setAttribute("aria-hidden", "true");
@@ -319,15 +321,22 @@ export function FoodServicePage() {
 
     try {
       await document.fonts.ready;
+      const { renderToStaticMarkup } = await import("react-dom/server");
+      const mascot = renderToStaticMarkup(createElement(Mascot, { mood: "wave", size: 160 }));
       const files: File[] = [];
       const images: string[] = [];
       const pages = Math.ceil(rowsData.length / FS_SHARE_PAGE_SIZE);
       for (let page = 0; page < pages; page++) {
         const pageRows = rowsData.slice(page * FS_SHARE_PAGE_SIZE, (page + 1) * FS_SHARE_PAGE_SIZE);
-        container.innerHTML = buildFSShareHtml(title, dateFormatted, pageRows, FS_CATEGORY_LABEL, page + 1, pages);
+        container.innerHTML = buildFSShareHtml(title, dateFormatted, pageRows, FS_CATEGORY_LABEL, page + 1, pages, mascot);
+        container.querySelectorAll("svg *").forEach((node) => {
+          if (node instanceof SVGElement) node.style.animation = "none";
+        });
+        const hand = container.querySelector<SVGElement>(".som-wave");
+        if (hand) hand.setAttribute("d", "M20 58C12 59 5 47 5 36c0-4 4-5 6-2l3 8 7 5Z");
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         const dataUrl = await domToPng(container, {
-          quality: 1, scale: 2, backgroundColor: "#F1F5F2", debug: false,
+          quality: 1, scale: 1, width: FS_SHARE_WIDTH, height: FS_SHARE_HEIGHT, backgroundColor: "#FFFFFF", debug: false,
         });
         const blob = await (await fetch(dataUrl)).blob();
         files.push(new File([blob], `vigia-${cat ?? "general"}-${date}-${page + 1}.png`, { type: "image/png" }));
