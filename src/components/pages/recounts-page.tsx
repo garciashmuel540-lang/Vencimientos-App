@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Upload, Plus, Share2, ArrowLeft, ClipboardList, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { RecountCounter } from "@/components/recount-counter";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,9 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     [doc, setDoc] = useState<Recount | null>(null);
   const current = useRef<Recount | null>(null),
     writeQueue = useRef(Promise.resolve());
+  const pending = useRef<Recount | null>(null);
+  const writing = useRef(false);
+  const resumeKey = `vigia-recuento-abierto:${userId}`;
   const [busy, setBusy] = useState(""),
     [search, setSearch] = useState(""),
     [saved, setSaved] = useState("");
@@ -45,6 +49,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     [sources, setSources] = useState(false);
   const camera = useRef<HTMLInputElement>(null),
     upload = useRef<HTMLInputElement>(null);
+  const scanController = useRef<AbortController | null>(null);
   const mounted = useRef(true),
     lock = useRef(false);
   useEffect(() => {
@@ -54,14 +59,20 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
       .equals(userId)
       .toArray()
       .then((rows) => {
-        if (mounted.current)
-          setHistory(rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+        if (!mounted.current) return;
+        setHistory(rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+        const resumed = rows.find((row) => row.id === sessionStorage.getItem(resumeKey));
+        if (resumed && !current.current) {
+          current.current = resumed;
+          setDoc(resumed);
+        }
       })
       .catch(() => toast.error("No se pudo abrir el historial."));
     return () => {
       mounted.current = false;
+      scanController.current?.abort();
     };
-  }, [userId]);
+  }, [userId, resumeKey]);
   function persist(next: Recount) {
     next = { ...next, updatedAt: new Date().toISOString() };
     current.current = next;
@@ -69,19 +80,29 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     setReadyFiles([]);
     setSaved("Guardando…");
     setHistory((old) => [next, ...old.filter((d) => d.id !== next.id)]);
-    writeQueue.current = writeQueue.current
-      .catch(() => {})
-      .then(async () => {
-        await getDb().recounts.put(next);
+    sessionStorage.setItem(resumeKey, next.id);
+    pending.current = next;
+    if (writing.current) return;
+    writing.current = true;
+    writeQueue.current = (async () => {
+      try {
+        while (pending.current) {
+          const latest = pending.current;
+          pending.current = null;
+          await getDb().recounts.put(latest);
+        }
         if (mounted.current) setSaved("Guardado en este dispositivo");
-      })
-      .catch(() => {
+      } catch {
         if (mounted.current) {
           setSaved("No se pudo guardar");
           toast.error("No se pudo guardar. Revisá el espacio disponible.");
         }
-      });
+      } finally {
+        writing.current = false;
+      }
+    })();
   }
+
   function updateItem(id: string, patch: Partial<RecountItem>) {
     const d = current.current;
     if (d) persist({ ...d, items: d.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
@@ -101,55 +122,96 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     persist(d);
     setSearch("");
   }
-  async function scan(files: FileList | null) {
-    if (!files?.length || lock.current || !current.current) return;
-    if (files.length > 5) {
+  async function scan(files: FileList | null, reread = false) {
+    const original = current.current;
+    if (!original || lock.current || (!reread && !files?.length)) return;
+    if ((files?.length ?? 0) > 5) {
       toast.error("Agregá hasta cinco fotografías a la vez.");
       return;
     }
     lock.current = true;
+    const controller = new AbortController();
+    scanController.current = controller;
     setBusy("Preparando fotografías…");
-    const original = current.current;
     try {
       const { prepareRecountPhoto, readRecountPhotos } = await import("@/lib/vigia/recount-ocr");
-      const images: string[] = [];
-      for (const file of Array.from(files)) images.push(await prepareRecountPhoto(file));
-      const pages = await readRecountPhotos(images, (m) => {
-        if (mounted.current) setBusy(m);
-      });
       let catalog = await getDb().catalog.toArray();
       if (!catalog.length) {
         try {
           const response = await fetch("/catalogo-precios.json");
           if (response.ok) catalog = (await response.json()).items;
         } catch {
-          /* names from the sheet remain editable */
+          /* keep names from document */
         }
       }
-      const items = pages.flatMap((p) => readDocumentRows(p.words, catalog));
+      const byCode = new Map(catalog.map((item) => [item.barcode, item]));
+      const images = reread ? original.images : [];
+      if (!reread)
+        for (const file of Array.from(files ?? [])) images.push(await prepareRecountPhoto(file));
+      let scanned = 0;
+      const recovered: RecountItem[] = [];
+      await readRecountPhotos(
+        images,
+        (message) => {
+          if (mounted.current) setBusy(message);
+        },
+        async (page, index) => {
+          if (!mounted.current) return;
+          const items = (page.items ?? readDocumentRows(page.words, catalog)).map((item) => {
+            const match = byCode.get(item.code);
+            return match
+              ? { ...item, name: match.name, category: match.category || item.category }
+              : item;
+          });
+          scanned += items.length;
+          if (reread) {
+            recovered.push(...items);
+            return;
+          }
+          const latest = current.current ?? original;
+          persist({
+            ...latest,
+            reviewed: false,
+            items: [...latest.items, ...items],
+            images: [...latest.images, images[index]],
+            rawText: [latest.rawText, page.text].filter(Boolean).join("\n\n"),
+          });
+          await writeQueue.current;
+        },
+        controller.signal,
+      );
       if (!mounted.current) return;
-      persist({
-        ...original,
-        reviewed: false,
-        items: [...original.items, ...items],
-        images: [...original.images, ...images],
-        rawText: [original.rawText, ...pages.map((p) => p.text)].filter(Boolean).join("\n\n"),
-      });
-      setSources(true);
+      if (reread && recovered.length) {
+        const matched = new Set<string>();
+        const items = recovered.map((item) => {
+          const previous = original.items.find(
+            (old) =>
+              !matched.has(old.id) &&
+              ((item.code && old.code === item.code) || item.name === old.name),
+          );
+          if (!previous) return item;
+          matched.add(previous.id);
+          return { ...item, id: previous.id, physical: previous.physical };
+        });
+        const preserved = original.items.filter(
+          (item) => !matched.has(item.id) && (item.physical !== "" || !item.raw),
+        );
+        persist({ ...original, reviewed: false, items: [...items, ...preserved] });
+      }
       toast.info(
-        items.length
-          ? `${items.length} ítems reconocidos. Revisá la lectura antes de contar.`
-          : "No se identificaron filas. Revisá el texto leído o tomá una foto más recta y nítida.",
+        scanned
+          ? `${scanned} ítems reconocidos. Revisá las cantidades pendientes.`
+          : "No se identificaron filas. Revisá la foto o tomá una más recta y nítida.",
       );
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No se pudo leer el documento. Intentá con otra foto.",
-      );
+    } catch {
+      if (!controller.signal.aborted)
+        toast.error(
+          "La lectura se interrumpió. Las páginas que ya se guardaron siguen en el recuento.",
+        );
     } finally {
       lock.current = false;
       if (mounted.current) setBusy("");
+      scanController.current = null;
       if (camera.current) camera.current.value = "";
       if (upload.current) upload.current.value = "";
     }
@@ -198,9 +260,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
   const visible =
     doc?.items.filter((i) => `${i.name} ${i.code}`.toLowerCase().includes(search.toLowerCase())) ??
     [];
-  const canConfirm =
-    Boolean(doc?.items.length) &&
-    doc!.items.every((i) => i.name.trim() && quantity(i.system) !== null);
+  const canConfirm = Boolean(doc?.items.length) && doc!.items.every((i) => i.name.trim());
   return (
     <main className="pb-28">
       <PageHeader
@@ -236,6 +296,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                   className="w-full rounded-xl border bg-card p-4 text-left"
                   onClick={() => {
                     current.current = d;
+                    sessionStorage.setItem(resumeKey, d.id);
                     setDoc(d);
                     setSearch("");
                     setSources(false);
@@ -259,6 +320,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
               onClick={() => {
                 setDoc(null);
                 current.current = null;
+                sessionStorage.removeItem(resumeKey);
                 setReadyFiles([]);
               }}
             >
@@ -322,6 +384,16 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                     onChange={(e) => void scan(e.target.files)}
                   />
                 </div>
+              )}
+              {!doc.reviewed && doc.images.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => void scan(null, true)}
+                >
+                  Volver a leer fotos guardadas
+                </Button>
               )}
               {(doc.images.length > 0 || doc.rawText) && (
                 <div className="rounded-xl border p-3">
@@ -425,11 +497,13 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                         </p>
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div>
                       <label className="text-sm">
                         Sistema
                         {doc.reviewed ? (
-                          <p className="py-2 text-xl font-semibold tabular-nums">{item.system}</p>
+                          <p className="py-2 text-xl font-semibold tabular-nums">
+                            {quantity(item.system) === null ? "Pendiente de revisión" : item.system}
+                          </p>
                         ) : (
                           <Input
                             aria-label={`Sistema ${item.name}`}
@@ -439,19 +513,38 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                           />
                         )}
                       </label>
-                      <label className="text-sm">
-                        Físico
-                        <Input
-                          aria-label={`Físico ${item.name}`}
-                          inputMode="decimal"
-                          placeholder="Sin contar"
-                          disabled={!doc.reviewed}
-                          value={item.physical}
-                          onChange={(e) => updateItem(item.id, { physical: e.target.value })}
-                        />
-                      </label>
                     </div>
-                    {!doc.reviewed && item.candidates.length > 1 && (
+                    {doc.reviewed && (
+                      <RecountCounter
+                        name={item.name}
+                        physical={item.physical}
+                        onChange={(value, add) => {
+                          const latest = current.current?.items.find((row) => row.id === item.id);
+                          const number = quantity(value);
+                          if (number === null) return;
+                          const total = add
+                            ? (quantity(latest?.physical ?? "") ?? 0) + number
+                            : number;
+                          updateItem(item.id, {
+                            physical: String(Math.max(0, Math.round(total * 1e6) / 1e6)),
+                          });
+                        }}
+                      />
+                    )}
+                    {!doc.reviewed && !item.system && item.stockPreview && (
+                      <div className="flex items-center gap-3 rounded-lg bg-muted p-2">
+                        <img
+                          src={item.stockPreview}
+                          alt="Recorte de Cantidad Disponible"
+                          loading="lazy"
+                          className="h-14 w-28 rounded border object-contain bg-white"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          Verificá esta cantidad en la hoja.
+                        </span>
+                      </div>
+                    )}
+                    {!doc.reviewed && item.candidates.length > 0 && !item.system && (
                       <div className="flex flex-wrap gap-2">
                         <span className="w-full text-xs text-muted-foreground">
                           Números detectados: elegí el que corresponde al sistema.
@@ -477,7 +570,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                     <p
                       className={`rounded-lg px-3 py-2 text-sm font-semibold ${result.status === "ok" ? "bg-emerald-50 text-emerald-800" : result.status === "falta" ? "bg-red-50 text-red-800" : result.status === "sobra" ? "bg-amber-50 text-amber-800" : "bg-muted text-muted-foreground"}`}
                     >
-                      {result.label}
+                      {quantity(item.system) === null ? "Sistema pendiente" : result.label}
                     </p>
                   </section>
                 );

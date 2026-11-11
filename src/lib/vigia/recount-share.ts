@@ -35,6 +35,7 @@ export async function makeRecountImages(doc: Recount): Promise<File[]> {
         unitWeight: 1,
       },
       detail: "Conteo físico en unidades",
+      physical,
       count: { opened: null, sealed: null, system_qty: quantity(i.system) },
       calc:
         result.difference === null

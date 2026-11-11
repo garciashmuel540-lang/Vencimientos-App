@@ -45,3 +45,14 @@ test("unknown columns require review instead of guessing a quantity", () => {
   assert.equal(rows[0].system, "");
   assert.deepEqual(rows[0].candidates, ["3", "50"]);
 });
+test("Cantidad Disponible excludes a weight misread as a number in Descripción", () => {
+  const header = [
+    word("Código", 0, 0),
+    word("Descripción", 350, 0),
+    word("Cantidad", 700, 0),
+    word("Disponible", 800, 0),
+  ];
+  const product = [word("022000018465", 0, 40), word("Skittles", 350, 40), word("61.59", 480, 40)];
+  assert.equal(readDocumentRows([...header, ...product], [])[0].system, "");
+  assert.equal(readDocumentRows([...header, ...product, word("9", 704, 40)], [])[0].system, "9");
+});

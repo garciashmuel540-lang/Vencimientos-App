@@ -14,6 +14,7 @@ export function hasFSShareData(count: ShareRow["count"] | undefined): boolean {
 export type ShareRow = {
   product: Omit<FSProduct, "category"> & { category: string };
   detail?: string;
+  physical?: number;
   calc: FSCalcResult | null;
   count: { opened: number | null; sealed: number | null; system_qty: number | null } | null;
 };
@@ -34,7 +35,7 @@ export function buildFSShareHtml(category: string, date: string, rows: ShareRow[
   const number = (value: number | null | undefined) => typeof value === "number" && Number.isFinite(value)
     ? value.toLocaleString("es-NI", { maximumFractionDigits: 2, minimumFractionDigits: 2 }) : "—";
   const complete = rows.filter(r => r.calc && r.calc.status !== "incompleto").length;
-  const body = rows.map(({ product, calc, count, detail }, index) => {
+  const body = rows.map(({ product, calc, count, detail, physical }, index) => {
     const ready = calc && calc.status !== "incompleto";
     const state = states[ready ? calc.status : "incompleto"];
     const heading = index === 0 || rows[index - 1].product.category !== product.category
@@ -46,7 +47,7 @@ export function buildFSShareHtml(category: string, date: string, rows: ShareRow[
         <div style="font-size:29px;line-height:1.15;font-weight:700;overflow-wrap:anywhere">${escapeHtml(product.name.replace(/^FSI\s+/, ""))}</div>
         <div style="font-size:23px;line-height:1.35;margin-top:4px;color:#42564C">${product.itemCode ? `Código: <strong>${escapeHtml(product.itemCode)}</strong>` : "Código pendiente"}${detail !== undefined ? ` · ${escapeHtml(detail)}` : ` · Abiertos: ${number(count?.opened)} ${escapeHtml(product.unit)} · Sellados: ${number(count?.sealed)}`}</div>
       </td>
-      <td style="${cell}text-align:right;font-size:33px;font-weight:700">${ready ? number(calc.inventory) : "—"}</td>
+      <td style="${cell}text-align:right;font-size:33px;font-weight:700">${number(ready ? calc.inventory : physical)}</td>
       <td style="${cell}text-align:right;font-size:33px;font-weight:700">${number(count?.system_qty)}</td>
       <td style="${cell}text-align:right;font-size:33px;font-weight:700;color:${state.ink}">${diff}</td>
       <td style="${cell}text-align:center"><span style="font-size:25px;font-weight:700;color:${state.ink};background:${state.background};padding:8px 12px;display:inline-block">${state.label}</span></td>

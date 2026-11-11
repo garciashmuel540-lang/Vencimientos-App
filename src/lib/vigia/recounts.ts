@@ -7,6 +7,7 @@ export interface RecountItem {
   physical: string;
   raw: string;
   candidates: string[];
+  stockPreview?: string;
 }
 export interface Recount {
   id: string;
@@ -78,13 +79,17 @@ export function readDocumentRows(
     const ws = line.words.sort((a, b) => a.bbox.x0 - b.bbox.x0);
     const raw = ws.map((w) => w.text).join(" ");
     const header = ws.find((w) =>
-      /^(sistema|existencias?|stock|saldo)$/i.test(normal(w.text.replace(/[^\wáéíóú]/gi, ""))),
+      /^(sistema|existencias?|stock|saldo|disponible)$/i.test(
+        normal(w.text.replace(/[^\wáéíóú]/gi, "")),
+      ),
     );
     const nameHeader = ws.find((w) =>
       /^(descripcion|producto|articulo|nombre)$/i.test(normal(w.text.replace(/:$/, ""))),
     );
     if (header && (nameHeader || /codigo|cantidad/i.test(normal(raw)))) {
-      systemX = (header.bbox.x0 + header.bbox.x1) / 2;
+      const label =
+        ws.find((w) => /^cantidad$/i.test(w.text) && w.bbox.x0 < header.bbox.x0) ?? header;
+      systemX = label.bbox.x0;
       nameX = nameHeader?.bbox.x0 ?? null;
       continue;
     }
@@ -106,7 +111,9 @@ export function readDocumentRows(
       .trim();
     const match = byCode.get(code);
     if (!match && (!name || !/[a-záéíóú]/i.test(name))) continue;
-    const numeric = after.slice(firstNumeric).filter((w) => quantity(w.text) !== null);
+    const numeric = after
+      .slice(firstNumeric)
+      .filter((w) => quantity(w.text) !== null && (systemX === null || w.bbox.x0 >= systemX - 18));
     const aligned =
       systemX === null
         ? null
@@ -120,11 +127,9 @@ export function readDocumentRows(
             null,
           );
     const selected =
-      aligned && Math.abs((aligned.bbox.x0 + aligned.bbox.x1) / 2 - systemX!) < 100
+      aligned && Math.abs((aligned.bbox.x0 + aligned.bbox.x1) / 2 - systemX!) < 150
         ? aligned
-        : systemX === null && numeric.length === 1
-          ? numeric[0]
-          : null;
+        : null;
     if (!code && !selected) continue;
     result.push({
       id: crypto.randomUUID(),
