@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { quantity, compareRecount, readDocumentRows } from "../../src/lib/vigia/recounts.ts";
+import { reconcileRecountCatalog } from "../../src/lib/vigia/recount-catalog.ts";
 const word = (text, x, y) => ({
   text,
   bbox: { x0: x, x1: x + text.length * 10, y0: y, y1: y + 20 },
@@ -55,4 +56,44 @@ test("Cantidad Disponible excludes a weight misread as a number in Descripción"
   const product = [word("022000018465", 0, 40), word("Skittles", 350, 40), word("61.59", 480, 40)];
   assert.equal(readDocumentRows([...header, ...product], [])[0].system, "");
   assert.equal(readDocumentRows([...header, ...product, word("9", 704, 40)], [])[0].system, "9");
+});
+
+test("a blank catalog barcode never replaces the description read from the sheet", () => {
+  const item = {
+    id: "row",
+    code: "",
+    name: "[Durex Extra Seguro 3Und",
+    category: "Documento",
+    system: "10",
+    physical: "",
+    raw: "[Durex Extra Seguro 3Und",
+    candidates: [],
+  };
+  const unrelated = { barcode: "", name: "Tapita Futbolera", category: "otros" };
+  assert.deepEqual(reconcileRecountCatalog([item], [unrelated]), [item]);
+  const [matched] = reconcileRecountCatalog(
+    [item],
+    [unrelated, { barcode: "7501159033442", name: "Durex Extra Seguro 3Und" }],
+  );
+  assert.equal(matched.name, "Durex Extra Seguro 3Und");
+  assert.equal(matched.code, "7501159033442");
+  assert.equal(matched.system, "10");
+});
+test("an unrelated catalog name cannot overwrite a clearly different OCR description", () => {
+  const item = {
+    id: "row",
+    code: "12345678",
+    name: "Durex Extra Seguro 3Und",
+    category: "Documento",
+    system: "10",
+    physical: "",
+    raw: "Durex Extra Seguro 3Und",
+    candidates: [],
+  };
+  const [result] = reconcileRecountCatalog(
+    [item],
+    [{ barcode: item.code, name: "Tapita Futbolera" }],
+  );
+  assert.equal(result.name, item.name);
+  assert.equal(result.code, "");
 });

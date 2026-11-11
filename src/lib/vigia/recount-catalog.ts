@@ -21,24 +21,42 @@ export function reconcileRecountCatalog(
   items: RecountItem[],
   catalog: CatalogMatch[],
 ): RecountItem[] {
-  const byCode = new Map(catalog.map((p) => [p.barcode, p]));
-  const products = catalog.map((p) => ({ ...p, key: nameKey(p.name) }));
+  // An empty OCR code means that no barcode was read. It never identifies a product.
+  const products = catalog
+    .filter((product) => product.barcode.trim() && product.name.trim())
+    .map((product) => ({
+      ...product,
+      barcode: product.barcode.trim(),
+      key: nameKey(product.name),
+    }));
+  const byCode = new Map(products.map((product) => [product.barcode, product]));
   return items.map((item) => {
-    let match = byCode.get(item.code);
+    const code = item.code.trim();
+    const key = nameKey(item.name);
+    const exact = code ? byCode.get(code) : undefined;
+    const conflicting =
+      exact &&
+      key.length >= 10 &&
+      1 - distance(key, exact.key) / Math.max(key.length, exact.key.length) < 0.65;
+    let match = conflicting ? undefined : exact;
     if (!match) {
-      const key = nameKey(item.name);
       if (key.length >= 10) {
         const scores = products
           .flatMap((product) => {
+            if (!code && product.key !== key) return [];
             if (Math.abs(product.key.length - key.length) > key.length * 0.25) return [];
-            const similarCode =
-              /^\d{7,14}$/.test(item.code) &&
-              item.code.length === product.barcode.length &&
-              [...item.code].filter((digit, i) => digit !== product.barcode[i]).length === 1;
+            const codeDifferences =
+              /^\d{7,14}$/.test(code) && code.length === product.barcode.length
+                ? [...code].filter((digit, i) => digit !== product.barcode[i]).length
+                : Infinity;
+            const similarCode = codeDifferences === 1;
+            const corroboratedCode = codeDifferences === 2 && key.length >= 16;
             const similarity =
               1 - distance(key, product.key) / Math.max(key.length, product.key.length);
-            if (similarity < (similarCode ? 0.74 : 0.92)) return [];
-            return [{ product, score: similarity + (similarCode ? 0.14 : 0) }];
+            if (similarity < (similarCode ? 0.74 : corroboratedCode ? 0.86 : 0.92)) return [];
+            return [
+              { product, score: similarity + (similarCode ? 0.14 : corroboratedCode ? 0.07 : 0) },
+            ];
           })
           .sort((a, b) => b.score - a.score);
         const [best, runner] = scores;
@@ -52,6 +70,8 @@ export function reconcileRecountCatalog(
           name: match.name,
           category: match.category || item.category,
         }
-      : item;
+      : conflicting
+        ? { ...item, code: "" }
+        : item;
   });
 }

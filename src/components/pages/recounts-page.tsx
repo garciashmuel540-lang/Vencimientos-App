@@ -348,11 +348,14 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
       if (reread && recovered.length) {
         const matched = new Set<string>();
         const items = recovered.map((item) => {
-          const previous = original.items.find(
-            (old) =>
-              !matched.has(old.id) &&
-              ((item.code && old.code === item.code) || item.name === old.name),
-          );
+          const remaining = original.items.filter((old) => !matched.has(old.id));
+          const rawMatches = item.raw.trim()
+            ? remaining.filter((old) => old.raw.trim() === item.raw.trim())
+            : [];
+          const previous =
+            remaining.find((old) => item.code && old.code === item.code) ??
+            (rawMatches.length === 1 ? rawMatches[0] : undefined) ??
+            remaining.find((old) => item.name === old.name);
           if (!previous) return item;
           matched.add(previous.id);
           return { ...item, id: previous.id, physical: previous.physical };
