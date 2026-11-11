@@ -1,6 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Upload, Plus, Share2, ArrowLeft, ClipboardList, Trash2 } from "lucide-react";
+import {
+  Camera,
+  Upload,
+  Plus,
+  Share2,
+  ArrowLeft,
+  ClipboardList,
+  Trash2,
+  ScanBarcode,
+} from "lucide-react";
 import { toast } from "sonner";
+import { Scanner } from "@/components/scanner";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  listCloudRecounts,
+  openCloudRecount,
+  saveCloudRecount,
+  importCloudRecount,
+  deleteCloudRecount,
+  summarizeRecount,
+  type RecountSummary,
+} from "@/lib/data/recounts-supabase";
+import { reconcileRecountCatalog } from "@/lib/vigia/recount-catalog";
 import { RecountCounter } from "@/components/recount-counter";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -35,7 +56,7 @@ const newItem = (): RecountItem => ({
 });
 export function RecountsWorkspace({ userId }: { userId: string }) {
   const openMenu = useSidebarStore((s) => s.setOpen);
-  const [history, setHistory] = useState<Recount[]>([]),
+  const [history, setHistory] = useState<RecountSummary[]>([]),
     [doc, setDoc] = useState<Recount | null>(null);
   const current = useRef<Recount | null>(null),
     writeQueue = useRef(Promise.resolve());
@@ -52,34 +73,94 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
   const scanController = useRef<AbortController | null>(null);
   const mounted = useRef(true),
     lock = useRef(false);
+  const storage = useRef<"cloud" | "legacy" | null>(null);
+  const versions = useRef(new Map<string, string>());
+  const syncedPhotos = useRef<{ id: string; photos: string[] } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [localOnly, setLocalOnly] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [scanCode, setScanCode] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+
+  async function loadDocument(id: string) {
+    return storage.current === "cloud" ? openCloudRecount(id, userId) : getDb().recounts.get(id);
+  }
+  function selectDocument(next: Recount) {
+    current.current = next;
+    sessionStorage.setItem(resumeKey, next.id);
+    if (storage.current === "cloud") {
+      versions.current.set(next.id, next.updatedAt);
+      syncedPhotos.current = { id: next.id, photos: next.images };
+    }
+    setDoc(next);
+    setSearch("");
+    setSelectedId(null);
+    setSources(false);
+    setReadyFiles([]);
+    setSaveError(false);
+  }
   useEffect(() => {
     mounted.current = true;
-    void getDb()
-      .recounts.where("userId")
-      .equals(userId)
-      .toArray()
-      .then((rows) => {
-        if (!mounted.current) return;
-        setHistory(rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
-        const resumed = rows.find((row) => row.id === sessionStorage.getItem(resumeKey));
-        if (resumed && !current.current) {
-          current.current = resumed;
-          setDoc(resumed);
+    let active = true;
+    setLoaded(false);
+    setLoadError(false);
+    void (async () => {
+      try {
+        let remote = await listCloudRecounts(userId);
+        if (!active) return;
+        const local = await getDb().recounts.where("userId").equals(userId).toArray();
+        if (remote !== null) {
+          storage.current = "cloud";
+          for (const old of local) {
+            if (!active) return;
+            try {
+              await importCloudRecount(old);
+              await getDb().recounts.delete(old.id);
+            } catch {
+              if (active)
+                toast.error(
+                  "Quedó un recuento local pendiente de transferir. Se reintentará al volver a abrir.",
+                );
+            }
+          }
+          if (local.length) remote = (await listCloudRecounts(userId)) ?? remote;
+        } else {
+          storage.current = "legacy";
         }
-      })
-      .catch(() => toast.error("No se pudo abrir el historial."));
+        if (!active) return;
+        setLocalOnly(storage.current === "legacy");
+        const entries =
+          remote ??
+          local.map(summarizeRecount).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        setHistory(entries);
+        const resumed = entries.find((row) => row.id === sessionStorage.getItem(resumeKey));
+        if (resumed && !current.current) {
+          const next = await loadDocument(resumed.id);
+          if (active && next) selectDocument(next);
+        }
+      } catch {
+        if (active) setLoadError(true);
+      } finally {
+        if (active) setLoaded(true);
+      }
+    })();
     return () => {
+      active = false;
       mounted.current = false;
       scanController.current?.abort();
     };
-  }, [userId, resumeKey]);
+  }, [userId, resumeKey, loadAttempt]);
   function persist(next: Recount) {
     next = { ...next, updatedAt: new Date().toISOString() };
     current.current = next;
     setDoc(next);
     setReadyFiles([]);
     setSaved("Guardando…");
-    setHistory((old) => [next, ...old.filter((d) => d.id !== next.id)]);
+    setSaveError(false);
+    setHistory((old) => [summarizeRecount(next), ...old.filter((d) => d.id !== next.id)]);
     sessionStorage.setItem(resumeKey, next.id);
     pending.current = next;
     if (writing.current) return;
@@ -89,13 +170,29 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
         while (pending.current) {
           const latest = pending.current;
           pending.current = null;
-          await getDb().recounts.put(latest);
+          if (storage.current === "cloud") {
+            const last = syncedPhotos.current;
+            const sendPhotos = last?.id !== latest.id || last.photos !== latest.images;
+            versions.current.set(
+              latest.id,
+              await saveCloudRecount(latest, versions.current.get(latest.id), sendPhotos),
+            );
+            syncedPhotos.current = { id: latest.id, photos: latest.images };
+          } else await getDb().recounts.put(latest);
         }
-        if (mounted.current) setSaved("Guardado en este dispositivo");
-      } catch {
+        if (mounted.current)
+          setSaved(
+            storage.current === "cloud" ? "Guardado en Supabase" : "Guardado en este dispositivo",
+          );
+      } catch (error) {
         if (mounted.current) {
+          setSaveError(true);
           setSaved("No se pudo guardar");
-          toast.error("No se pudo guardar. Revisá el espacio disponible.");
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "No se pudo guardar. Revisá tu conexión y reintentá.",
+          );
         }
       } finally {
         writing.current = false;
@@ -103,6 +200,76 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     })();
   }
 
+  async function openRecount(id: string) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy("Abriendo recuento…");
+    try {
+      await writeQueue.current;
+      const next = await loadDocument(id);
+      if (next && mounted.current) selectDocument(next);
+      else if (!next) {
+        setHistory((old) => old.filter((row) => row.id !== id));
+        toast.info("Este recuento ya no está disponible.");
+      }
+    } catch {
+      toast.error("No se pudo abrir el recuento. Revisá tu conexión.");
+    } finally {
+      lock.current = false;
+      if (mounted.current) setBusy("");
+    }
+  }
+  function closeRecount() {
+    current.current = null;
+    syncedPhotos.current = null;
+    setDoc(null);
+    setReadyFiles([]);
+    setSelectedId(null);
+    sessionStorage.removeItem(resumeKey);
+  }
+  async function removeRecount() {
+    const target = current.current;
+    if (!target || lock.current) return;
+    lock.current = true;
+    setBusy("Borrando recuento…");
+    setConfirmDelete(false);
+    try {
+      await writeQueue.current;
+      pending.current = null;
+      if (storage.current === "cloud") await deleteCloudRecount(target.id, userId);
+      await getDb().recounts.delete(target.id);
+      versions.current.delete(target.id);
+      setHistory((old) => old.filter((row) => row.id !== target.id));
+      closeRecount();
+      toast.success("Recuento borrado.");
+    } catch {
+      toast.error("No se pudo borrar. Reintentá cuando tengas conexión.");
+    } finally {
+      lock.current = false;
+      if (mounted.current) setBusy("");
+    }
+  }
+  function matchScannedCode(code: string) {
+    const rows = current.current?.items ?? [];
+    const normalize = (value: string) => value.trim().toUpperCase().replace(/\s/g, "");
+    const exact = rows.filter((item) => normalize(item.code) === normalize(code));
+    const numeric = /^\d+$/.test(code)
+      ? rows.filter(
+          (item) =>
+            /^\d+$/.test(item.code) && item.code.replace(/^0+/, "") === code.replace(/^0+/, ""),
+        )
+      : [];
+    const matches = exact.length ? exact : numeric;
+    setScanCode(false);
+    if (matches.length === 1) {
+      setSelectedId(matches[0].id);
+      setSearch("");
+    } else if (matches.length > 1) {
+      setSelectedId(null);
+      setSearch(matches[0].code);
+      toast.info("El código aparece varias veces en la hoja.");
+    } else toast.info("Este código no aparece en el recuento abierto.");
+  }
   function updateItem(id: string, patch: Partial<RecountItem>) {
     const d = current.current;
     if (d) persist({ ...d, items: d.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
@@ -144,7 +311,6 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
           /* keep names from document */
         }
       }
-      const byCode = new Map(catalog.map((item) => [item.barcode, item]));
       const images = reread ? original.images : [];
       if (!reread)
         for (const file of Array.from(files ?? [])) images.push(await prepareRecountPhoto(file));
@@ -157,12 +323,10 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
         },
         async (page, index) => {
           if (!mounted.current) return;
-          const items = (page.items ?? readDocumentRows(page.words, catalog)).map((item) => {
-            const match = byCode.get(item.code);
-            return match
-              ? { ...item, name: match.name, category: match.category || item.category }
-              : item;
-          });
+          const items = reconcileRecountCatalog(
+            page.items ?? readDocumentRows(page.words, catalog),
+            catalog,
+          );
           scanned += items.length;
           if (reread) {
             recovered.push(...items);
@@ -258,8 +422,11 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
   }
   const measured = doc?.items.filter((i) => quantity(i.physical) !== null).length ?? 0;
   const visible =
-    doc?.items.filter((i) => `${i.name} ${i.code}`.toLowerCase().includes(search.toLowerCase())) ??
-    [];
+    doc?.items.filter((i) =>
+      selectedId
+        ? i.id === selectedId
+        : `${i.name} ${i.code}`.toLowerCase().includes(search.toLowerCase()),
+    ) ?? [];
   const canConfirm = Boolean(doc?.items.length) && doc!.items.every((i) => i.name.trim());
   return (
     <main className="pb-28">
@@ -273,15 +440,26 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
       <div className="mx-auto max-w-3xl space-y-4 px-4">
         {!doc ? (
           <>
-            <Button className="w-full min-h-12 gap-2" onClick={start}>
+            <Button
+              className="w-full min-h-12 gap-2"
+              onClick={start}
+              disabled={!loaded || loadError || !!busy}
+            >
               <Plus className="size-4" />
               Nuevo recuento
             </Button>
             <p className="text-sm text-muted-foreground">
-              Escaneá tu hoja, revisá la lectura y completá el físico. El historial se guarda en
-              este dispositivo, separado para tu cuenta.
+              {localOnly
+                ? "Supabase aún no está disponible para recuentos. El historial permanece en este dispositivo."
+                : "Tus recuentos se guardan en Supabase para abrirlos con tu cuenta."}
             </p>
-            {history.length === 0 ? (
+            {!loaded && <p role="status">Cargando recuentos…</p>}
+            {loadError && (
+              <Button variant="outline" onClick={() => setLoadAttempt((n) => n + 1)}>
+                Reintentar conexión
+              </Button>
+            )}
+            {loaded && !loadError && history.length === 0 ? (
               <div className="rounded-2xl border bg-card p-8 text-center">
                 <ClipboardList className="mx-auto mb-3 size-9 text-primary" />
                 <h2 className="font-semibold">Tu primer recuento</h2>
@@ -294,19 +472,13 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                 <button
                   key={d.id}
                   className="w-full rounded-xl border bg-card p-4 text-left"
-                  onClick={() => {
-                    current.current = d;
-                    sessionStorage.setItem(resumeKey, d.id);
-                    setDoc(d);
-                    setSearch("");
-                    setSources(false);
-                    setReadyFiles([]);
-                  }}
+                  disabled={!!busy}
+                  onClick={() => void openRecount(d.id)}
                 >
                   <span className="block font-semibold">{d.title}</span>
                   <span className="text-sm text-muted-foreground">
-                    {d.date} · {d.items.filter((i) => quantity(i.physical) !== null).length}/
-                    {d.items.length} contados · {d.reviewed ? "En conteo" : "Por revisar"}
+                    {d.date} · {d.measuredCount}/{d.itemCount} contados ·{" "}
+                    {d.reviewed ? "En conteo" : "Por revisar"}
                   </span>
                 </button>
               ))
@@ -314,19 +486,52 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
           </>
         ) : (
           <>
-            <Button
-              variant="ghost"
-              disabled={!!busy}
-              onClick={() => {
-                setDoc(null);
-                current.current = null;
-                sessionStorage.removeItem(resumeKey);
-                setReadyFiles([]);
-              }}
-            >
-              <ArrowLeft className="mr-2 size-4" />
-              Mis recuentos
-            </Button>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!!busy || saveError}
+                onClick={closeRecount}
+              >
+                <ArrowLeft className="mr-2 size-4" />
+                Mis recuentos
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-destructive"
+                disabled={!!busy}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="mr-2 size-4" />
+                Borrar recuento
+              </Button>
+            </div>
+            <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+              <DialogContent>
+                <DialogTitle>¿Borrar todo el recuento?</DialogTitle>
+                <DialogDescription>
+                  Se eliminarán los ítems, los conteos y las fotos de «{doc.title}».
+                </DialogDescription>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" onClick={() => setConfirmDelete(false)}>
+                    Cancelar
+                  </Button>
+                  <Button variant="destructive" onClick={() => void removeRecount()}>
+                    Borrar recuento
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={scanCode} onOpenChange={setScanCode}>
+              <DialogContent className="max-h-[90dvh] overflow-auto sm:max-w-md">
+                <DialogTitle>Escanear artículo del recuento</DialogTitle>
+                <DialogDescription>
+                  Apuntá al código de barras del producto para abrir su conteo.
+                </DialogDescription>
+                <Scanner onDetect={matchScannedCode} recount />
+              </DialogContent>
+            </Dialog>
             <fieldset disabled={!!busy} className="space-y-4 disabled:opacity-70">
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-sm font-medium">
@@ -430,11 +635,30 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                   {measured}/{doc.items.length} contados
                 </span>
               </div>
+              {doc.reviewed && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 w-full gap-2"
+                  onClick={() => setScanCode(true)}
+                >
+                  <ScanBarcode className="size-5" />
+                  Escanear artículo
+                </Button>
+              )}
+              {selectedId && (
+                <Button type="button" variant="ghost" onClick={() => setSelectedId(null)}>
+                  Ver todos los ítems
+                </Button>
+              )}
               <Input
                 placeholder="Buscar producto o código"
                 aria-label="Buscar en el recuento"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSelectedId(null);
+                  setSearch(e.target.value);
+                }}
               />
               {doc.reviewed && (
                 <p className="text-sm text-muted-foreground">
@@ -653,8 +877,18 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
               </div>
             )}
             <p role="status" className="text-xs text-muted-foreground">
-              {saved || "Guardado en este dispositivo"}
+              {saved || (localOnly ? "Guardado en este dispositivo" : "Guardado en Supabase")}
             </p>
+            {saveError && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (current.current) persist(current.current);
+                }}
+              >
+                Reintentar guardado
+              </Button>
+            )}
           </>
         )}
       </div>

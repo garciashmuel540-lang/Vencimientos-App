@@ -17,9 +17,10 @@ interface Html5QrcodeLike {
 interface ScannerProps {
   onDetect: (code: string) => void;
   paused?: boolean;
+  recount?: boolean;
 }
 
-export function Scanner({ onDetect, paused }: ScannerProps) {
+export function Scanner({ onDetect, paused, recount = false }: ScannerProps) {
   const hostId = "vigia-reader";
   const scannerRef = useRef<Html5QrcodeLike | null>(null);
   const lastCode = useRef("");
@@ -123,8 +124,8 @@ export function Scanner({ onDetect, paused }: ScannerProps) {
   }, [start, stop, paused]);
 
   function submitManual(code: string) {
-    const clean = code.replace(/\D/g, "");
-    if (clean.length < 6) return;
+    const clean = recount ? code.trim().replace(/\s/g, "") : code.replace(/\D/g, "");
+    if (clean.length < (recount ? 1 : 6)) return;
     lastCode.current = clean;
     onDetect(clean);
   }
@@ -160,10 +161,12 @@ export function Scanner({ onDetect, paused }: ScannerProps) {
       )}
 
       <div className="flex items-center justify-between gap-3 rounded-lg bg-card px-3 py-2 shadow-[var(--shadow-border)]">
-        <div className="flex items-center gap-2">
-          <Switch id="batch" checked={batch} onCheckedChange={setBatch} />
-          <Label htmlFor="batch">Escanear varios seguidos</Label>
-        </div>
+        {!recount && (
+          <div className="flex items-center gap-2">
+            <Switch id="batch" checked={batch} onCheckedChange={setBatch} />
+            <Label htmlFor="batch">Escanear varios seguidos</Label>
+          </div>
+        )}
         <Button
           type="button"
           variant="ghost"
@@ -186,7 +189,7 @@ export function Scanner({ onDetect, paused }: ScannerProps) {
           <Keyboard className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-10"
-            inputMode="numeric"
+            inputMode={recount ? "text" : "numeric"}
             placeholder="Escribe el código"
             value={manual}
             onChange={(e) => setManual(e.target.value)}
@@ -198,26 +201,28 @@ export function Scanner({ onDetect, paused }: ScannerProps) {
         </Button>
       </form>
 
-      <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Probar con un código conocido
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {SAMPLE_BARCODES.map((s) => (
-            <button
-              key={s.code}
-              type="button"
-              onClick={() => submitManual(s.code)}
-              className={cn(
-                "inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-sm",
-              )}
-            >
-              <ScanBarcode className="size-3.5" />
-              {s.label}
-            </button>
-          ))}
+      {!recount && (
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Probar con un código conocido
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {SAMPLE_BARCODES.map((s) => (
+              <button
+                key={s.code}
+                type="button"
+                onClick={() => submitManual(s.code)}
+                className={cn(
+                  "inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-sm",
+                )}
+              >
+                <ScanBarcode className="size-3.5" />
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

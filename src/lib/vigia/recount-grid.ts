@@ -8,6 +8,7 @@ export type InventoryGrid = {
   code: Column;
   description: Column;
   stock: Column;
+  stockRight?: Column;
   headerY: number;
 };
 const normalize = (value: string) =>
@@ -29,12 +30,12 @@ export function detectInventoryGrid(image: ImageData, words: OCRWord[]): Invento
           other.bbox.x0 > w.bbox.x0,
       ),
   );
-  if (!stock) return null;
+  if (!stock) return detectUntitledGrid(image, words);
   const font = stock.bbox.y1 - stock.bbox.y0;
   const headerY = (stock.bbox.y0 + stock.bbox.y1) / 2;
   const sameHeader = (word: OCRWord) =>
     Math.abs(word.bbox.y0 - stock.bbox.y0) < font * 1.3 && word.bbox.x0 < stock.bbox.x0;
-  const code = words.find((w) => sameHeader(w) && /^c.digo\b/.test(normalize(w.text)));
+  const code = words.find((w) => sameHeader(w) && /^(c.digo|[ií]tem)\b/.test(normalize(w.text)));
   const description = words.find(
     (w) =>
       sameHeader(w) &&
@@ -134,14 +135,17 @@ export function sampleInventoryCell(
     lower = grid.rules[row + 1];
   const lineHeight = lower.y - upper.y;
   const column = field === "identity" ? grid.code : grid.stock;
+  const stockRight = grid.stockRight;
   const left =
     column.x +
     (upper.y - grid.headerY) * column.slope +
-    (field === "identity" ? 3 : -lineHeight * (wide ? 0.43 : 0.24));
+    (field === "identity" || stockRight ? 3 : -lineHeight * (wide ? 0.43 : 0.24));
   const right =
     field === "identity"
       ? grid.stock.x + (upper.y - grid.headerY) * grid.stock.slope - 5
-      : left + lineHeight * (wide ? 1.7 : 1.1);
+      : stockRight
+        ? stockRight.x + (upper.y - grid.headerY) * stockRight.slope - 3
+        : left + lineHeight * (wide ? 1.7 : 1.1);
   const scale = field === "identity" ? 2 : 4;
   const width = Math.max(1, Math.round((right - left) * scale));
   const height = Math.max(1, Math.round((lineHeight - 5) * scale));
@@ -165,7 +169,10 @@ export function sampleInventoryCell(
         b = image.data[i + 2] ?? 255;
       const value = Math.min(
         255,
-        r + (field === "stock" ? Math.max(0, b - r - inkThreshold) * (wide ? 7 : 10) : 0),
+        r +
+          (field === "stock" && !stockRight
+            ? Math.max(0, b - r - inkThreshold) * (wide ? 7 : 10)
+            : 0),
       );
       sample[y * width + x] = value;
       histogram[r]++;
@@ -189,4 +196,124 @@ export function sampleInventoryCell(
   }
   context.putImageData(output, 12, 12);
   return canvas;
+}
+
+/** Item sheets often leave the stock header blank. Require a repeated barcode column,
+ * a narrow ruled numeric column, and regularly spaced horizontal rules. */
+function detectUntitledGrid(image: ImageData, words: OCRWord[]): InventoryGrid | null {
+  const { width, height, data } = image;
+  const middle = (w: OCRWord) => (w.bbox.x0 + w.bbox.x1) / 2;
+  const median = (values: number[]) =>
+    [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+  const codes = words
+    .filter((w) => w.bbox.x0 < width * 0.32 && /^\d{7,14}$/.test(w.text.replace(/\D/g, "")))
+    .sort((a, b) => a.bbox.y0 - b.bbox.y0);
+  if (codes.length < 5) return null;
+  const font = median(codes.map((w) => w.bbox.y1 - w.bbox.y0));
+  const gaps = codes
+    .slice(1)
+    .map((w, i) => w.bbox.y0 - codes[i].bbox.y0)
+    .filter((gap) => gap >= font * 1.4 && gap <= font * 3.6);
+  if (gaps.length < 4) return null;
+  const step = median(gaps);
+  const headerY = codes[0].bbox.y0 - font;
+  const minY = codes[0].bbox.y0,
+    maxY = codes.at(-1)!.bbox.y1;
+  const pixel = (x: number, y: number) => data[(Math.round(y) * width + Math.round(x)) * 4] ?? 255;
+  const v = (x: number, y: number) => (pixel(x - 4, y) + pixel(x + 4, y)) / 2 - pixel(x, y);
+  const h = (x: number, y: number) => (pixel(x, y - 3) + pixel(x, y + 3)) / 2 - pixel(x, y);
+  const clip = (x: number) => Math.max(-20, Math.min(36, x));
+  const fitVertical = (from: number, to: number) => {
+    let best = { x: 0, slope: 0, strength: -Infinity };
+    for (let x = from; x <= to; x += 1)
+      for (let slope = -0.075; slope <= 0.105; slope += 0.003) {
+        let score = 0,
+          n = 0;
+        for (let y = minY; y < maxY; y += 7) {
+          score += clip(v(x + (y - headerY) * slope, y));
+          n++;
+        }
+        if (score / n > best.strength) best = { x, slope, strength: score / n };
+      }
+    return best;
+  };
+  const candidates = words.filter(
+    (w) =>
+      middle(w) > width * 0.32 &&
+      middle(w) < width * 0.86 &&
+      w.bbox.y0 >= minY - font &&
+      w.bbox.y1 <= maxY + font &&
+      /^\d{1,5}(?:[.,]\d{1,3})?$/.test(w.text),
+  );
+  const centers = candidates
+    .map(middle)
+    .filter((x, i, a) => a.findIndex((y) => Math.abs(y - x) < font) === i)
+    .map((x) => ({ x, neighbors: candidates.filter((w) => Math.abs(middle(w) - x) < font * 1.4) }))
+    .filter((c) => c.neighbors.length >= Math.max(4, codes.length * 0.23))
+    .sort((a, b) => a.x - b.x);
+  for (const candidate of centers) {
+    const center = median(candidate.neighbors.map(middle));
+    const stock = fitVertical(center - width * 0.105, center - font * 0.55);
+    const stockRight = fitVertical(center + font * 0.65, center + width * 0.11);
+    const cellWidth = stockRight.x - stock.x;
+    if (
+      stock.strength < 8 ||
+      stockRight.strength < 8 ||
+      cellWidth > width * 0.16 ||
+      cellWidth < font * 1.5
+    )
+      continue;
+    const code = fitVertical(codes[0].bbox.x0 - font * 1.6, codes[0].bbox.x0 + font * 0.45);
+    if (code.strength < 5 || stock.x - code.x < width * 0.22) continue;
+    const rail = Math.round(Math.min(width - font * 2.5, stockRight.x + font * 2.1));
+    const score = new Float32Array(height);
+    for (let y = Math.max(4, Math.floor(minY - step * 1.4)); y < height - 4; y++) {
+      const samples = [];
+      for (let x = rail - font; x <= rail + font; x += 2) samples.push(h(x, y));
+      score[y] = median(samples);
+    }
+    const peak = (from: number, to: number) => {
+      let best = Math.max(4, Math.round(from));
+      for (let y = best + 1; y <= Math.min(height - 4, to); y++)
+        if (score[y] > score[best]) best = y;
+      return score[best] >= 7 ? best : null;
+    };
+    const first = peak(minY - step * 0.65, minY + font * 0.35);
+    if (first === null) continue;
+    const lines = [first];
+    let currentStep = step;
+    while (lines.length < 101) {
+      const last = lines.at(-1)!;
+      const next = peak(last + currentStep * 0.76, last + currentStep * 1.25);
+      if (next === null || next <= last) break;
+      currentStep = currentStep * 0.65 + (next - last) * 0.35;
+      lines.push(next);
+    }
+    if (lines.length < codes.length * 0.8) continue;
+    const rules = lines.map((y) => {
+      let best = -Infinity,
+        result = { y, slope: 0 };
+      for (let slope = -0.075; slope <= 0.075; slope += 0.0025)
+        for (let offset = -1; offset <= 1; offset++) {
+          let value = 0;
+          for (let x = code.x + font; x < rail + font; x += 5)
+            value += clip(h(x, y + offset + (x - rail) * slope));
+          if (value > best) {
+            best = value;
+            result = { y: y + offset, slope };
+          }
+        }
+      return result;
+    });
+    return {
+      rules,
+      rail,
+      code,
+      description: { x: code.x, slope: code.slope },
+      stock,
+      stockRight,
+      headerY,
+    };
+  }
+  return null;
 }
