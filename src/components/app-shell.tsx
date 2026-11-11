@@ -21,10 +21,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const setSidebarOpen = useSidebarStore((s) => s.setOpen);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isLoginPage = pathname === "/login";
-  // Ocultar el FAB de escanear cuando ya estamos en la pantalla de escanear o precio
+  // Recuentos tiene su propio acceso a la cámara para mantener la hoja abierta.
   const hideScanFab =
     pathname.startsWith("/escanear") ||
-    pathname.startsWith("/precio");
+    pathname.startsWith("/precio") ||
+    pathname.startsWith("/recuentos");
   const [tour, setTour] = useState(false);
 
   useEffect(() => {

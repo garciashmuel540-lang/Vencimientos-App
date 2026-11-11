@@ -81,6 +81,9 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [scanCode, setScanCode] = useState(false);
+  const scannerButton = useRef<HTMLButtonElement | null>(null);
+  const scannedProduct = useRef<HTMLElement | null>(null);
+  const focusScannedProduct = useRef(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saveError, setSaveError] = useState(false);
@@ -249,6 +252,11 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
       if (mounted.current) setBusy("");
     }
   }
+  function openProductScanner(button: HTMLButtonElement) {
+    scannerButton.current = button;
+    focusScannedProduct.current = false;
+    setScanCode(true);
+  }
   function matchScannedCode(code: string) {
     const rows = current.current?.items ?? [];
     const normalize = (value: string) => value.trim().toUpperCase().replace(/\s/g, "");
@@ -262,6 +270,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     const matches = exact.length ? exact : numeric;
     setScanCode(false);
     if (matches.length === 1) {
+      focusScannedProduct.current = true;
       setSelectedId(matches[0].id);
       setSearch("");
     } else if (matches.length > 1) {
@@ -526,8 +535,31 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                 </div>
               </DialogContent>
             </Dialog>
+            {doc.reviewed && doc.items.length > 0 && (
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={(event) => openProductScanner(event.currentTarget)}
+                className="no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                aria-label="Escanear producto del recuento"
+              >
+                <ScanBarcode className="size-6" />
+              </button>
+            )}
             <Dialog open={scanCode} onOpenChange={setScanCode}>
-              <DialogContent className="max-h-[90dvh] overflow-auto sm:max-w-md">
+              <DialogContent
+                className="max-h-[90dvh] overflow-auto sm:max-w-md"
+                onCloseAutoFocus={(event) => {
+                  event.preventDefault();
+                  const target = focusScannedProduct.current ? scannedProduct.current : null;
+                  if (target) {
+                    target.focus({ preventScroll: true });
+                    target.scrollIntoView({ block: "start" });
+                  } else {
+                    scannerButton.current?.focus({ preventScroll: true });
+                  }
+                }}
+              >
                 <DialogTitle>Escanear artículo del recuento</DialogTitle>
                 <DialogDescription>
                   Apuntá al código de barras del producto para abrir su conteo.
@@ -643,7 +675,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                   type="button"
                   variant="outline"
                   className="min-h-11 w-full gap-2"
-                  onClick={() => setScanCode(true)}
+                  onClick={(event) => openProductScanner(event.currentTarget)}
                 >
                   <ScanBarcode className="size-5" />
                   Escanear artículo
@@ -672,7 +704,12 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
               {visible.map((item) => {
                 const result = compareRecount(item);
                 return (
-                  <section key={item.id} className="rounded-2xl border bg-card p-4 space-y-3">
+                  <section
+                    key={item.id}
+                    ref={item.id === selectedId ? scannedProduct : undefined}
+                    tabIndex={item.id === selectedId ? -1 : undefined}
+                    className="scroll-mt-4 rounded-2xl border bg-card p-4 space-y-3"
+                  >
                     {!doc.reviewed ? (
                       <>
                         <div className="flex gap-2">
