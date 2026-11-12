@@ -41,6 +41,7 @@ export async function searchCatalogRAG(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, limit }),
+      signal: AbortSignal.timeout(4500),
     });
 
     if (!res.ok) {

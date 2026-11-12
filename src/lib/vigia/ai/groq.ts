@@ -38,23 +38,29 @@ export async function* llamarGroq(ctx: ChatContext, model = MODEL): AsyncGenerat
     { role: "user", content: buildUserMessage(ctx) },
   ];
 
-  const stream = await groq.chat.completions.create({
-    model,
-    messages,
-    tools: convertToolsToGroq(INTERNAL_TOOLS),
-    tool_choice: "auto",
-    temperature: 0.3,
-    max_completion_tokens: 2048,
-    reasoning_effort: "low",
-    include_reasoning: false,
-    stream: true,
-  });
+  const stream = await groq.chat.completions.create(
+    {
+      model,
+      messages,
+      tools: convertToolsToGroq(INTERNAL_TOOLS),
+      tool_choice: "auto",
+      temperature: 0.3,
+      max_completion_tokens: 2048,
+      reasoning_effort: "low",
+      include_reasoning: false,
+      stream: true,
+    },
+    { signal: AbortSignal.timeout(12000) },
+  );
 
   // Acumulador de tool calls (Groq las envía por partes)
   const toolCallsAccum: Map<number, { name: string; args: string }> = new Map();
 
+  let finishReason: string | null = null;
   for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta;
+    const choice = chunk.choices[0];
+    if (choice?.finish_reason) finishReason = choice.finish_reason;
+    const delta = choice?.delta;
 
     // Texto
     if (delta?.content) {
@@ -72,6 +78,9 @@ export async function* llamarGroq(ctx: ChatContext, model = MODEL): AsyncGenerat
       }
     }
   }
+
+  if (finishReason !== "stop" && finishReason !== "tool_calls" && finishReason !== "function_call")
+    throw new Error("Respuesta incompleta de Groq");
 
   // Emitir las acciones acumuladas
   for (const tc of toolCallsAccum.values()) {

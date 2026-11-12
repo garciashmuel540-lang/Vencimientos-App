@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Download, Printer, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { daysLabel, formatDate, productStatus } from "@/lib/vigia/dates";
 import { downloadCsv } from "@/lib/vigia/export";
-import { buildDailySummary } from "@/lib/vigia/notifications";
+import { expiryReportRows } from "@/lib/vigia/expiry-report";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { CATEGORY_LABEL, HistoryEntry } from "@/lib/vigia/types";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
@@ -35,35 +35,75 @@ export function ReportsPage() {
   const { user, isAdmin } = useSupabaseAuth();
   const { emails } = useUserEmails();
 
-  const soon = useMemo(
-    () =>
-      products.filter((p) => {
-        const st = productStatus(p, soonWithin);
-        return st === "soon" || st === "expired";
-      }),
-    [products, soonWithin],
+  const [preparing, setPreparing] = useState(false);
+  const [ready, setReady] = useState<{ files: File[]; products: typeof products } | null>(null);
+  const shareLock = useRef(false);
+  const canShare = ready?.products === products ? ready.files : null;
+  const ordered = useMemo(
+    () => [...products].sort((a, b) => a.expiresAt.localeCompare(b.expiresAt)),
+    [products],
   );
 
-  function shareSummary() {
-    const text = buildDailySummary(products, settings.storeName);
-    const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    const mail = `mailto:?subject=${encodeURIComponent("Resumen Vigía")}&body=${encodeURIComponent(text)}`;
-    if (navigator.share) {
-      void navigator.share({ title: "Resumen Vigía", text }).catch(() => {
-        window.open(wa, "_blank");
-      });
-    } else {
-      window.open(wa, "_blank");
+  async function sendImages(files: File[]) {
+    if (navigator.share && navigator.canShare?.({ files })) {
+      await navigator.share({ files, title: "Inventario completo · Vigía" });
+      return;
     }
-    void mail;
+    for (const file of files) {
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = file.name;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    toast.success(
+      files.length === 1 ? "Imagen descargada" : `${files.length} imágenes descargadas`,
+    );
+  }
+
+  async function shareReport() {
+    if (shareLock.current || !products.length) return;
+    shareLock.current = true;
+    try {
+      if (canShare) {
+        await sendImages(canShare);
+        return;
+      }
+      setPreparing(true);
+      const { makeInventoryImages } = await import("@/lib/vigia/inventory-share");
+      const now = new Date();
+      const date = format(now, "d 'de' MMMM 'de' yyyy", { locale: es });
+      const files = await makeInventoryImages({
+        kind: "expiry",
+        title: "Inventario completo",
+        date: `${settings.storeName} · ${date}`,
+        fileStem: `vigia-inventario-${format(now, "yyyy-MM-dd")}`,
+        rows: expiryReportRows(ordered, soonWithin, now),
+      });
+      setReady({ files, products });
+      await sendImages(files);
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      if (error instanceof Error && error.name === "NotAllowedError") {
+        toast.info("Imágenes listas. Tocá «Compartir imágenes» para enviarlas.");
+        return;
+      }
+      toast.error("No se pudo preparar o compartir el reporte.");
+    } finally {
+      shareLock.current = false;
+      setPreparing(false);
+    }
   }
 
   return (
     <main>
-      <PageHeader mood="thinking" onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader
+        mood="thinking"
+        onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Papelería"
         title="Reportes"
-        description="Exporta, imprime o envía el resumen del día."
+        description="Compartí, exportá o imprimí todos los productos registrados."
       />
 
       <div className="grid gap-2 px-4 sm:grid-cols-3">
@@ -88,34 +128,40 @@ export function ReportsPage() {
           <Printer className="size-4" />
           Imprimir / PDF
         </Button>
-        <Button variant="outline" size="lg" onClick={shareSummary}>
+        <Button
+          variant="outline"
+          size="lg"
+          className="no-print"
+          onClick={() => void shareReport()}
+          disabled={preparing || !products.length}
+        >
           <Share2 className="size-4" />
-          WhatsApp o correo
+          {preparing ? "Preparando…" : canShare ? "Compartir imágenes" : "Compartir reporte"}
         </Button>
       </div>
 
       <section className="mt-8 px-4" id="print-area">
         <Card className="p-4">
           <div className="flex items-baseline justify-between gap-2">
-            <h2 className="font-display text-xl font-medium">Por vencer y vencidos</h2>
+            <h2 className="font-display text-xl font-medium">Inventario completo</h2>
             <p className="text-xs text-muted-foreground">
               {format(new Date(), "d MMM yyyy", { locale: es })}
             </p>
           </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {products.length} registros ·{" "}
+            {products.reduce((total, item) => total + item.quantity, 0)} unidades
+          </p>
           <Separator className="my-3" />
-          {soon.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No hay lotes urgentes.</p>
+          {ordered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aún no hay productos registrados.</p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {soon.map((p) => {
-                const showOwner =
-                  isAdmin && p.userId && user?.id && p.userId !== user.id;
+              {ordered.map((p) => {
+                const showOwner = isAdmin && p.userId && user?.id && p.userId !== user.id;
                 const ownerEmail = p.userId ? emails.get(p.userId) : null;
                 return (
-                  <li
-                    key={p.id}
-                    className="flex items-start justify-between gap-3 text-sm"
-                  >
+                  <li key={p.id} className="flex items-start justify-between gap-3 text-sm">
                     <div className="min-w-0">
                       <p className="font-medium">{p.name}</p>
                       <p className="text-muted-foreground">
@@ -133,7 +179,11 @@ export function ReportsPage() {
                     <div className="text-right tabular shrink-0">
                       <p>{formatDate(p.expiresAt)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {daysLabel(p.expiresAt)}
+                        {p.expiresAt
+                          ? productStatus(p, soonWithin) === "ok"
+                            ? "Vigente"
+                            : daysLabel(p.expiresAt)
+                          : "Sin fecha"}
                       </p>
                     </div>
                   </li>
@@ -144,7 +194,7 @@ export function ReportsPage() {
         </Card>
       </section>
 
-      <section className="mt-6 px-4 pb-4 no-print">
+      <section id="movimientos" className="mt-6 scroll-mt-4 px-4 pb-4 no-print">
         <h2 className="mb-3 font-display text-xl font-medium">Historial</h2>
         {history.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aún no hay movimientos.</p>

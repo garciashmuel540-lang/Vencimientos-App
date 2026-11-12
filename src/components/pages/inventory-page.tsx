@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Plus, Search, User, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
@@ -47,7 +48,11 @@ export function InventoryPage() {
   const { emails } = useUserEmails();
   const [q, setQ] = useState("");
   const [ownerFilter, setOwnerFilter] = useState<"all" | "mine" | string>("all");
-  const [status, setStatus] = useState<"all" | ProductStatus>("all");
+  const { estado } = useSearch({ from: "/inventario" });
+  const navigate = useNavigate({ from: "/inventario" });
+  const status = estado ?? "all";
+  const setStatus = (value: "all" | ProductStatus) =>
+    void navigate({ search: value === "all" ? {} : { estado: value }, replace: true });
   const [category, setCategory] = useState<"all" | ProductCategory>("all");
   const [subcategory, setSubcategory] = useState<"all" | string>("all");
   const [location, setLocation] = useState<"all" | StoreLocation>("all");
@@ -162,7 +167,7 @@ export function InventoryPage() {
               </SelectContent>
             </Select>
           )}
-          <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+          <Select value={status} onValueChange={(v) => setStatus(v as "all" | ProductStatus)}>
             <SelectTrigger aria-label="Estado">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>

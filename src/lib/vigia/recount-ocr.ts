@@ -183,13 +183,11 @@ export async function readRecountPhotos(
 ) {
   const base = new URL("/ocr/", window.location.origin).href;
   let localWorker: Worker | undefined;
-  let visionPages = 0;
-  let localPages = 0;
   try {
     for (let i = 0; i < images.length; i++) {
       signal?.throwIfAborted();
       if (readVision) {
-        onProgress(`Analizando con IA la página ${i + 1} de ${images.length}…`);
+        onProgress(`Leyendo página ${i + 1} de ${images.length}…`);
         let rows: Omit<RecountItem, "id">[] | null = null;
         try {
           rows = await readVision(images[i]);
@@ -203,11 +201,10 @@ export async function readRecountPhotos(
             text: items.map((row) => [row.raw, row.notes].filter(Boolean).join(" · Nota: ")).join("\n"),
             words: [], items,
           }, i);
-          visionPages++;
           continue;
         }
       }
-      onProgress(`Leyendo en el dispositivo la página ${i + 1} de ${images.length}…`);
+      onProgress(`Leyendo página ${i + 1} de ${images.length}…`);
       const worker = localWorker ??= await createWorker("spa", 1, {
         workerPath: base + "worker.min.js",
         corePath: base,
@@ -241,7 +238,6 @@ export async function readRecountPhotos(
           signal,
         );
         await onPage({ text: data.text, words, items }, i);
-        localPages++;
       } finally {
         canvas.width = canvas.height = 0;
       }
@@ -249,7 +245,6 @@ export async function readRecountPhotos(
   } finally {
     await localWorker?.terminate();
   }
-  return { visionPages, localPages };
 }
 
 export async function prepareRecountPhoto(file: Blob): Promise<string> {

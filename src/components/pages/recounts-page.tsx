@@ -331,7 +331,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
       const sessionResult = useVision ? await supabase?.auth.getSession().catch(() => null) : null;
       const session = sessionResult?.data.session;
       const reader = session ? await import("@/lib/vigia/recount-vision-api") : null;
-      const { localPages } = await readRecountPhotos(
+      await readRecountPhotos(
         images,
         (message) => {
           if (mounted.current) setBusy(message);
@@ -393,9 +393,6 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
           ...original, reviewed: false, items: [...items, ...preserved],
           rawText: recoveredText.filter(Boolean).join("\n\n") || original.rawText,
         });
-      }
-      if (useVision && localPages > 0) {
-        toast.info(`Se usó la lectura local en ${localPages} ${localPages === 1 ? "página" : "páginas"}.`);
       }
       toast.info(
         scanned
@@ -624,7 +621,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                     <span>
                       <span className="font-medium">Lectura con IA</span>
                       <span className="block text-xs text-muted-foreground">
-                        La foto se envía a Groq para interpretar la tabla y las anotaciones.
+                        Groq o Gemini interpreta la tabla y las anotaciones de la foto.
                         Desmarcá para leerla en este dispositivo.
                       </span>
                     </span>

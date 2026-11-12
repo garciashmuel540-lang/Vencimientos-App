@@ -25,20 +25,37 @@ const colors = {
   sobra: { label: "Sobra", ink: "#854714", background: "#FFF0D9" },
   falta: { label: "Falta", ink: "#AB2727", background: "#FCECE8" },
   pending: { label: "Pendiente", ink: "#475569", background: "#F0F2F5" },
+  current: { label: "Vigente", ink: "#166044", background: "#E9F4ED" },
+  soon: { label: "Por vencer", ink: "#854714", background: "#FFF0D9" },
+  expired: { label: "Vencido", ink: "#AB2727", background: "#FCECE8" },
+  undated: { label: "Sin fecha", ink: "#475569", background: "#F0F2F5" },
 };
-export type InventoryImageRow = {
+type RowDetails = {
   name: string;
   code?: string;
   category: string;
   detail?: string;
+};
+
+export type InventoryImageRow = RowDetails & {
   physical: number | null;
   system: number | null;
   difference: number | null;
-  status: keyof typeof colors;
+  status: "ok" | "sobra" | "falta" | "pending";
+};
+export type ExpiryImageRow = RowDetails & {
+  quantity: number;
+  expires: string;
+  location: string;
+  status: "current" | "soon" | "expired" | "undated";
 };
 
+type ImageRows =
+  { kind?: "count"; rows: InventoryImageRow[] } | { kind: "expiry"; rows: ExpiryImageRow[] };
+type ImageRow = InventoryImageRow | ExpiryImageRow;
+
 type RowLayout = {
-  row: InventoryImageRow;
+  row: ImageRow;
   names: string[];
   details: string[];
   codes: string[];
@@ -102,12 +119,8 @@ export async function makeInventoryImages({
   date,
   fileStem,
   rows,
-}: {
-  title: string;
-  date: string;
-  fileStem: string;
-  rows: InventoryImageRow[];
-}): Promise<File[]> {
+  kind = "count",
+}: { title: string; date: string; fileStem: string } & ImageRows): Promise<File[]> {
   if (!rows.length) throw new Error("No hay ítems con información para compartir.");
   await document.fonts.ready;
   const canvas = document.createElement("canvas");
@@ -185,7 +198,11 @@ export async function makeInventoryImages({
       box(palette.heading, margin, y, right - margin, 40);
       text(compact ? "PRODUCTO" : "PRODUCTO / CÓDIGO", margin + 10, y + 20, 20, "#FFFFFF", true);
       if (compact) text("CÓDIGO", 324, y + 20, 20, "#FFFFFF", true);
-      ["FÍSICO", "SISTEMA", "DIFERENCIA", "ESTADO"].forEach((label, i) =>
+      const labels =
+        kind === "expiry"
+          ? ["UNIDADES", "VENCE", "UBICACIÓN", "ESTADO"]
+          : ["FÍSICO", "SISTEMA", "DIFERENCIA", "ESTADO"];
+      labels.forEach((label, i) =>
         text(label, columns[i], y + 20, 20, "#FFFFFF", true, "center", 124),
       );
       y += 40;
@@ -223,19 +240,22 @@ export async function makeInventoryImages({
         details.forEach((line, n) => text(line, margin + 10, detailY + n * 21, 20, palette.muted));
         const state = colors[row.status];
         box(state.background, columns[3] - 58, y + (h - 28) / 2, 116, 28);
-        const values = [
-          format(row.physical),
-          format(row.system),
-          `${(row.difference ?? 0) > 0 ? "+" : ""}${format(row.difference)}`,
-          state.label,
-        ];
+        const values =
+          "quantity" in row
+            ? [format(row.quantity), row.expires, row.location, state.label]
+            : [
+                format(row.physical),
+                format(row.system),
+                `${(row.difference ?? 0) > 0 ? "+" : ""}${format(row.difference)}`,
+                state.label,
+              ];
         values.forEach((value, n) =>
           text(
             value,
             columns[n],
             y + h / 2,
-            n === 3 || compact ? 20 : 23.5,
-            n >= 2 ? state.ink : palette.ink,
+            n === 3 || compact || ("quantity" in row && n > 0) ? 20 : 23.5,
+            n === 3 || (n === 2 && "difference" in row) ? state.ink : palette.ink,
             true,
             "center",
             n === 3 ? 124 : 106,

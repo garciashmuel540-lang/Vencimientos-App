@@ -6,6 +6,10 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ClipboardList,
   BarChart3,
+  CalendarClock,
+  CircleAlert,
+  History,
+  MessageCircle,
   LayoutGrid,
   LogOut,
   Package,
@@ -18,6 +22,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useSupabaseAuth, signOutSupabase } from "@/lib/auth/supabase-auth";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useChatFocus } from "@/lib/vigia/chat-focus";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -31,6 +36,8 @@ const NAV = [
   { to: "/ajustes", label: "Ajustes", icon: Settings },
 ] as const;
 
+const shortcutClass = "flex min-h-11 items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium hover:bg-muted/60";
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -39,6 +46,7 @@ interface Props {
 export function AppSidebar({ open, onClose }: Props) {
   const { user } = useSupabaseAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const openChat = useChatFocus((s) => s.openChat);
   const [signingOut, setSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -80,6 +88,7 @@ export function AppSidebar({ open, onClose }: Props) {
                 <li key={item.to}>
                   <Link
                     to={item.to}
+                    search={{}}
                     onClick={onClose}
                     className={cn(
                       "mx-2 my-0.5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
@@ -95,6 +104,23 @@ export function AppSidebar({ open, onClose }: Props) {
               );
             })}
           </ul>
+          <div className="mx-3 mt-3 border-t pt-3">
+            <h3 className="px-2 pb-1 text-xs font-semibold text-muted-foreground">Accesos rápidos</h3>
+            <div className="grid grid-cols-2 gap-1">
+              <Link to="/inventario" search={{ estado: "soon" }} onClick={onClose} className={shortcutClass}>
+                <CalendarClock className="size-4 shrink-0 text-primary" /> Por vencer
+              </Link>
+              <Link to="/inventario" search={{ estado: "expired" }} onClick={onClose} className={shortcutClass}>
+                <CircleAlert className="size-4 shrink-0 text-primary" /> Vencidos
+              </Link>
+              <Link to="/reportes" hash="movimientos" onClick={onClose} className={shortcutClass}>
+                <History className="size-4 shrink-0 text-primary" /> Movimientos
+              </Link>
+              <button type="button" className={shortcutClass} onClick={() => { onClose(); openChat(); }}>
+                <MessageCircle className="size-4 shrink-0 text-primary" /> Consultar a Som
+              </button>
+            </div>
+          </div>
         </nav>
 
         {/* Footer: usuario + cerrar sesión */}

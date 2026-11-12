@@ -29,7 +29,7 @@ export const askVigiaFn = createServerFn({ method: "POST" })
         dayOfWeek: ctx.dayOfWeek,
         question: ctx.question.trim().slice(0, 1000),
         products: bounded(ctx.products, 30),
-        history: bounded(ctx.history, 8)
+        history: (Array.isArray(ctx.history) ? ctx.history.slice(-8) : [])
           .filter((m) => (m?.role === "user" || m?.role === "model") && typeof m.text === "string")
           .map(({ role, text }) => ({ role, text: text.slice(0, 2000) })),
         focusedProduct: ctx.focusedProduct,
