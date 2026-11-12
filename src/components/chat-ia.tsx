@@ -773,7 +773,7 @@ export function ChatIA() {
       const documents = recounts.status === "fulfilled" ? recounts.value : [];
       const rankedDocuments = ranked(documents, (doc) => dateScore(doc.date) + score(doc.title) +
         doc.items.reduce((best, item) => Math.max(best, score(item.name, item.code, item.category)), 0), 12);
-      let remainingItems = 180;
+      let remainingItems = 120;
       const recountContext = rankedDocuments.map(({ title, date, itemCount, measuredCount, items }) => {
         const selected = ranked(items, (item) => score(item.name, item.code, item.category),
           Math.min(remainingItems, 60));
