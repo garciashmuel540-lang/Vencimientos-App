@@ -1,6 +1,6 @@
 import type { ChatContext } from "./types";
 
-const normalize = (text: string) =>
+export const normalize = (text: string) =>
   text
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")

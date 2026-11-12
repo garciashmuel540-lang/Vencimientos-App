@@ -20,6 +20,8 @@ import { supabase } from "@/lib/supabase";
 import { listRecountItems } from "@/lib/data/recounts-supabase";
 import { getDb } from "@/lib/vigia/db";
 import { compareRecount, quantity } from "@/lib/vigia/recounts";
+import { localIntent } from "@/lib/vigia/ai/local-intent";
+import { runSomQuery } from "@/lib/vigia/ai/client-queries";
 import { ranked, relevance } from "@/lib/vigia/ai/context";
 import { productStatus, statusOf } from "@/lib/vigia/dates";
 import { askVigiaFn, type ChatProduct } from "@/lib/vigia/ai-chat";
@@ -204,6 +206,8 @@ export function ChatIA() {
   }
 
   async function runAction(name: string, args: Record<string, unknown>) {
+    const local = await runSomQuery(name, args);
+    if (local !== undefined) return local;
     const store = useVigiaStore.getState();
 
     // 1. AGREGAR
@@ -677,6 +681,15 @@ export function ChatIA() {
     setMessages([...nextMessages, { role: "model", text: "" }]);
 
     try {
+      const direct = localIntent(q);
+      if (direct?.reply) {
+        appendToLastModel(direct.reply);
+        return;
+      }
+      if (direct?.action) {
+        appendToLastModel(await runAction(direct.action, direct.args));
+        return;
+      }
       const session = (await supabase?.auth.getSession())?.data.session;
       if (!session) throw new Error("Iniciá sesión para consultar a Som.");
       const now = new Date();

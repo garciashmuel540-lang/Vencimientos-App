@@ -2,8 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import type { ChatContext, ChatChunk } from "./ai/types";
-import { llamarGroq } from "./ai/groq";
-import { llamarGemini } from "./ai/gemini";
+import { streamSom } from "./ai/providers";
 
 export type { ChatContext, ChatChunk, ChatProduct, ChatHistoryMsg, CatalogMatch } from "./ai/types";
 
@@ -29,28 +28,28 @@ export const askVigiaFn = createServerFn({ method: "POST" })
         nowISO: ctx.nowISO,
         dayOfWeek: ctx.dayOfWeek,
         question: ctx.question.trim().slice(0, 1000),
-        products: bounded(ctx.products, 60),
-        history: bounded(ctx.history, 12)
+        products: bounded(ctx.products, 30),
+        history: bounded(ctx.history, 8)
           .filter((m) => (m?.role === "user" || m?.role === "model") && typeof m.text === "string")
           .map(({ role, text }) => ({ role, text: text.slice(0, 2000) })),
         focusedProduct: ctx.focusedProduct,
         catalogMatches: bounded(ctx.catalogMatches, 12),
         fsProducts: bounded(ctx.fsProducts, 60),
-        fsCounts: bounded(ctx.fsCounts, 60),
+        fsCounts: bounded(ctx.fsCounts, 25),
         fsCountTotal: ctx.fsCountTotal,
-        recounts: bounded(ctx.recounts, 12)
+        recounts: bounded(ctx.recounts, 6)
           .filter(Boolean)
           .map((r) => ({
             title: r.title,
             date: r.date,
             itemCount: r.itemCount,
             measuredCount: r.measuredCount,
-            items: bounded(r.items, 60),
+            items: bounded(r.items, 18),
           })),
         recountTotal: ctx.recountTotal,
-        promotions: bounded(ctx.promotions, 40),
+        promotions: bounded(ctx.promotions, 15),
         promoTotal: ctx.promoTotal,
-        actionHistory: bounded(ctx.actionHistory, 25),
+        actionHistory: bounded(ctx.actionHistory, 12),
         settings: ctx.settings,
         stats: ctx.stats,
         unavailable: bounded(ctx.unavailable, 8),
@@ -72,35 +71,9 @@ export const askVigiaFn = createServerFn({ method: "POST" })
 
     return new ReadableStream<string>({
       async start(controller) {
-        const providers = [
-          { name: "Groq", enabled: process.env.GROQ_API_KEY, ask: llamarGroq },
-          { name: "Gemini", enabled: process.env.GEMINI_API_KEY, ask: llamarGemini },
-        ];
-        const emit = (chunk: ChatChunk) => controller.enqueue(JSON.stringify(chunk) + "\n");
-        for (const provider of providers) {
-          if (!provider.enabled) continue;
-          let started = false;
-          try {
-            for await (const chunk of provider.ask(data.context)) {
-              emit(chunk);
-              started = true;
-            }
-            if (started) {
-              controller.close();
-              return;
-            }
-          } catch (err) {
-            console.warn(
-              `[ai-chat] ${provider.name} falló:`,
-              err instanceof Error ? err.name : "Error",
-            );
-            if (started) break;
-          }
+        for await (const chunk of streamSom(data.context)) {
+          controller.enqueue(JSON.stringify(chunk) + "\n");
         }
-        emit({
-          type: "error",
-          content: "Som no pudo completar la respuesta. Probá de nuevo en un momento.",
-        });
         controller.close();
       },
     });

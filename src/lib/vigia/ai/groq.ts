@@ -27,7 +27,7 @@ export async function* llamarGroq(ctx: ChatContext): AsyncGenerator<ChatChunk> {
     throw new Error("Falta GROQ_API_KEY en el servidor.");
   }
 
-  const groq = new Groq({ apiKey });
+  const groq = new Groq({ apiKey, timeout: 8000, maxRetries: 0 });
 
   const messages: Groq.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: SYSTEM_PROMPT },
@@ -41,16 +41,17 @@ export async function* llamarGroq(ctx: ChatContext): AsyncGenerator<ChatChunk> {
   const stream = await groq.chat.completions.create({
     model: MODEL,
     messages,
-    tools: convertToolsToGroq(INTERNAL_TOOLS) as never,
+    tools: convertToolsToGroq(INTERNAL_TOOLS),
     tool_choice: "auto",
     temperature: 0.3,
-    max_tokens: 1024,
+    max_completion_tokens: 2048,
+    reasoning_effort: "low",
+    include_reasoning: false,
     stream: true,
   });
 
   // Acumulador de tool calls (Groq las envía por partes)
   const toolCallsAccum: Map<number, { name: string; args: string }> = new Map();
-  let hasEmittedAction = false;
 
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta;
@@ -79,10 +80,9 @@ export async function* llamarGroq(ctx: ChatContext): AsyncGenerator<ChatChunk> {
     try {
       args = tc.args ? (JSON.parse(tc.args) as Record<string, unknown>) : {};
     } catch {
-      // Si los args no son JSON válido, los dejamos vacíos
+      continue;
     }
     const isDestructive = DESTRUCTIVE_ACTIONS.has(tc.name);
-    hasEmittedAction = true;
     yield {
       type: "action",
       name: tc.name,
@@ -90,10 +90,5 @@ export async function* llamarGroq(ctx: ChatContext): AsyncGenerator<ChatChunk> {
       requiresConfirmation: isDestructive,
       confirmationLabel: isDestructive ? buildConfirmationLabel(tc.name, args) : undefined,
     };
-  }
-
-  // Si no emitió ni texto ni acción, avisamos
-  if (!hasEmittedAction && toolCallsAccum.size === 0) {
-    // Si no hay texto ni tool calls, no hacemos nada
   }
 }
