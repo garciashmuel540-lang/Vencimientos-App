@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Send, X } from "lucide-react";
+import { Send, X, Volume2, VolumeX, Square, Play } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { localIntent } from "@/lib/vigia/ai/local-intent";
 import { runSomQuery } from "@/lib/vigia/ai/client-queries";
 import { chooseChatSources } from "@/lib/vigia/ai/chat-sources";
 import { markdownTable } from "@/lib/vigia/ai/markdown-table";
+import { useSomVoice } from "@/lib/vigia/ai/use-som-voice";
 import { ranked, relevance } from "@/lib/vigia/ai/context";
 import { productStatus, statusOf } from "@/lib/vigia/dates";
 import { askVigiaFn, type ChatProduct } from "@/lib/vigia/ai-chat";
@@ -126,6 +127,9 @@ export function ChatIA() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [completedTurn, setCompletedTurn] = useState(0);
+  const observedTurn = useRef(0);
+  const { auto, active: activeVoice, play: playVoice, stop: stopVoice, toggleAuto } = useSomVoice(open);
   const [pendingAction, setPendingAction] = useState<{
     name: string;
     args: Record<string, unknown>;
@@ -146,6 +150,15 @@ export function ChatIA() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (observedTurn.current === completedTurn) return;
+    observedTurn.current = completedTurn;
+    if (!auto || !open || pendingAction || messages.at(-1)?.role !== "model") return;
+    const index = messages.length - 1;
+    const answer = scrollRef.current?.querySelector<HTMLElement>(`[data-som-answer="${index}"]`);
+    if (answer) void playVoice(index, answer);
+  }, [auto, completedTurn, messages, open, pendingAction, playVoice]);
 
   // Los conteos se consultan cuando la pregunta los necesita.
   useEffect(() => {
@@ -180,6 +193,7 @@ export function ChatIA() {
   // Auto-abrir cuando se enfoca un producto desde ProductSheet
   useEffect(() => {
     if (open && focus) {
+      stopVoice();
       setMessages([
         {
           role: "model",
@@ -187,7 +201,7 @@ export function ChatIA() {
         },
       ]);
     }
-  }, [open, focus]);
+  }, [open, focus, stopVoice]);
 
   function appendToLastModel(text: string) {
     setMessages((prev) => {
@@ -609,6 +623,7 @@ export function ChatIA() {
   async function send(question: string) {
     const q = question.trim();
     if (!q || loading) return;
+    stopVoice();
     const userMsg: Message = { role: "user", text: q };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
@@ -807,6 +822,7 @@ export function ChatIA() {
       appendToLastModel(`⚠️ ${msg}`);
     } finally {
       setLoading(false);
+      setCompletedTurn((turn) => turn + 1);
     }
   }
 
@@ -825,6 +841,13 @@ export function ChatIA() {
               <Mascot mood={loading ? "thinking" : "happy"} size={48} />
             </div>
             <Dialog.Title className="flex-1 text-lg font-bold">Sôm</Dialog.Title>
+            <Button type="button" variant="ghost" size="sm" onClick={toggleAuto}
+              aria-label="Leer respuestas automáticamente" aria-pressed={auto}
+              title={auto ? "Desactivar lectura automática" : "Activar lectura automática"}
+              className={cn("min-h-11 gap-1.5", auto && "bg-primary/10 text-primary")}>
+              {auto ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+              <span>Voz auto</span>
+            </Button>
             <Dialog.Close asChild><Button variant="ghost" size="icon" aria-label="Cerrar conversación"><X className="size-5"/></Button></Dialog.Close>
           </header>
           <div
@@ -853,7 +876,8 @@ export function ChatIA() {
             )}
             {messages.map((m, i) => {
               const isLast = i === messages.length - 1;
-              if (loading && isLast && m.role === "model" && !m.text) return null;
+              if (isLast && m.role === "model" && !m.text) return null;
+              const voice = activeVoice?.index === i ? activeVoice.status : null;
               return (
                 <div
                   key={i}
@@ -865,7 +889,9 @@ export function ChatIA() {
                   )}
                 >
                   {m.role === "model" ? (
-                    <ReactMarkdown
+                    <>
+                      <div data-som-answer={i}>
+                        <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
                         table: ({ children }) => (
@@ -877,7 +903,20 @@ export function ChatIA() {
                       }}
                     >
                       {m.text}
-                    </ReactMarkdown>
+                        </ReactMarkdown>
+                      </div>
+                      {(!loading || !isLast) && m.text && (
+                        <button type="button" className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-primary hover:bg-background"
+                          onClick={(event) => {
+                            if (voice === "playing" || voice === "preparing") { stopVoice(); return; }
+                            const answer = event.currentTarget.parentElement?.querySelector<HTMLElement>("[data-som-answer]");
+                            if (answer) void playVoice(i, answer);
+                          }}>
+                          {voice === "playing" || voice === "preparing" ? <Square className="size-3.5" /> : voice === "ready" ? <Play className="size-4" /> : <Volume2 className="size-4" />}
+                          {voice === "playing" ? "Detener" : voice === "preparing" ? "Preparando voz… · Detener" : voice === "ready" ? "Reproducir audio" : "Escuchar"}
+                        </button>
+                      )}
+                    </>
                   ) : (
                     m.text
                   )}

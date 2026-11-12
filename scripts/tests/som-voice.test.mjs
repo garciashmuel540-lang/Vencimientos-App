@@ -1,0 +1,75 @@
+import assert from "node:assert/strict";
+import { registerHooks } from "node:module";
+import test from "node:test";
+import { selectSpanishVoice, speechText, splitSpeech } from "../../src/lib/vigia/ai/voice-text.ts";
+const hooks = registerHooks({
+  resolve(specifier, context, next) {
+    if (specifier === "./fallback" && context.parentURL?.endsWith("/voice-provider.ts"))
+      return next("./fallback.ts", context);
+    return next(specifier, context);
+  },
+});
+const { wavFromAudio } = await import("../../src/lib/vigia/ai/voice-provider.ts");
+hooks.deregister();
+
+test("a long response is divided into playable segments without dropping words", () => {
+  const text = "Café, doce unidades. Leche, siete unidades. ".repeat(40).trim();
+  const segments = splitSpeech(text);
+  assert.ok(segments.length > 1);
+  assert.ok(segments.every((segment) => segment.length <= 360));
+  assert.equal(segments.join(" "), text);
+});
+
+test("device fallback chooses a Latin American Spanish voice before other languages", () => {
+  const mexico = { lang: "es-MX", name: "Google" };
+  assert.equal(
+    selectSpanishVoice([
+      { lang: "en-US", name: "Natural" },
+      { lang: "es-ES", name: "Mónica" },
+      mexico,
+    ]),
+    mexico,
+  );
+  assert.equal(selectSpanishVoice([{ lang: "en-US", name: "English" }]), undefined);
+});
+
+test("tables are narrated by row with headers, zeros and missing values", () => {
+  class Element {
+    nodeType = 1;
+    constructor(tagName, childNodes = []) {
+      this.tagName = tagName;
+      this.childNodes = childNodes;
+    }
+  }
+  globalThis.HTMLElement = Element;
+  globalThis.Node = { TEXT_NODE: 3 };
+  const cell = (textContent) => ({ textContent });
+  const table = Object.assign(new Element("TABLE"), {
+    tHead: { rows: [{ cells: [cell("Producto"), cell("Unidades"), cell("Precio")] }] },
+    tBodies: [
+      {
+        rows: [
+          { cells: [cell("Café"), cell("0"), cell("C$ 42.50")] },
+          { cells: [cell("Leche"), cell("—"), cell("—")] },
+        ],
+      },
+    ],
+  });
+  const intro = new Element("P", [{ nodeType: 3, textContent: "🍊 Inventario" }]);
+  assert.equal(
+    speechText(new Element("DIV", [intro, new Element("DIV", [table])])),
+    "Inventario. Producto: Café. Unidades: 0. Precio: 42.50 córdobas. Producto: Leche. Unidades: sin dato. Precio: sin dato.",
+  );
+});
+
+test("the voice backend preserves WAV and wraps raw speech PCM correctly", () => {
+  const pcm = Buffer.from([0, 0, 1, 0]);
+  const wav = wavFromAudio(pcm.toString("base64"), "audio/L16;codec=pcm;rate=24000");
+  const decoded = Buffer.from(wav, "base64");
+  assert.equal(decoded.toString("ascii", 0, 4), "RIFF");
+  assert.equal(decoded.toString("ascii", 8, 12), "WAVE");
+  assert.equal(decoded.readUInt32LE(24), 24000);
+  assert.deepEqual(decoded.subarray(44), pcm);
+  assert.equal(wavFromAudio(wav, "audio/wav"), wav);
+  assert.equal(wavFromAudio(pcm.toString("base64"), "text/plain"), null);
+});
