@@ -328,7 +328,8 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
       let scanned = 0;
       const recovered: RecountItem[] = [];
       const recoveredText: string[] = [];
-      const session = useVision ? (await supabase?.auth.getSession())?.data.session : null;
+      const sessionResult = useVision ? await supabase?.auth.getSession().catch(() => null) : null;
+      const session = sessionResult?.data.session;
       const reader = session ? await import("@/lib/vigia/recount-vision-api") : null;
       const { localPages } = await readRecountPhotos(
         images,
@@ -359,7 +360,11 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
         },
         controller.signal,
         reader && session
-          ? (photo) => reader.readRecountVisionFn({ data: { photo, accessToken: session.access_token }, signal: controller.signal })
+          ? (photo) =>
+              reader.readRecountVisionFn({
+                data: { photo, accessToken: session.access_token },
+                signal: controller.signal,
+              })
           : undefined,
       );
       if (!mounted.current) return;
@@ -610,12 +615,17 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                     Fotografiá todas las columnas. Podés agregar varias páginas.
                   </p>
                   <label className="flex items-start gap-2 text-sm">
-                    <input type="checkbox" className="mt-1 accent-primary" checked={useVision}
-                      onChange={(event) => setUseVision(event.target.checked)} />
+                    <input
+                      type="checkbox"
+                      className="mt-1 accent-primary"
+                      checked={useVision}
+                      onChange={(event) => setUseVision(event.target.checked)}
+                    />
                     <span>
                       <span className="font-medium">Lectura con IA</span>
                       <span className="block text-xs text-muted-foreground">
-                        La foto se envía a Groq para interpretar la tabla y las anotaciones. Desmarcá para leerla en este dispositivo.
+                        La foto se envía a Groq para interpretar la tabla y las anotaciones.
+                        Desmarcá para leerla en este dispositivo.
                       </span>
                     </span>
                   </label>
@@ -810,8 +820,13 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                       </p>
                     )}
                     {!item.physical.trim() && item.suggestedPhysical !== undefined && (
-                      <Button type="button" variant="outline" size="sm" className="w-full"
-                        onClick={() => updateItem(item.id, { physical: item.suggestedPhysical ?? "" })}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => updateItem(item.id, { physical: item.suggestedPhysical ?? "" })}
+                      >
                         Usar {item.suggestedPhysical} como conteo físico
                       </Button>
                     )}

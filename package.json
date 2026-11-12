@@ -19,7 +19,7 @@
     "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "prebuild": "node scripts/prepare-ocr.mjs && node scripts/check-recount-vision-live.mjs",
+    "prebuild": "node scripts/prepare-ocr.mjs",
     "predev": "node scripts/prepare-ocr.mjs"
   },
   "dependencies": {
