@@ -39,7 +39,7 @@ export function compareRecount(item: Pick<RecountItem, "system" | "physical">) {
     physical = quantity(item.physical);
   if (system === null || physical === null || physical < 0)
     return { status: "pending" as const, difference: null, label: "Pendiente" };
-  const difference = Math.round((physical - system) * 1e6) / 1e6;
+  const difference = Math.round((physical - system) * 1e6) / 1e6 || 0;
   return {
     status:
       difference === 0 ? ("ok" as const) : difference > 0 ? ("sobra" as const) : ("falta" as const),
@@ -47,7 +47,7 @@ export function compareRecount(item: Pick<RecountItem, "system" | "physical">) {
     label:
       difference === 0
         ? "Correcto"
-        : `${difference > 0 ? "Sobra" : "Falta"} ${Math.abs(difference).toLocaleString("es-NI")}`,
+        : `${difference > 0 ? "Sobra" : "Falta"} ${Math.abs(difference).toLocaleString("es-NI", { maximumFractionDigits: 6 })}`,
   };
 }
 const normal = (s: string) =>

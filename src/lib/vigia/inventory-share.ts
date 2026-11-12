@@ -8,12 +8,23 @@ const right = width - margin;
 // On A4 at this logical width, 20 px and 23.5 px correspond to 12 pt and 14 pt.
 const font = '"Bell MT", Georgia, "Times New Roman", serif';
 const numeric = new Intl.NumberFormat("es-NI", { maximumFractionDigits: 6 });
-const format = (value: number | null) => (value === null ? "—" : numeric.format(value));
+const format = (value: number | null) =>
+  value === null ? "—" : numeric.format(value === 0 ? 0 : value);
+const palette = {
+  ink: "#362217",
+  muted: "#6B4C3B",
+  heading: "#713515",
+  orange: "#C15A21",
+  cream: "#FFF5E9",
+  peach: "#FBE3CC",
+  stripe: "#FFF9F3",
+  rule: "#EAD8C8",
+};
 const colors = {
-  ok: { label: "Correcto", ink: "#166044" },
-  sobra: { label: "Sobra", ink: "#805000" },
-  falta: { label: "Falta", ink: "#AB2727" },
-  pending: { label: "Pendiente", ink: "#475569" },
+  ok: { label: "Correcto", ink: "#166044", background: "#E9F4ED" },
+  sobra: { label: "Sobra", ink: "#854714", background: "#FFF0D9" },
+  falta: { label: "Falta", ink: "#AB2727", background: "#FCECE8" },
+  pending: { label: "Pendiente", ink: "#475569", background: "#F0F2F5" },
 };
 export type InventoryImageRow = {
   name: string;
@@ -104,7 +115,7 @@ export async function makeInventoryImages({
   if (!ctx) throw new Error("No se pudo preparar el reporte.");
   const mascot = await loadMascot();
   ctx.font = `bold 35px ${font}`;
-  const titleLines = wrap(ctx, title, 790);
+  const titleLines = wrap(ctx, title, 775);
   const headerHeight = 88 + titleLines.length * 40;
   const available = height - headerHeight - 40 - 58;
   const measure = (compact: boolean) =>
@@ -147,7 +158,7 @@ export async function makeInventoryImages({
     x: number,
     y: number,
     size: number,
-    color = "#172B27",
+    color = palette.ink,
     bold = false,
     align: CanvasTextAlign = "left",
     maxWidth = width,
@@ -162,12 +173,16 @@ export async function makeInventoryImages({
   try {
     for (let index = 0; index < pages.length; index++) {
       box("#FFFFFF", 0, 0, width, height);
-      text("VIGÍA / REPORTE DE INVENTARIO", margin, 32, 20, "#42564C", true);
-      titleLines.forEach((line, i) => text(line, margin, 69 + i * 40, 35, "#173F33", true));
-      text(date, margin, headerHeight - 22, 20, "#42564C");
-      ctx.drawImage(mascot, right - 90, 18, 90, 90);
+      box(palette.cream, margin, 14, right - margin, headerHeight - 14);
+      box(palette.orange, margin, 14, 5, headerHeight - 14);
+      text("VIGÍA / REPORTE DE INVENTARIO", margin + 19, 36, 20, palette.muted, true);
+      titleLines.forEach((line, i) =>
+        text(line, margin + 19, 73 + i * 40, 35, palette.heading, true),
+      );
+      text(date, margin + 19, headerHeight - 20, 20, palette.muted);
+      ctx.drawImage(mascot, right - 105, 22, 90, 90);
       let y = headerHeight;
-      box("#173F33", margin, y, right - margin, 40);
+      box(palette.heading, margin, y, right - margin, 40);
       text(compact ? "PRODUCTO" : "PRODUCTO / CÓDIGO", margin + 10, y + 20, 20, "#FFFFFF", true);
       if (compact) text("CÓDIGO", 324, y + 20, 20, "#FFFFFF", true);
       ["FÍSICO", "SISTEMA", "DIFERENCIA", "ESTADO"].forEach((label, i) =>
@@ -177,20 +192,21 @@ export async function makeInventoryImages({
       for (const [i, entry] of pages[index].entries()) {
         const { row, names, details, codes, height: h, heading } = entry;
         if (heading) {
-          box("#E7EEE9", margin, y, right - margin, 31);
+          box(palette.peach, margin, y, right - margin, 31);
+          box(palette.orange, margin, y, 4, 31);
           text(
             row.category,
             margin + 10,
             y + 15.5,
             20,
-            "#254C3E",
+            palette.heading,
             true,
             "left",
             right - margin - 20,
           );
           y += 31;
         }
-        if (i % 2 === 1) box("#F6F9F7", margin, y, right - margin, h);
+        if (i % 2 === 1) box(palette.stripe, margin, y, right - margin, h);
         const nameLineHeight = compact ? 22 : 26;
         const detailY = y + Math.max(names.length, codes.length) * nameLineHeight + 13;
         names.forEach((line, n) =>
@@ -199,13 +215,14 @@ export async function makeInventoryImages({
             margin + 10,
             y + 16 + n * nameLineHeight,
             compact ? 20 : 23.5,
-            "#172B27",
+            palette.ink,
             true,
           ),
         );
-        codes.forEach((line, n) => text(line, 324, y + 16 + n * nameLineHeight, 20, "#42564C"));
-        details.forEach((line, n) => text(line, margin + 10, detailY + n * 21, 20, "#42564C"));
+        codes.forEach((line, n) => text(line, 324, y + 16 + n * nameLineHeight, 20, palette.muted));
+        details.forEach((line, n) => text(line, margin + 10, detailY + n * 21, 20, palette.muted));
         const state = colors[row.status];
+        box(state.background, columns[3] - 58, y + (h - 28) / 2, 116, 28);
         const values = [
           format(row.physical),
           format(row.system),
@@ -218,21 +235,22 @@ export async function makeInventoryImages({
             columns[n],
             y + h / 2,
             n === 3 || compact ? 20 : 23.5,
-            n >= 2 ? state.ink : "#172B27",
+            n >= 2 ? state.ink : palette.ink,
             true,
             "center",
             n === 3 ? 124 : 106,
           ),
         );
-        box("#DBE4DE", margin, y + h - 1, right - margin, 1);
+        box(palette.rule, margin, y + h - 1, right - margin, 1);
         y += h;
       }
+      box(palette.orange, margin, height - 48, right - margin, 2);
       text(
         `${rows.length} ${rows.length === 1 ? "ítem" : "ítems"}`,
         margin,
         height - 31,
         20,
-        "#42564C",
+        palette.muted,
         true,
       );
       if (pages.length > 1)
@@ -241,7 +259,7 @@ export async function makeInventoryImages({
           right,
           height - 31,
           20,
-          "#42564C",
+          palette.muted,
           false,
           "right",
         );

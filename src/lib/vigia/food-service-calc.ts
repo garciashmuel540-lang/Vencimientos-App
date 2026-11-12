@@ -6,16 +6,26 @@
  * Fórmula estándar:
  *   Producción = (Abiertos - PesoContenedor) / PesoUnitario
  *   Inventario = Sellados + Producción
- *   Diferencia = Inventario - Sistema
+ *   Diferencia = Inventario - Sistema, ambos redondeados a centésimas
  *
  * Resultado:
  *   - Diferencia > 0 → Sobra
  *   - Diferencia < 0 → Falta
- *   - |Diferencia| < tolerancia → OK
+ *   - Diferencia = 0 (o dentro de la tolerancia) → Correcto
  */
 import type { FSProduct } from "./food-service-catalog";
 
 export const DEFAULT_TOLERANCE = 0;
+
+const comparisonPrecision = new Intl.NumberFormat("en-US", {
+  useGrouping: false,
+  maximumFractionDigits: 2,
+});
+
+export function roundFSQuantity(value: number): number {
+  const rounded = Number(comparisonPrecision.format(value));
+  return rounded === 0 ? 0 : rounded;
+}
 
 export interface FSInput {
   opened: number | null;
@@ -45,9 +55,10 @@ export function calcFSItem(
   input: FSInput,
   tolerance: number = DEFAULT_TOLERANCE,
 ): FSCalcResult {
-  const opened = typeof input.opened === "number" ? input.opened : null;
-  const sealed = typeof input.sealed === "number" ? input.sealed : null;
-  const system = typeof input.system_qty === "number" ? input.system_qty : null;
+  const opened = input.opened !== null && Number.isFinite(input.opened) ? input.opened : null;
+  const sealed = input.sealed !== null && Number.isFinite(input.sealed) ? input.sealed : null;
+  const system =
+    input.system_qty !== null && Number.isFinite(input.system_qty) ? input.system_qty : null;
 
   // Si faltan datos, no podemos calcular
   if (opened === null || sealed === null || system === null) {
@@ -63,45 +74,37 @@ export function calcFSItem(
   // Fórmula: (abiertos - contenedor) / unitario
   const netWeight = Math.max(0, opened - product.containerWeight);
   const production = product.unitWeight > 0 ? netWeight / product.unitWeight : 0;
-  const inventory = sealed + production;
-  const difference = inventory - system;
+  const inventory = roundFSQuantity(sealed + production);
+  const difference = roundFSQuantity(inventory - roundFSQuantity(system));
 
   let status: FSCalcResult["status"];
   let label: string;
 
-  // OK solo si la diferencia es EXACTAMENTE 0 (o dentro de tolerancia)
-  if (Math.abs(difference) <= tolerance) {
+  if (difference === 0 || Math.abs(difference) <= tolerance) {
     status = "ok";
-    label = "OK";
+    label = "Correcto";
   } else if (difference > 0) {
     status = "sobra";
-    label = `Sobra ${difference.toFixed(2)}`;
+    label = `Sobra ${formatFSNumber(difference)}`;
   } else {
     status = "falta";
-    label = `Falta ${Math.abs(difference).toFixed(2)}`;
+    label = `Falta ${formatFSNumber(Math.abs(difference))}`;
   }
 
   return {
-    production: round2(production),
-    inventory: round2(inventory),
-    difference: round2(difference),
+    production: roundFSQuantity(production),
+    inventory,
+    difference,
     status,
     label,
   };
 }
 
 /**
- * Redondea a 2 decimales.
- */
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-/**
  * Formatea un número para mostrar en la UI.
  */
 export function formatFSNumber(n: number | null | undefined): string {
-  if (typeof n !== "number") return "—";
+  if (typeof n !== "number" || !Number.isFinite(n)) return "—";
   return n.toLocaleString("es-MX", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,

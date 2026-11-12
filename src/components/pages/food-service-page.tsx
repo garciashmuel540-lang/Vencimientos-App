@@ -29,7 +29,7 @@ import {
   type FSCountRow,
   type FSCountInput,
 } from "@/lib/data/food-service-supabase";
-import { calcFSItem } from "@/lib/vigia/food-service-calc";
+import { calcFSItem, formatFSNumber, roundFSQuantity } from "@/lib/vigia/food-service-calc";
 import { FSItemCard } from "@/components/food-service/fs-item-card";
 
 /**
@@ -309,12 +309,24 @@ export function FoodServicePage() {
     const title = cat ? FS_CATEGORY_LABEL[cat] : "Inventario general";
     try {
       const { makeInventoryImages } = await import("@/lib/vigia/inventory-share");
-      const files = await makeInventoryImages({ title, date: dateFormatted, fileStem: `vigia-${cat ?? "general"}-${date}`, rows: rowsData.map(({ product, calc, count }) => ({
-        name: product.name.replace(/^FSI\s+/, ""), code: product.itemCode, category: FS_CATEGORY_LABEL[product.category],
-        detail: [count?.opened != null ? `Abiertos: ${count.opened} ${product.unit}` : "", count?.sealed != null ? `Sellados: ${count.sealed}` : ""].filter(Boolean).join(" · "),
-        physical: calc?.inventory ?? null, system: count?.system_qty ?? null, difference: calc?.difference ?? null,
-        status: calc && calc.status !== "incompleto" ? calc.status : "pending",
-      })) });
+      const files = await makeInventoryImages({
+        title,
+        date: dateFormatted,
+        fileStem: `vigia-${cat ?? "general"}-${date}`,
+        rows: rowsData.map(({ product, calc, count }) => ({
+          name: product.name.replace(/^FSI\s+/, ""),
+          code: product.itemCode,
+          category: FS_CATEGORY_LABEL[product.category],
+          detail: [
+            count?.opened != null ? `Abiertos: ${formatFSNumber(count.opened)} ${product.unit}` : "",
+            count?.sealed != null ? `Sellados: ${formatFSNumber(count.sealed)}` : "",
+          ].filter(Boolean).join(" · "),
+          physical: calc?.inventory ?? null,
+          system: count?.system_qty != null ? roundFSQuantity(count.system_qty) : null,
+          difference: calc?.difference ?? null,
+          status: calc && calc.status !== "incompleto" ? calc.status : "pending",
+        })),
+      });
       // Compartir
       if (navigator.share && navigator.canShare?.({ files })) {
         try {
