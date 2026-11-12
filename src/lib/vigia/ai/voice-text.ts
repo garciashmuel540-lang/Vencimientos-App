@@ -54,19 +54,23 @@ export function speechText(root: HTMLElement): string {
     .trim();
 }
 
-export function selectSpanishVoice<
+export function selectSpanishMaleVoice<
   T extends { lang: string; name: string; localService?: boolean },
 >(voices: T[]): T | undefined {
   const score = (voice: T) => {
     const lang = voice.lang.toLowerCase().replace("_", "-");
     const regional =
       lang === "es-ni" ? 40 : /^(es-us|es-mx|es-419)$/.test(lang) ? 30 : lang === "es-es" ? 10 : 20;
-    return (
-      regional +
-      (/natural|premium|enhanced|google|paulina|m[oó]nica|sabra|marisol/i.test(voice.name) ? 7 : 0)
-    );
+    return regional + (/natural|premium|enhanced/i.test(voice.name) ? 7 : 0);
   };
   return voices
-    .filter((voice) => /^es(?:[-_]|$)/i.test(voice.lang))
+    .filter((voice) => {
+      if (!/^es(?:[-_]|$)/i.test(voice.lang)) return false;
+      // Web Speech exposes names and locales without a gender field.
+      const name = voice.name.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+      return /\b(male|masculin[oa]|hombre|jorge|diego|juan|carlos|raul|pablo|andres|fernando|miguel|mateo|enrique|alvaro|manuel|daniel|francisco|sergio|felipe|emilio|agustin|rodrigo|angel|antonio|alonso|pedro|gerardo|hector|fabio)\b/i.test(
+        name,
+      );
+    })
     .sort((a, b) => score(b) - score(a))[0];
 }

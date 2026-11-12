@@ -1,7 +1,8 @@
 import { firstModelResult } from "./fallback";
 
+const somVoice = "Algieba";
 const style =
-  "En español latinoamericano, con voz tierna, cálida y natural. Leé solo el texto, con ritmo tranquilo y números claros. Sôm se pronuncia som.";
+  "En español latinoamericano, con una voz masculina, tierna, suave y natural. Leé solo el texto, con ritmo tranquilo y números claros. Sôm se pronuncia som.";
 
 type AudioPart = { type?: string; data?: string; mime_type?: string };
 
@@ -63,7 +64,7 @@ export async function synthesizeSomVoice(text: string): Promise<string | null> {
             },
           ],
           response_format: { type: "audio", mime_type: "audio/wav" },
-          generation_config: { speech_config: [{ voice: "Achernar" }] },
+          generation_config: { speech_config: [{ voice: somVoice }] },
         })) as { steps?: { type?: string; content?: AudioPart[] }[] };
         const part = result.steps
           ?.filter((step) => step.type === "model_output")
@@ -84,7 +85,7 @@ export async function synthesizeSomVoice(text: string): Promise<string | null> {
             ],
             generationConfig: {
               responseModalities: ["AUDIO"],
-              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Achernar" } } },
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: somVoice } } },
             },
           },
         )) as {

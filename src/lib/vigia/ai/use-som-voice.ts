@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { selectSpanishVoice, speechText, splitSpeech } from "./voice-text";
+import { selectSpanishMaleVoice, speechText, splitSpeech } from "./voice-text";
 
 type VoiceStatus = "preparing" | "playing" | "ready";
 type Playback = {
@@ -65,12 +65,16 @@ function playOnDevice(text: string, signal: AbortSignal, update: (status: VoiceS
       return;
     }
     const engine = window.speechSynthesis;
+    const voice = selectSpanishMaleVoice(engine.getVoices());
+    if (!voice) {
+      resolve(false);
+      return;
+    }
     const utterance = new SpeechSynthesisUtterance(text);
-    const voice = selectSpanishVoice(engine.getVoices());
-    if (voice) utterance.voice = voice;
-    utterance.lang = voice?.lang ?? "es-NI";
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
     utterance.rate = 0.94;
-    utterance.pitch = 1.08;
+    utterance.pitch = 1.02;
     const finish = (played: boolean) => {
       signal.removeEventListener("abort", abort);
       utterance.onstart = null;

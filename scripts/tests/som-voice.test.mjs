@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
-import { selectSpanishVoice, speechText, splitSpeech } from "../../src/lib/vigia/ai/voice-text.ts";
+import {
+  selectSpanishMaleVoice,
+  speechText,
+  splitSpeech,
+} from "../../src/lib/vigia/ai/voice-text.ts";
 const hooks = registerHooks({
   resolve(specifier, context, next) {
     if (specifier === "./fallback" && context.parentURL?.endsWith("/voice-provider.ts"))
@@ -20,17 +24,27 @@ test("a long response is divided into playable segments without dropping words",
   assert.equal(segments.join(" "), text);
 });
 
-test("device fallback chooses a Latin American Spanish voice before other languages", () => {
-  const mexico = { lang: "es-MX", name: "Google" };
+test("device fallback prefers identified Latin American male voices", () => {
+  const mexico = { lang: "es-MX", name: "Juan" };
   assert.equal(
-    selectSpanishVoice([
-      { lang: "en-US", name: "Natural" },
-      { lang: "es-ES", name: "Mónica" },
+    selectSpanishMaleVoice([
+      { lang: "en-US", name: "Male Natural" },
+      { lang: "es-NI", name: "Español Natural" },
+      { lang: "es-ES", name: "Jorge" },
+      { lang: "es-MX", name: "Dalia" },
       mexico,
     ]),
     mexico,
   );
-  assert.equal(selectSpanishVoice([{ lang: "en-US", name: "English" }]), undefined);
+  assert.equal(
+    selectSpanishMaleVoice([
+      { lang: "en-US", name: "Male" },
+      { lang: "es-ES", name: "Mónica" },
+      { lang: "es-MX", name: "Spanish Female" },
+      { lang: "es-NI", name: "Español" },
+    ]),
+    undefined,
+  );
 });
 
 test("tables are narrated by row with headers, zeros and missing values", () => {
