@@ -1,16 +1,22 @@
 export const SPEECH_SEGMENT_LENGTH = 360;
 
-export function splitSpeech(text: string, limit = SPEECH_SEGMENT_LENGTH): string[] {
+export function splitSpeech(
+  text: string,
+  limit = SPEECH_SEGMENT_LENGTH,
+  firstLimit = limit,
+): string[] {
   const segments: string[] = [];
   let remaining = text.trim();
-  while (remaining.length > limit) {
-    const window = remaining.slice(0, limit + 1);
+  // Keep short answers in one clip. Longer answers get a smaller opening clip.
+  while (remaining.length > (segments.length === 0 ? Math.min(limit, firstLimit + 45) : limit)) {
+    const segmentLimit = segments.length === 0 ? Math.min(limit, firstLimit) : limit;
+    const window = remaining.slice(0, segmentLimit + 1);
     const sentenceEnd = [...window.matchAll(/[.!?;](?=\s)/g)].at(-1)?.index;
     const boundary =
-      sentenceEnd !== undefined && sentenceEnd >= limit / 2
+      sentenceEnd !== undefined && sentenceEnd >= segmentLimit / 2
         ? sentenceEnd + 1
         : window.lastIndexOf(" ");
-    const cut = boundary > 0 ? Math.min(boundary, limit) : limit;
+    const cut = boundary > 0 ? Math.min(boundary, segmentLimit) : segmentLimit;
     segments.push(remaining.slice(0, cut).trim());
     remaining = remaining.slice(cut).trimStart();
   }

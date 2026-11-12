@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { selectSpanishMaleVoice, speechText, splitSpeech } from "./voice-text";
+import {
+  selectSpanishMaleVoice,
+  speechText,
+  SPEECH_SEGMENT_LENGTH,
+  splitSpeech,
+} from "./voice-text";
+import { playVoiceQueue } from "./voice-queue";
 
 type VoiceStatus = "preparing" | "playing" | "ready";
 type Playback = {
@@ -98,6 +104,7 @@ export function useSomVoice(open: boolean) {
   const [auto, setAuto] = useState(false);
   const [active, setActive] = useState<{ index: number; status: VoiceStatus } | null>(null);
   const playback = useRef<Playback | null>(null);
+  const audioCache = useRef(new Map<string, string>());
 
   useEffect(() => {
     try {
@@ -115,7 +122,10 @@ export function useSomVoice(open: boolean) {
   }, []);
 
   useEffect(() => {
-    if (!open) stop();
+    if (!open) {
+      stop();
+      audioCache.current.clear();
+    }
     return () => playback.current?.controller.abort();
   }, [open, stop]);
 
@@ -136,7 +146,7 @@ export function useSomVoice(open: boolean) {
         return;
       }
       stop();
-      const segments = splitSpeech(speechText(element));
+      const segments = splitSpeech(speechText(element), SPEECH_SEGMENT_LENGTH, 130);
       if (!segments.length) return;
       const current: Playback = { index, controller: new AbortController() };
       playback.current = current;
@@ -146,32 +156,47 @@ export function useSomVoice(open: boolean) {
       };
       update("preparing");
       try {
-        const token = (await supabase?.auth.getSession().catch(() => null))?.data.session
-          ?.access_token;
-        const api = token ? await import("./voice-api").catch(() => null) : null;
-        let cloud = api?.somVoiceFn ?? null;
-        for (const text of segments) {
-          if (signal.aborted) return;
-          update("preparing");
-          if (cloud && token) {
-            const wav = await cloud({ data: { accessToken: token, text }, signal }).catch(
-              () => null,
-            );
-            if (signal.aborted) return;
-            if (wav && (await playWav(wav, signal, update, current))) continue;
-            cloud = null;
+        const prepareCloud = Promise.all([
+          supabase?.auth.getSession().catch(() => null),
+          import("./voice-api").catch(() => null),
+        ]);
+        const generate = async (text: string) => {
+          const cache = audioCache.current;
+          const cached = cache.get(text);
+          if (cached) {
+            cache.delete(text);
+            cache.set(text, cached);
+            return cached;
           }
-          if (signal.aborted) return;
-          if (!(await playOnDevice(text, signal, update))) {
-            if (!signal.aborted)
-              toast.info("No se pudo reproducir la voz. Tocá «Escuchar» para volver a intentar.");
-            return;
+          const [session, api] = await prepareCloud;
+          const token = session?.data.session?.access_token;
+          if (signal.aborted || !token || !api) return null;
+          const wav = await api
+            .somVoiceFn({ data: { accessToken: token, text }, signal })
+            .catch(() => null);
+          if (!wav || signal.aborted) return null;
+          cache.set(text, wav);
+          if (cache.size > 4) {
+            const oldest = cache.keys().next().value;
+            if (oldest) cache.delete(oldest);
           }
+          return wav;
+        };
+        const played = await playVoiceQueue(segments, {
+          signal,
+          generate,
+          prepare: () => update("preparing"),
+          playAudio: (wav) => playWav(wav, signal, update, current),
+          playOnDevice: (text) => playOnDevice(text, signal, update),
+        });
+        if (!played && !signal.aborted) {
+          toast.info("No se pudo reproducir la voz. Tocá «Escuchar» para volver a intentar.");
         }
       } catch {
         if (!signal.aborted) toast.info("No se pudo reproducir la voz en este momento.");
       } finally {
         if (playback.current === current) {
+          current.controller.abort();
           playback.current = null;
           setActive(null);
         }

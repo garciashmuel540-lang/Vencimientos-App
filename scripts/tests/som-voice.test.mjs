@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
+import { playVoiceQueue } from "../../src/lib/vigia/ai/voice-queue.ts";
 import {
   selectSpanishMaleVoice,
   speechText,
@@ -86,4 +87,60 @@ test("the voice backend preserves WAV and wraps raw speech PCM correctly", () =>
   assert.deepEqual(decoded.subarray(44), pcm);
   assert.equal(wavFromAudio(wav, "audio/wav"), wav);
   assert.equal(wavFromAudio(pcm.toString("base64"), "text/plain"), null);
+});
+
+test("a short opening clip preserves every word of a long reply", () => {
+  const text = "Café, doce unidades. Leche, siete unidades. ".repeat(8).trim();
+  const parts = splitSpeech(text, 360, 130);
+  assert.ok(parts[0].length <= 130);
+  assert.equal(parts.join(" "), text);
+  assert.deepEqual(splitSpeech("Hola, soy Sôm.", 360, 130), ["Hola, soy Sôm."]);
+});
+
+test("the next clip is requested while the current one plays, in order", async () => {
+  const events = [];
+  const generated = [];
+  const signal = new AbortController().signal;
+  const played = await playVoiceQueue(["uno", "dos", "tres"], {
+    signal,
+    prepare: () => {},
+    generate: async (part) => {
+      generated.push(part);
+      events.push("generar " + part);
+      return part;
+    },
+    playAudio: async (part) => {
+      events.push("leer " + part);
+      if (part === "uno") assert.deepEqual(generated, ["uno", "dos"]);
+      return true;
+    },
+    playOnDevice: async () => assert.fail("unexpected fallback"),
+  });
+  assert.equal(played, true);
+  assert.deepEqual(events, [
+    "generar uno",
+    "generar dos",
+    "leer uno",
+    "generar tres",
+    "leer dos",
+    "leer tres",
+  ]);
+});
+
+test("stopping playback prevents prefetched clips from playing", async () => {
+  const controller = new AbortController();
+  const played = [];
+  const completed = await playVoiceQueue(["uno", "dos"], {
+    signal: controller.signal,
+    prepare: () => {},
+    generate: async (part) => part,
+    playAudio: async (part) => {
+      played.push(part);
+      controller.abort();
+      return false;
+    },
+    playOnDevice: async () => assert.fail("unexpected fallback"),
+  });
+  assert.equal(completed, false);
+  assert.deepEqual(played, ["uno"]);
 });
