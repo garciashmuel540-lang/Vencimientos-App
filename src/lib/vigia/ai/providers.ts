@@ -1,4 +1,3 @@
-import { llamarGemini } from "./gemini";
 import { llamarGroq } from "./groq";
 import { INTERNAL_TOOLS } from "./tools";
 import type { ChatChunk, ChatContext } from "./types";
@@ -24,7 +23,6 @@ function validChunk(chunk: ChatChunk): boolean {
 export async function* streamSom(context: ChatContext): AsyncGenerator<ChatChunk> {
   const providers = [
     { name: "Groq", enabled: process.env.GROQ_API_KEY, ask: llamarGroq },
-    { name: "Gemini", enabled: process.env.GEMINI_API_KEY, ask: llamarGemini },
     {
       name: "Groq 20B",
       enabled: process.env.GROQ_API_KEY,
