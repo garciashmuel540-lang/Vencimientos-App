@@ -8,6 +8,8 @@ export interface RecountItem {
   raw: string;
   candidates: string[];
   stockPreview?: string;
+  notes?: string;
+  suggestedPhysical?: string;
 }
 export interface Recount {
   id: string;

@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
+import { supabase } from "@/lib/supabase";
 import { getDb } from "@/lib/vigia/db";
 import {
   quantity,
@@ -68,6 +69,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     [saved, setSaved] = useState("");
   const [readyImages, setReadyImages] = useState<File[]>([]),
     [sources, setSources] = useState(false);
+  const [useVision, setUseVision] = useState(true);
   const camera = useRef<HTMLInputElement>(null),
     upload = useRef<HTMLInputElement>(null);
   const scanController = useRef<AbortController | null>(null);
@@ -325,7 +327,10 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
         for (const file of Array.from(files ?? [])) images.push(await prepareRecountPhoto(file));
       let scanned = 0;
       const recovered: RecountItem[] = [];
-      await readRecountPhotos(
+      const recoveredText: string[] = [];
+      const session = useVision ? (await supabase?.auth.getSession())?.data.session : null;
+      const reader = session ? await import("@/lib/vigia/recount-vision-api") : null;
+      const { localPages } = await readRecountPhotos(
         images,
         (message) => {
           if (mounted.current) setBusy(message);
@@ -339,6 +344,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
           scanned += items.length;
           if (reread) {
             recovered.push(...items);
+            recoveredText.push(page.text);
             return;
           }
           const latest = current.current ?? original;
@@ -352,6 +358,9 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
           await writeQueue.current;
         },
         controller.signal,
+        reader && session
+          ? (photo) => reader.readRecountVisionFn({ data: { photo, accessToken: session.access_token }, signal: controller.signal })
+          : undefined,
       );
       if (!mounted.current) return;
       if (reread && recovered.length) {
@@ -367,12 +376,21 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
             remaining.find((old) => item.name === old.name);
           if (!previous) return item;
           matched.add(previous.id);
-          return { ...item, id: previous.id, physical: previous.physical };
+          return {
+            ...item, id: previous.id, physical: previous.physical,
+            system: item.system || previous.system,
+            notes: item.notes ?? previous.notes,
+            suggestedPhysical: item.suggestedPhysical ?? previous.suggestedPhysical,
+          };
         });
-        const preserved = original.items.filter(
-          (item) => !matched.has(item.id) && (item.physical !== "" || !item.raw),
-        );
-        persist({ ...original, reviewed: false, items: [...items, ...preserved] });
+        const preserved = original.items.filter((item) => !matched.has(item.id));
+        persist({
+          ...original, reviewed: false, items: [...items, ...preserved],
+          rawText: recoveredText.filter(Boolean).join("\n\n") || original.rawText,
+        });
+      }
+      if (useVision && localPages > 0) {
+        toast.info(`Se usó la lectura local en ${localPages} ${localPages === 1 ? "página" : "páginas"}.`);
       }
       toast.info(
         scanned
@@ -589,9 +607,18 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                 <div className="rounded-2xl border bg-card p-4 space-y-3">
                   <h2 className="font-semibold">Escanear documento</h2>
                   <p className="text-sm text-muted-foreground">
-                    Fotografiá todas las columnas, especialmente código y existencias del sistema.
-                    Podés agregar varias páginas.
+                    Fotografiá todas las columnas. Podés agregar varias páginas.
                   </p>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input type="checkbox" className="mt-1 accent-primary" checked={useVision}
+                      onChange={(event) => setUseVision(event.target.checked)} />
+                    <span>
+                      <span className="font-medium">Lectura con IA</span>
+                      <span className="block text-xs text-muted-foreground">
+                        La foto se envía a Groq para interpretar la tabla y las anotaciones. Desmarcá para leerla en este dispositivo.
+                      </span>
+                    </span>
+                  </label>
                   <div className="flex flex-wrap gap-2">
                     <Button className="gap-2" onClick={() => camera.current?.click()}>
                       <Camera className="size-4" />
@@ -777,6 +804,17 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                         )}
                       </label>
                     </div>
+                    {item.notes && (
+                      <p className="break-words rounded-lg bg-muted p-2 text-xs text-muted-foreground">
+                        <strong>Nota manuscrita</strong> {item.notes}
+                      </p>
+                    )}
+                    {!item.physical.trim() && item.suggestedPhysical !== undefined && (
+                      <Button type="button" variant="outline" size="sm" className="w-full"
+                        onClick={() => updateItem(item.id, { physical: item.suggestedPhysical ?? "" })}>
+                        Usar {item.suggestedPhysical} como conteo físico
+                      </Button>
+                    )}
                     {doc.reviewed && (
                       <RecountCounter
                         name={item.name}

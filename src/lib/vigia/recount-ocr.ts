@@ -179,17 +179,40 @@ export async function readRecountPhotos(
   onProgress: (message: string) => void,
   onPage: (page: ScannedPage, index: number) => Promise<void>,
   signal?: AbortSignal,
+  readVision?: (image: string) => Promise<Omit<RecountItem, "id">[] | null>,
 ) {
   const base = new URL("/ocr/", window.location.origin).href;
-  const worker = await createWorker("spa", 1, {
-    workerPath: base + "worker.min.js",
-    corePath: base,
-    langPath: base,
-  });
+  let localWorker: Worker | undefined;
+  let visionPages = 0;
+  let localPages = 0;
   try {
     for (let i = 0; i < images.length; i++) {
       signal?.throwIfAborted();
-      onProgress(`Leyendo página ${i + 1} de ${images.length}…`);
+      if (readVision) {
+        onProgress(`Analizando con IA la página ${i + 1} de ${images.length}…`);
+        let rows: Omit<RecountItem, "id">[] | null = null;
+        try {
+          rows = await readVision(images[i]);
+        } catch {
+          // A provider or network failure falls back to the local reader for this page.
+        }
+        signal?.throwIfAborted();
+        if (rows?.length) {
+          const items = rows.map((row) => ({ ...row, id: crypto.randomUUID() }));
+          await onPage({
+            text: items.map((row) => [row.raw, row.notes].filter(Boolean).join(" · Nota: ")).join("\n"),
+            words: [], items,
+          }, i);
+          visionPages++;
+          continue;
+        }
+      }
+      onProgress(`Leyendo en el dispositivo la página ${i + 1} de ${images.length}…`);
+      const worker = localWorker ??= await createWorker("spa", 1, {
+        workerPath: base + "worker.min.js",
+        corePath: base,
+        langPath: base,
+      });
       const bitmap = await createImageBitmap(await (await fetch(images[i])).blob());
       const canvas = document.createElement("canvas");
       canvas.width = bitmap.width;
@@ -218,13 +241,15 @@ export async function readRecountPhotos(
           signal,
         );
         await onPage({ text: data.text, words, items }, i);
+        localPages++;
       } finally {
         canvas.width = canvas.height = 0;
       }
     }
   } finally {
-    await worker.terminate();
+    await localWorker?.terminate();
   }
+  return { visionPages, localPages };
 }
 
 export async function prepareRecountPhoto(file: Blob): Promise<string> {
