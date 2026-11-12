@@ -1,32 +1,30 @@
 type VoiceQueue = {
   signal: AbortSignal;
-  generate: ((text: string) => Promise<string | null>) | null;
+  generate: (text: string) => Promise<string | null>;
   playAudio: (audio: string) => Promise<boolean>;
   playOnDevice: (text: string) => Promise<boolean>;
   prepare: () => void;
 };
 
-export async function playVoiceQueue(segments: string[], queue: VoiceQueue): Promise<boolean> {
-  const { signal, playAudio, playOnDevice, prepare } = queue;
-  let generate = queue.generate;
-  let nextAudio = !signal.aborted && segments.length ? generate?.(segments[0]) : undefined;
+export async function playVoiceQueue(
+  segments: string[],
+  queue: VoiceQueue,
+  startIndex = 0,
+): Promise<number> {
+  const { signal, generate, playAudio, playOnDevice, prepare } = queue;
+  let nextAudio =
+    !signal.aborted && startIndex < segments.length ? generate(segments[startIndex]) : undefined;
 
-  for (let index = 0; index < segments.length; index++) {
-    if (signal.aborted) return false;
+  for (let index = startIndex; index < segments.length; index++) {
+    if (signal.aborted) return index;
     prepare();
     const audio = await nextAudio;
-    if (signal.aborted) return false;
+    if (signal.aborted) return index;
 
-    if (audio) {
-      // Keep at most one segment ahead so generation overlaps playback.
-      nextAudio = index + 1 < segments.length ? generate?.(segments[index + 1]) : undefined;
-      if (await playAudio(audio)) continue;
-    }
-
-    if (signal.aborted) return false;
-    generate = null;
-    nextAudio = undefined;
-    if (!(await playOnDevice(segments[index]))) return false;
+    // Keep at most one segment ahead so generation overlaps playback.
+    nextAudio = index + 1 < segments.length ? generate(segments[index + 1]) : undefined;
+    if (audio && (await playAudio(audio))) continue;
+    if (signal.aborted || !(await playOnDevice(segments[index]))) return index;
   }
-  return true;
+  return segments.length;
 }

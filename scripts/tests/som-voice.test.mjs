@@ -116,7 +116,7 @@ test("the next clip is requested while the current one plays, in order", async (
     },
     playOnDevice: async () => assert.fail("unexpected fallback"),
   });
-  assert.equal(played, true);
+  assert.equal(played, 3);
   assert.deepEqual(events, [
     "generar uno",
     "generar dos",
@@ -141,6 +141,52 @@ test("stopping playback prevents prefetched clips from playing", async () => {
     },
     playOnDevice: async () => assert.fail("unexpected fallback"),
   });
-  assert.equal(completed, false);
+  assert.equal(completed, 0);
   assert.deepEqual(played, ["uno"]);
+});
+
+test("a device fallback for one sentence keeps cloud audio available for the next", async () => {
+  const played = [];
+  const unread = await playVoiceQueue(
+    ["Inventario listo.", "Hay 50 unidades.", "Resumen de inventario."],
+    {
+      signal: new AbortController().signal,
+      prepare: () => {},
+      generate: async (part) => (part === "Hay 50 unidades." ? null : part),
+      playAudio: async (part) => {
+        played.push(["cloud", part]);
+        return true;
+      },
+      playOnDevice: async (part) => {
+        played.push(["device", part]);
+        return true;
+      },
+    },
+  );
+  assert.equal(unread, 3);
+  assert.deepEqual(played, [
+    ["cloud", "Inventario listo."],
+    ["device", "Hay 50 unidades."],
+    ["cloud", "Resumen de inventario."],
+  ]);
+});
+
+test("retrying a failed segment resumes without rereading the opening paragraph", async () => {
+  const parts = ["Resumen de inventario.", "Disponible: 50.", "Vencidos: 0."];
+  const played = [];
+  const queue = {
+    signal: new AbortController().signal,
+    prepare: () => {},
+    generate: async (part) => (part === parts[1] ? null : part),
+    playAudio: async (part) => {
+      played.push(part);
+      return true;
+    },
+    playOnDevice: async () => false,
+  };
+  const unread = await playVoiceQueue(parts, queue);
+  assert.equal(unread, 1);
+  const end = await playVoiceQueue(parts, { ...queue, generate: async (part) => part }, unread);
+  assert.equal(end, parts.length);
+  assert.deepEqual(played, parts);
 });

@@ -104,6 +104,7 @@ export function useSomVoice(open: boolean) {
   const [auto, setAuto] = useState(false);
   const [active, setActive] = useState<{ index: number; status: VoiceStatus } | null>(null);
   const playback = useRef<Playback | null>(null);
+  const interrupted = useRef<{ index: number; text: string; offset: number } | null>(null);
   const audioCache = useRef(new Map<string, string>());
 
   useEffect(() => {
@@ -118,6 +119,7 @@ export function useSomVoice(open: boolean) {
     const current = playback.current;
     playback.current = null;
     current?.controller.abort();
+    interrupted.current = null;
     setActive(null);
   }, []);
 
@@ -145,8 +147,11 @@ export function useSomVoice(open: boolean) {
         playback.current.resume();
         return;
       }
+      const text = speechText(element);
+      const previous = interrupted.current;
+      const offset = previous?.index === index && previous.text === text ? previous.offset : 0;
       stop();
-      const segments = splitSpeech(speechText(element), SPEECH_SEGMENT_LENGTH, 130);
+      const segments = splitSpeech(text, SPEECH_SEGMENT_LENGTH, 130);
       if (!segments.length) return;
       const current: Playback = { index, controller: new AbortController() };
       playback.current = current;
@@ -182,15 +187,25 @@ export function useSomVoice(open: boolean) {
           }
           return wav;
         };
-        const played = await playVoiceQueue(segments, {
-          signal,
-          generate,
-          prepare: () => update("preparing"),
-          playAudio: (wav) => playWav(wav, signal, update, current),
-          playOnDevice: (text) => playOnDevice(text, signal, update),
-        });
-        if (!played && !signal.aborted) {
-          toast.info("No se pudo reproducir la voz. Tocá «Escuchar» para volver a intentar.");
+        const unread = await playVoiceQueue(
+          segments,
+          {
+            signal,
+            generate,
+            prepare: () => update("preparing"),
+            playAudio: (wav) => playWav(wav, signal, update, current),
+            playOnDevice: (text) => playOnDevice(text, signal, update),
+          },
+          offset,
+        );
+        if (unread < segments.length && !signal.aborted) {
+          interrupted.current = { index, text, offset: unread };
+          audioCache.current.delete(segments[unread]);
+          toast.info(
+            unread > 0
+              ? "Se pausó la voz. Tocá «Escuchar» para continuar."
+              : "No se pudo reproducir la voz. Tocá «Escuchar» para volver a intentar.",
+          );
         }
       } catch {
         if (!signal.aborted) toast.info("No se pudo reproducir la voz en este momento.");

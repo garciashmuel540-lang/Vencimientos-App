@@ -30,12 +30,12 @@ export function wavFromAudio(data: string, mime = ""): string | null {
   return Buffer.concat([header, pcm]).toString("base64");
 }
 
-async function requestVoice(key: string, path: string, payload: unknown) {
+async function requestVoice(key: string, path: string, payload: unknown, timeoutMs: number) {
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(9000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
     void response.body?.cancel().catch(() => {});
@@ -54,18 +54,25 @@ export async function synthesizeSomVoice(text: string): Promise<string | null> {
     {
       name: "Gemini Flash-Lite TTS",
       run: async () => {
-        const result = (await requestVoice(key, "interactions", {
-          model: "gemini-3.8-flash-lite-tts",
-          store: false,
-          input: [
-            {
-              type: "user_input",
-              content: [{ type: "text", text, annotations: [{ type: "speech_metadata", style }] }],
-            },
-          ],
-          response_format: { type: "audio", mime_type: "audio/wav" },
-          generation_config: { speech_config: [{ voice: somVoice }] },
-        })) as { steps?: { type?: string; content?: AudioPart[] }[] };
+        const result = (await requestVoice(
+          key,
+          "interactions",
+          {
+            model: "gemini-3.8-flash-lite-tts",
+            store: false,
+            input: [
+              {
+                type: "user_input",
+                content: [
+                  { type: "text", text, annotations: [{ type: "speech_metadata", style }] },
+                ],
+              },
+            ],
+            response_format: { type: "audio", mime_type: "audio/wav" },
+            generation_config: { speech_config: [{ voice: somVoice }] },
+          },
+          9_000,
+        )) as { steps?: { type?: string; content?: AudioPart[] }[] };
         const part = result.steps
           ?.filter((step) => step.type === "model_output")
           .flatMap((step) => step.content ?? [])
@@ -88,6 +95,8 @@ export async function synthesizeSomVoice(text: string): Promise<string | null> {
               speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: somVoice } } },
             },
           },
+          // This fallback needs more time to render long segments.
+          25_000,
         )) as {
           candidates?: {
             content?: { parts?: { inlineData?: { data?: string; mimeType?: string } }[] };
