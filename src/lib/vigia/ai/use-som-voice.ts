@@ -74,7 +74,7 @@ function playOnDevice(text: string, signal: AbortSignal, update: (status: VoiceS
     utterance.voice = voice;
     utterance.lang = voice.lang;
     utterance.rate = 0.94;
-    utterance.pitch = 1.02;
+    utterance.pitch = 1.1;
     const finish = (played: boolean) => {
       signal.removeEventListener("abort", abort);
       utterance.onstart = null;

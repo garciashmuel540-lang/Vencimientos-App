@@ -1,8 +1,8 @@
 import { firstModelResult } from "./fallback";
 
-const somVoice = "Algieba";
+const somVoice = "Puck";
 const style =
-  "En español latinoamericano, con una voz masculina, tierna, suave y natural. Leé solo el texto, con ritmo tranquilo y números claros. Sôm se pronuncia som.";
+  "Leé únicamente el texto en español latinoamericano con voz masculina de adulto joven, ligera, tierna y natural. Soná como si sonrieras un poquito, con calidez, alegría suave y un ritmo conversado. Pronunciá los números con claridad. Sôm se pronuncia som.";
 
 type AudioPart = { type?: string; data?: string; mime_type?: string };
 
