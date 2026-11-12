@@ -117,7 +117,7 @@ export function AppSidebar({ open, onClose }: Props) {
                 <History className="size-4 shrink-0 text-primary" /> Movimientos
               </Link>
               <button type="button" className={shortcutClass} onClick={() => { onClose(); openChat(); }}>
-                <MessageCircle className="size-4 shrink-0 text-primary" /> Consultar a Som
+                <MessageCircle className="size-4 shrink-0 text-primary" /> Consultar a Sôm
               </button>
             </div>
           </div>

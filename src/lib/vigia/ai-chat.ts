@@ -1,4 +1,4 @@
-/** Orquesta la respuesta de Som y su proveedor de respaldo. */
+/** Orquesta la respuesta de Sôm y su proveedor de respaldo. */
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import type { ChatContext, ChatChunk } from "./ai/types";
@@ -18,7 +18,7 @@ export const askVigiaFn = createServerFn({ method: "POST" })
       throw new Error("Falta la pregunta.");
     }
     if (typeof input.accessToken !== "string" || !input.accessToken) {
-      throw new Error("Iniciá sesión para consultar a Som.");
+      throw new Error("Iniciá sesión para consultar a Sôm.");
     }
     return {
       accessToken: input.accessToken,
@@ -59,7 +59,7 @@ export const askVigiaFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<ReadableStream<string>> => {
     const url = import.meta.env.VITE_SUPABASE_URL;
     const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    if (!url || !key) throw new Error("La conexión de Som no está configurada.");
+    if (!url || !key) throw new Error("La conexión de Sôm no está configurada.");
     const supabase = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -67,7 +67,7 @@ export const askVigiaFn = createServerFn({ method: "POST" })
       data: { user },
       error,
     } = await supabase.auth.getUser(data.accessToken);
-    if (error || !user) throw new Error("Volvé a iniciar sesión para consultar a Som.");
+    if (error || !user) throw new Error("Volvé a iniciar sesión para consultar a Sôm.");
 
     return new ReadableStream<string>({
       async start(controller) {

@@ -72,19 +72,21 @@ export async function listCloudRecounts(userId: string): Promise<RecountSummary[
     if (data.length < 500) return result;
   }
 }
-export async function listRecountItems(userId: string) {
+export async function listRecountItems(userId: string, options: { date?: string; limit?: number } = {}) {
   if (!supabase) throw new Error("Supabase no configurado");
   type CountItem = Pick<RecountItem, "name" | "code" | "category" | "system" | "physical">;
   const result: (RecountSummary & { items: CountItem[] })[] = [];
   const size = 25;
   for (let start = 0; ; start += size) {
-    const { data, error } = await supabase
-      .from(table)
-      .select(`${fields},items:payload->items`)
-      .eq("user_id", userId)
+    const remaining = options.limit === undefined ? size : Math.min(size, options.limit - start);
+    if (remaining <= 0) return result;
+    const query = supabase.from(table).select(`${fields},items:payload->items`).eq("user_id", userId);
+    const filtered = options.date ? query.eq("count_date", options.date) : query;
+    const { data, error } = await filtered
       .order("count_date", { ascending: false })
+      .order("updated_at", { ascending: false })
       .order("id")
-      .range(start, start + size - 1);
+      .range(start, start + remaining - 1);
     if (error) throw error;
     for (const row of data as (SummaryRow & { items: RecountItem[] | null })[]) {
       const items = (row.items ?? []).map(({ name, code, category, system, physical }) => ({

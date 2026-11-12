@@ -95,6 +95,6 @@ export async function* streamSom(context: ChatContext): AsyncGenerator<ChatChunk
   yield {
     type: "error",
     content:
-      "La IA de Som no está disponible en este momento. Podés consultar directamente los vencimientos de hoy, el resumen del inventario o qué faltó en el último recuento.",
+      "La IA de Sôm no está disponible en este momento. Podés consultar directamente los vencimientos de hoy, el resumen del inventario o qué faltó en el último recuento.",
   };
 }

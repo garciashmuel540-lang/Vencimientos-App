@@ -59,7 +59,7 @@ export function PageHeader({
         <button
           type="button"
           id="som-page-trigger"
-          aria-label="Chat con Som"
+          aria-label="Chat con Sôm"
           aria-haspopup="dialog"
           aria-expanded={open}
           style={{ visibility: open ? "hidden" : undefined }}

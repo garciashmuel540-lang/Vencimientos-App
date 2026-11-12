@@ -29,7 +29,13 @@ export function Mascot({
   const paint = (part: string) => "url(#" + id + "-" + part + ")";
 
   return (
-    <div className={cn("relative inline-flex flex-col items-center gap-2", className)}>
+    <div
+      className={cn(
+        "relative inline-flex flex-col items-center gap-2",
+        mood === "thinking" && "som-pondering",
+        className,
+      )}
+    >
       {showBubble && (
         <span className={cn("som-thought", thought && "som-thought-visible")} aria-hidden="true">
           {thought ?? expressions[mood]}
@@ -41,9 +47,9 @@ export function Mascot({
         viewBox="0 0 100 100"
         className="som-figure select-none"
         role="img"
-        aria-label="Som, la naranja de Vigía"
+        aria-label="Sôm, la naranja de Vigía"
       >
-        <title>Som, la naranja de Vigía</title>
+        <title>Sôm, la naranja de Vigía</title>
         <defs>
           <radialGradient id={id + "-peel"} cx=".32" cy=".27" r=".76">
             <stop stopColor="#fff4ad" />
@@ -150,15 +156,35 @@ export function Mascot({
             <rect x="52" y="44" width="25" height="20" rx="8" />
             <path d="M48 52q2-4 4 0M23 49l-6-2m60 2 6-2" />
           </g>
+          {mood === "thinking" && (
+            <g>
+              <path
+                className="som-thinking-brow"
+                d="M56 40q7-5 14-1"
+                fill="none"
+                stroke="#613621"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <path
+                className="som-thinking-hand"
+                d="M79 70c-8 4-13 6-20 4-3-1-3-5 0-6l8-1 7-6"
+                fill={paint("peel")}
+                stroke="#b65a29"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </g>
+          )}
           <path
-            className={mood === "sleeping" ? undefined : "som-smile"}
+            className={mood === "happy" || mood === "wave" ? "som-smile" : undefined}
             d={mood === "thinking" ? "M47 69q3-3 7-1" : "M43 68q7 8 14 0"}
             fill="none"
             stroke="#613621"
             strokeWidth="2.4"
             strokeLinecap="round"
           />
-          {mood !== "sleeping" && (
+          {(mood === "happy" || mood === "wave") && (
             <path
               className="som-silly-face"
               opacity="0"

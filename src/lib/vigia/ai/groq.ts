@@ -45,7 +45,9 @@ export async function* llamarGroq(ctx: ChatContext, model = MODEL): AsyncGenerat
       tools: convertToolsToGroq(INTERNAL_TOOLS),
       tool_choice: "auto",
       temperature: 0.3,
-      max_completion_tokens: 2048,
+      max_completion_tokens: /\b(tabla|comparar|comparativo|analiz[aá])\b/i.test(ctx.question)
+        ? 3072
+        : 2048,
       reasoning_effort: "low",
       include_reasoning: false,
       stream: true,

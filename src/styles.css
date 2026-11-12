@@ -273,6 +273,14 @@ html.dark .som-hero { background-image:radial-gradient(ellipse at 100% 85%, #ffa
 .som-pupils { animation:som-look 7s ease-in-out infinite; }
 .som-silly-face { animation:som-silly 7s ease-in-out infinite; }
 .som-smile { animation:som-smile 7s ease-in-out infinite; }
+.som-pondering .som-body { animation: som-ponder 2.7s ease-in-out infinite; }
+.som-pondering .som-pupils { transform:translate(2px,-2px); animation: som-consider 2.7s ease-in-out infinite; }
+.som-thinking-brow { animation: som-raise-brow 2.7s ease-in-out infinite; }
+.som-thinking-hand { transform-origin: 77px 69px; animation: som-chin-tap 2.7s ease-in-out infinite; }
+@keyframes som-ponder { 38%, 65% { transform: translateY(-1px) rotate(-7deg); } }
+@keyframes som-consider { 0%, 100% { transform: translate(2px,-2px); } 40%, 65% { transform:translate(-2px,-3px); } }
+@keyframes som-raise-brow { 40%, 65% { transform: translateY(-2px); } }
+@keyframes som-chin-tap { 40%, 65% { transform: rotate(9deg); } }
 @keyframes som-look { 0%, 20%, 60%, 100% { transform:translateX(0); } 28%, 43% { transform:translateX(2px); } 47%, 53% { transform:translateX(-2px); } }
 @keyframes som-silly { 0%, 65%, 86%, 100% { opacity:0; } 70%, 82% { opacity:1; } }
 @keyframes som-smile { 0%, 65%, 86%, 100% { opacity:1; } 70%, 82% { opacity:0; } }

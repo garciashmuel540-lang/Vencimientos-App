@@ -149,7 +149,7 @@ export function ProductSheet({
                   }}
                 >
                   <Sparkles className="size-4" />
-                  Preguntarle a Som
+                  Preguntarle a Sôm
                 </Button>
                 <Button
                   size="lg"

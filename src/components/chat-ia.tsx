@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mascot } from "@/components/mascot";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Send, X, Loader2 } from "lucide-react";
+import { Send, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ import { getDb } from "@/lib/vigia/db";
 import { compareRecount, quantity } from "@/lib/vigia/recounts";
 import { localIntent } from "@/lib/vigia/ai/local-intent";
 import { runSomQuery } from "@/lib/vigia/ai/client-queries";
+import { chooseChatSources } from "@/lib/vigia/ai/chat-sources";
+import { markdownTable } from "@/lib/vigia/ai/markdown-table";
 import { ranked, relevance } from "@/lib/vigia/ai/context";
 import { productStatus, statusOf } from "@/lib/vigia/dates";
 import { askVigiaFn, type ChatProduct } from "@/lib/vigia/ai-chat";
@@ -33,6 +35,7 @@ import { toShortEmail } from "@/lib/auth/user-utils";
 import { searchCatalogRAG } from "@/lib/data/catalog-rag";
 import {
   pullAllFSCounts,
+  pullFSCountsByDate,
   pushFSCount,
   todayISO,
   type FSCountRow,
@@ -55,7 +58,7 @@ const STOP_WORDS = new Set([
 const SUGGESTIONS = [
   "¿Qué se vence esta semana?",
   "Agrega una Coca-Cola que vence el 30/11/2026, 5 unidades",
-  "Dame un resumen del inventario",
+  "Dame un resumen del inventario en una tabla",
   "¿Qué hago con los vencidos?",
 ];
 
@@ -128,7 +131,6 @@ export function ChatIA() {
     args: Record<string, unknown>;
     label: string;
   } | null>(null);
-  const [fsCounts, setFsCounts] = useState<FSCountRow[]>([]);
   const [userEmails, setUserEmails] = useState<Map<string, string>>(new Map());
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -145,19 +147,12 @@ export function ChatIA() {
     }
   }, [messages, loading]);
 
-  // Cargar conteos de FS y mapa de emails al abrir el chat
+  // Los conteos se consultan cuando la pregunta los necesita.
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
     let cancelled = false;
     void (async () => {
       try {
-        const counts = await pullAllFSCounts();
-        if (!cancelled) {
-          console.info(`[chat-ia] FS counts cargados: ${counts.length}`);
-          setFsCounts(counts);
-        }
-
-        const { supabase } = await import("@/lib/supabase");
         if (supabase) {
           const { data, error } = await supabase.rpc("get_user_emails");
           if (!error && Array.isArray(data)) {
@@ -205,7 +200,7 @@ export function ChatIA() {
     });
   }
 
-  async function runAction(name: string, args: Record<string, unknown>) {
+  async function runAction(name: string, args: Record<string, unknown>, requestCounts?: FSCountRow[]) {
     const local = await runSomQuery(name, args);
     if (local !== undefined) return local;
     const store = useVigiaStore.getState();
@@ -386,33 +381,11 @@ export function ChatIA() {
         return `⚠️ No encontré "${query}" en el catálogo. Prueba con otro nombre.`;
       }
 
-      const lineas = results
-        .slice(0, 8)
-        .map((r) => {
-          // priceC es el precio CON IVA (al público). price es SIN IVA.
-          const conIva =
-            typeof r.priceC === "number"
-              ? `C$ ${r.priceC.toFixed(2)}`
-              : null;
-          const sinIva =
-            typeof r.price === "number"
-              ? `C$ ${r.price.toFixed(2)}`
-              : null;
-          let priceTxt: string;
-          if (conIva && sinIva) {
-            priceTxt = `${conIva} con IVA (${sinIva} sin IVA)`;
-          } else if (conIva) {
-            priceTxt = `${conIva} con IVA`;
-          } else if (sinIva) {
-            priceTxt = `${sinIva} sin IVA`;
-          } else {
-            priceTxt = "sin precio";
-          }
-          return `- **${r.name}**${r.brand ? ` (${r.brand})` : ""}: ${priceTxt}`;
-        })
-        .join("\n");
-
-      return `📋 Encontré ${results.length} producto(s) en el catálogo:\n${lineas}`;
+      const price = (value?: number) => typeof value === "number" ? `C$ ${value.toFixed(2)}` : null;
+      const table = markdownTable(["Producto", "Código", "Con IVA", "Sin IVA"], results.slice(0, 8).map((r) => [
+        r.name, r.barcode, price(r.priceC), price(r.price),
+      ]));
+      return `**Resultados del catálogo**\n\n${table}`;
     }
 
     // 7. FOOD SERVICE: consultar último conteo de un producto
@@ -443,7 +416,7 @@ export function ChatIA() {
       }
 
       const product = matches[0];
-      const productCounts = fsCounts
+      const productCounts = (requestCounts ?? await pullAllFSCounts())
         .filter((c) => c.product_code === product.code)
         .sort((a, b) => (b.count_date ?? "").localeCompare(a.count_date ?? ""));
 
@@ -500,51 +473,24 @@ export function ChatIA() {
         ? args.date
         : todayISO();
 
-      const dayCounts = fsCounts.filter((c) => c.count_date === date);
+      const dayCounts = requestCounts
+        ? requestCounts.filter((c) => c.count_date === date)
+        : await pullFSCountsByDate(date);
       if (dayCounts.length === 0) {
         return `📋 No tengo conteos guardados del **${date}**.`;
       }
 
-      const renderCount = (c: typeof dayCounts[0]) => {
-        const product = FS_PRODUCTS.find((p) => p.code === c.product_code);
-        if (!product) {
-          return `- ${c.product_name}: ${c.opened ?? "-"} / ${c.sealed ?? "-"} / ${c.system_qty ?? "-"}`;
-        }
-        const calc = calcFSItem(product, {
-          opened: c.opened,
-          sealed: c.sealed,
-          system_qty: c.system_qty,
-        });
-        return `- **${c.product_name}**: ${calc.label}`;
-      };
-
-      // Agrupar por usuario
-      const byUser = new Map<string, typeof dayCounts>();
-      for (const c of dayCounts) {
-        const uid = c.user_id ?? "unknown";
-        const arr = byUser.get(uid) ?? [];
-        arr.push(c);
-        byUser.set(uid, arr);
-      }
-
-      const lines: string[] = [];
-      if (byUser.size === 1) {
-        const sorted = [...dayCounts].sort((a, b) =>
-          a.product_name.localeCompare(b.product_name),
-        );
-        for (const c of sorted) lines.push(renderCount(c));
-      } else {
-        for (const [uid, counts] of byUser) {
-          const email = userEmails.get(uid) ?? uid;
-          lines.push(`\n👤 **${email}** (${counts.length} productos):`);
-          const sorted = [...counts].sort((a, b) =>
-            a.product_name.localeCompare(b.product_name),
-          );
-          for (const c of sorted) lines.push(renderCount(c));
-        }
-      }
-
-      return `📋 Conteos del ${date} (${dayCounts.length} productos):\n${lines.join("\n")}`;
+      const multipleUsers = new Set(dayCounts.map((row) => row.user_id)).size > 1;
+      const headers = ["Producto", ...(multipleUsers ? ["Usuario"] : []), "Abiertos", "Sellados", "Sistema", "Resultado"];
+      const rows = [...dayCounts].sort((a, b) => a.product_name.localeCompare(b.product_name)).map((row) => {
+        const product = FS_PRODUCTS.find((p) => p.code === row.product_code);
+        const result = product ? calcFSItem(product, row) : null;
+        return [
+          row.product_name, ...(multipleUsers ? [userEmails.get(row.user_id) ?? row.user_id] : []),
+          row.opened, row.sealed, row.system_qty, result?.label,
+        ];
+      });
+      return `**Conteos del ${date}**\n\n${markdownTable(headers, rows)}`;
     }
 
     // 9. FOOD SERVICE: comparar entre usuarios (solo admin)
@@ -553,7 +499,9 @@ export function ChatIA() {
         ? args.date
         : todayISO();
 
-      const dayCounts = fsCounts.filter((c) => c.count_date === date);
+      const dayCounts = requestCounts
+        ? requestCounts.filter((c) => c.count_date === date)
+        : await pullFSCountsByDate(date);
       if (dayCounts.length === 0) {
         return `📋 No hay conteos del **${date}** para comparar.`;
       }
@@ -625,7 +573,7 @@ export function ChatIA() {
       const date = todayISO();
 
       try {
-        const saved = await pushFSCount({
+        await pushFSCount({
           product_code: product.code,
           product_name: product.name,
           category: product.category,
@@ -636,18 +584,6 @@ export function ChatIA() {
           sealed,
           system_qty: system,
           count_date: date,
-        });
-
-        // Actualizar el estado local (quitar el anterior del mismo producto/fecha)
-        setFsCounts((prev) => {
-          const filtered = prev.filter(
-            (c) =>
-              !(
-                c.product_code === saved.product_code &&
-                c.count_date === saved.count_date
-              ),
-          );
-          return [...filtered, saved];
         });
 
         // Calcular para mostrar el resultado
@@ -691,7 +627,7 @@ export function ChatIA() {
         return;
       }
       const session = (await supabase?.auth.getSession())?.data.session;
-      if (!session) throw new Error("Iniciá sesión para consultar a Som.");
+      if (!session) throw new Error("Iniciá sesión para consultar a Sôm.");
       const now = new Date();
       const localTime = { timeZone: "America/Managua" };
       const today = new Intl.DateTimeFormat("en-CA", {
@@ -722,51 +658,39 @@ export function ChatIA() {
         const category = product.category ?? "otros";
         stats.byCategory[category] = (stats.byCategory[category] ?? 0) + product.quantity;
       }
+      const scope = chooseChatSources(q, previousQuestion);
       const sources = Promise.allSettled([
-        pullAllFSCounts(),
-        listRecountItems(session.user.id),
+        scope.foodService ? pullAllFSCounts() : Promise.resolve(undefined),
+        scope.recounts ? listRecountItems(session.user.id) : Promise.resolve(undefined),
         getDb().promotions.toArray(),
         getDb().history.toArray(),
       ] as const);
-
-      // 1) Intentar RAG primero (búsqueda semántica)
-      let catalogMatches: import("@/lib/vigia/ai/types").CatalogMatch[] = [];
-      try {
+      const catalog = (async (): Promise<import("@/lib/vigia/ai/types").CatalogMatch[]> => {
+        if (!scope.catalog) return [];
+        const terms = [...new Set([...keywords, ...previousWords])];
+        const local = await useVigiaStore.getState().searchCatalog(terms).catch(() => []);
+        const direct = local.some((entry) => keywords.includes(entry.barcode) ||
+          relevance(keywords, entry.name, entry.brand) >= (keywords.length <= 2 ? 1 : 2));
+        if (direct) return ranked(local, (entry) =>
+          (keywords.includes(entry.barcode) ? 100 : 0) + score(entry.name, entry.brand), 12);
         const rag = await searchCatalogRAG(q, 8);
-        catalogMatches = rag.results
-          .filter((r) => r.name)
-          .map((r) => ({
-            barcode: r.barcode,
-            name: r.name,
-            brand: r.brand ?? "",
-            price: typeof r.price === "number" ? r.price : undefined,
-            priceC: typeof r.price_c === "number" ? r.price_c : undefined,
-            category: r.category,
-          }));
-        if (catalogMatches.length > 0) {
-          console.info(
-            `[chat-ia] RAG devolvió ${catalogMatches.length} productos`,
-          );
-        }
-      } catch (err) {
-        console.warn("[chat-ia] RAG falló:", err);
-      }
-
-      // 2) Fallback a búsqueda por keyword si RAG no dio nada
-      if (catalogMatches.length === 0) {
-        console.info("[chat-ia] RAG vacío, usando keyword search");
-        catalogMatches = await useVigiaStore.getState().searchCatalog(keywords).catch(() => []);
-      }
-
-      const [counts, recounts, promotions, history] = await sources;
+        const semantic = rag.results.filter((entry) => entry.name).map((entry) => ({
+          barcode: entry.barcode, name: entry.name, brand: entry.brand ?? "",
+          price: typeof entry.price === "number" ? entry.price : undefined,
+          priceC: typeof entry.price_c === "number" ? entry.price_c : undefined,
+          category: entry.category,
+        }));
+        return semantic.length ? semantic : local;
+      })();
+      const [[counts, recounts, promotions, history], catalogMatches] = await Promise.all([sources, catalog]);
       const unavailable = [
         counts.status === "rejected" ? "Food Service" : "",
         recounts.status === "rejected" ? "Recuentos" : "",
         promotions.status === "rejected" ? "Promociones" : "",
         history.status === "rejected" ? "Historial" : "",
       ].filter(Boolean);
-      const fsRows = counts.status === "fulfilled" ? counts.value : fsCounts;
-      if (counts.status === "fulfilled") setFsCounts(fsRows);
+      const requestCounts = counts.status === "fulfilled" ? counts.value : undefined;
+      const fsRows = requestCounts ?? [];
       const fsByCode = new Map(FS_PRODUCTS.map((product) => [product.code, product]));
       const dates = new Set(q.match(/\b\d{4}-\d{2}-\d{2}\b/g) ?? []);
       if (/\bhoy\b/i.test(q)) dates.add(today);
@@ -783,7 +707,8 @@ export function ChatIA() {
         return { product_code, product_name, category, unit, opened, sealed, system_qty, count_date, updated_at,
           inventory: calculated?.inventory, difference: calculated?.difference, status: result?.status };
       });
-      const documents = recounts.status === "fulfilled" ? recounts.value : [];
+      const loadedDocuments = recounts.status === "fulfilled" ? recounts.value : undefined;
+      const documents = loadedDocuments ?? [];
       const rankedDocuments = ranked(documents, (doc) => dateScore(doc.date) + score(doc.title) +
         doc.items.reduce((best, item) => Math.max(best, score(item.name, item.code, item.category)), 0), 12);
       let remainingItems = 120;
@@ -820,9 +745,9 @@ export function ChatIA() {
             fsProducts: FS_PRODUCTS.map(({ code, itemCode, name, category, unit, containerWeight, unitWeight }) =>
               ({ code, itemCode, name, category, unit, containerWeight, unitWeight })),
             fsCounts: fsCountsCtx,
-            fsCountTotal: fsRows.length,
+            fsCountTotal: requestCounts?.length,
             recounts: recountContext,
-            recountTotal: documents.length,
+            recountTotal: loadedDocuments?.length,
             promotions: ranked(promoRows, (promo) => score(promo.name, promo.barcode, promo.category, promoStatus(promo)) +
               (promoStatus(promo) === "activa" ? 1 : 0), 40)
               .map(({ name, barcode, priceBefore, priceNow, startDate, endDate, dynamic, observations }) =>
@@ -871,7 +796,7 @@ export function ChatIA() {
                 label: chunk.confirmationLabel ?? "Confirmar acción",
               });
             } else {
-              const confirm = await runAction(chunk.name, chunk.args);
+              const confirm = await runAction(chunk.name, chunk.args, requestCounts);
               appendToLastModel(`\n\n${confirm}`);
             }
           }
@@ -897,9 +822,9 @@ export function ChatIA() {
             }} className="som-panel no-print fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[80dvh] max-w-xl flex-col rounded-t-2xl border border-border bg-card shadow-2xl">
           <header className="som-panel-heading flex items-center gap-3 rounded-t-2xl border-b border-border px-4 py-2">
             <div className="som-chat-avatar" ref={animateSomArrival}>
-              <Mascot mood={loading ? "thinking" : "happy"} size={44} />
+              <Mascot mood={loading ? "thinking" : "happy"} size={48} />
             </div>
-            <Dialog.Title className="flex-1 text-lg font-bold">Som</Dialog.Title>
+            <Dialog.Title className="flex-1 text-lg font-bold">Sôm</Dialog.Title>
             <Dialog.Close asChild><Button variant="ghost" size="icon" aria-label="Cerrar conversación"><X className="size-5"/></Button></Dialog.Close>
           </header>
           <div
@@ -909,7 +834,7 @@ export function ChatIA() {
             {messages.length === 0 && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  ¡Hola! Soy Som 🍊 Puedo revisar tu inventario, sugerirte qué hacer, y
+                  ¡Hola! Soy Sôm 🍊 Puedo revisar tu inventario, sugerirte qué hacer, y
                   agregar, eliminar o actualizar productos si me lo pides.
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -928,26 +853,31 @@ export function ChatIA() {
             )}
             {messages.map((m, i) => {
               const isLast = i === messages.length - 1;
-              const showCursor = loading && isLast && m.role === "model";
+              if (loading && isLast && m.role === "model" && !m.text) return null;
               return (
                 <div
                   key={i}
                   className={cn(
-                    "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
+                    "min-w-0 rounded-2xl px-3 py-2 text-sm",
                     m.role === "user"
-                      ? "ml-auto bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground [&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5 [&_strong]:font-semibold [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] [&_table]:my-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:border-border/50 [&_th]:bg-black/5 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-border/50 [&_td]:px-2 [&_td]:py-1 [&_h1]:my-1 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:my-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:my-1 [&_h3]:text-sm [&_h3]:font-semibold",
+                      ? "ml-auto max-w-[85%] bg-primary text-primary-foreground"
+                      : "w-fit max-w-full bg-muted text-foreground [&_p]:my-1 [&_ul]:my-1 [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:pl-4 [&_li]:my-0.5 [&_strong]:font-semibold [&_code]:rounded [&_code]:bg-black/10 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:border-border/50 [&_th]:bg-black/5 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-border/50 [&_td]:px-2 [&_td]:py-1 [&_h1]:my-1 [&_h1]:text-base [&_h1]:font-semibold [&_h2]:my-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:my-1 [&_h3]:text-sm [&_h3]:font-semibold",
                   )}
                 >
                   {m.role === "model" ? (
-                    <>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {m.text}
-                      </ReactMarkdown>
-                      {showCursor && (
-                        <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-[vigia-cursor_1s_steps(2,start)_infinite] bg-foreground align-middle" />
-                      )}
-                    </>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        table: ({ children }) => (
+                          <div className="my-2 max-w-full overflow-x-auto rounded-lg border border-border" tabIndex={0}
+                            role="region" aria-label="Tabla de la respuesta de Sôm">
+                            <table className="min-w-full w-max [&_td]:max-w-56 [&_th]:whitespace-nowrap">{children}</table>
+                          </div>
+                        ),
+                      }}
+                    >
+                      {m.text}
+                    </ReactMarkdown>
                   ) : (
                     m.text
                   )}
@@ -955,9 +885,8 @@ export function ChatIA() {
               );
             })}
             {loading && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Pensando…
+              <div role="status" className="flex w-fit items-center gap-3 rounded-2xl border border-border bg-card px-3 py-1.5">
+                <span className="text-xs font-medium text-muted-foreground">Sôm está pensando <span aria-hidden="true">🤔</span></span>
               </div>
             )}
           </div>
@@ -972,7 +901,7 @@ export function ChatIA() {
             }}
           >
             <input
-              aria-label="Mensaje para Som"
+              aria-label="Mensaje para Sôm"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe tu pregunta o pídele algo…"

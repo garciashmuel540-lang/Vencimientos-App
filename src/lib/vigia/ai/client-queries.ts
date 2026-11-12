@@ -7,6 +7,7 @@ import { compareRecount, quantity } from "@/lib/vigia/recounts";
 import { useVigiaStore } from "@/lib/vigia/store";
 import { LOCATION_LABEL } from "@/lib/vigia/types";
 import { normalize } from "./context";
+import { markdownTable } from "./markdown-table";
 
 const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 const limitOf = (value: unknown, fallback: number) =>
@@ -43,12 +44,16 @@ export async function runSomQuery(name: string, args: Record<string, unknown>) {
     const units = products.reduce((total, p) => total + p.quantity, 0);
     const priced = products.filter((p) => typeof p.priceC === "number");
     const value = priced.reduce((total, p) => total + (p.priceC ?? 0) * p.quantity, 0);
-    return (
-      `**${settings.storeName} · ${today}**\n\n- ${products.length} registros y ${units} unidades\n- ${expired} vencidos, ${soon} por vencer y ${products.length - expired - soon} vigentes` +
-      (priced.length
-        ? `\n- Valor con IVA de ${priced.length} registros con precio: ${money(value)}`
-        : "")
-    );
+    const rows: [string, string | number][] = [
+      ["Registros", products.length],
+      ["Unidades", units],
+      ["Vencidos", expired],
+      ["Por vencer", soon],
+      ["Vigentes", products.length - expired - soon],
+    ];
+    if (priced.length)
+      rows.push([`Valor con IVA (${priced.length} registros con precio)`, money(value)]);
+    return `**${settings.storeName} · ${today}**\n\n${markdownTable(["Indicador", "Total"], rows)}`;
   }
 
   if (
@@ -82,12 +87,16 @@ export async function runSomQuery(name: string, args: Record<string, unknown>) {
     if (!list.length) return "No encontré productos con esos filtros en el inventario.";
     const shown = list.slice(0, limitOf(args.limit, 12));
     return (
-      shown
-        .map(
-          (p) =>
-            `- **${p.name}** · ${p.quantity} u. · vence ${formatDate(p.expiresAt)} · ${LOCATION_LABEL[p.location] ?? p.location}${p.barcode ? ` · ${p.barcode}` : ""}`,
-        )
-        .join("\n") + remaining(list.length, shown.length)
+      markdownTable(
+        ["Producto", "Unidades", "Vence", "Ubicación", "Código"],
+        shown.map((p) => [
+          p.name,
+          p.quantity,
+          formatDate(p.expiresAt),
+          LOCATION_LABEL[p.location] ?? p.location,
+          p.barcode || null,
+        ]),
+      ) + remaining(list.length, shown.length)
     );
   }
 
@@ -166,15 +175,16 @@ export async function runSomQuery(name: string, args: Record<string, unknown>) {
       if (!docs.length) return "No encontré recuentos con esos filtros.";
       const shown = docs.slice(0, limitOf(args.limit, 10));
       return (
-        shown
-          .map(
-            (doc) =>
-              `- **${doc.title}** · ${doc.date} · ${doc.measuredCount}/${doc.itemCount} contados`,
-          )
-          .join("\n") + remaining(docs.length, shown.length)
+        markdownTable(
+          ["Recuento", "Fecha", "Contados"],
+          shown.map((doc) => [doc.title, doc.date, `${doc.measuredCount}/${doc.itemCount}`]),
+        ) + remaining(docs.length, shown.length)
       );
     }
-    const docs = (await listRecountItems(user.id))
+    const latest = args.latest === true && !title;
+    const docs = (
+      await listRecountItems(user.id, { date: date || undefined, limit: latest ? 1 : undefined })
+    )
       .filter((doc) => (!date || doc.date === date) && matches(title, doc.title))
       .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt));
     if (!docs.length) return "No encontré recuentos con esos filtros.";
@@ -187,14 +197,24 @@ export async function runSomQuery(name: string, args: Record<string, unknown>) {
         )
           return [];
         return [
-          `- **${item.name}**${item.code ? ` · ${item.code}` : ""} · ${doc.title} (${doc.date}) · físico ${quantity(item.physical) ?? "pendiente"} · sistema ${quantity(item.system) ?? "pendiente"} · ${result.label}`,
+          [
+            item.name,
+            item.code || null,
+            `${doc.title} (${doc.date})`,
+            quantity(item.physical),
+            quantity(item.system),
+            result.label,
+          ],
         ];
       }),
     );
     if (!list.length)
       return `Revisé ${args.latest === true ? `**${docs[0].title}** (${docs[0].date})` : "tus recuentos"} y no encontré ítems con esos filtros.`;
     const shown = list.slice(0, limitOf(args.limit, 12));
-    return shown.join("\n") + remaining(list.length, shown.length);
+    return (
+      markdownTable(["Producto", "Código", "Recuento", "Físico", "Sistema", "Resultado"], shown) +
+      remaining(list.length, shown.length)
+    );
   }
 
   if (name === "listarUsuarios") {
