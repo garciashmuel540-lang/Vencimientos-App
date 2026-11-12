@@ -4,7 +4,14 @@
  */
 import { lookupBarcodeFn } from "./barcode-api";
 import { getDb } from "./db";
-import type { CatalogEntry, LookupResult, ProductCategory } from "./types";
+import {
+  CATEGORY_LABEL,
+  LOCATION_LABEL,
+  type CatalogEntry,
+  type LookupResult,
+  type ProductCategory,
+} from "./types";
+import { suggestProductPlacement } from "./product-placement";
 
 const CACHE_MS = 1000 * 60 * 60 * 24 * 30;
 
@@ -15,6 +22,7 @@ function emptyResult(barcode: string): LookupResult {
     brand: "",
     presentation: "",
     category: "otros",
+    location: "estante",
     image: null,
     source: "manual",
     found: false,
@@ -23,18 +31,23 @@ function emptyResult(barcode: string): LookupResult {
 }
 
 function fromCatalog(entry: CatalogEntry): LookupResult {
+  const placement = suggestProductPlacement(entry);
+  const remembered = entry.location && Object.hasOwn(LOCATION_LABEL, entry.location);
   return {
     barcode: entry.barcode,
     name: entry.name,
     brand: entry.brand,
     presentation: entry.presentation,
-    category: entry.category,
+    ...placement,
+    category:
+      remembered && Object.hasOwn(CATEGORY_LABEL, entry.category)
+        ? (entry.category as ProductCategory)
+        : placement.category,
+    location: remembered ? entry.location : placement.location,
     image: entry.image,
     source: entry.source,
     found:
-      Boolean(entry.name) ||
-      typeof entry.price === "number" ||
-      typeof entry.priceC === "number",
+      Boolean(entry.name) || typeof entry.price === "number" || typeof entry.priceC === "number",
     sourcesTried: ["local"],
     department: entry.department,
     supplier: entry.supplier,
@@ -50,9 +63,12 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
   const code = barcode.replace(/\s/g, "");
   const db = getDb();
 
-  const localProduct = await db.products.filter((p) => p.barcode === code).first();
-  const catalog = await db.catalog.get(code);
-  const cache = await db.apiCache.get(code);
+  const [lots, catalog, cache] = await Promise.all([
+    db.products.where("barcode").equals(code).toArray(),
+    db.catalog.get(code),
+    db.apiCache.get(code),
+  ]);
+  const localProduct = lots.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 
   const localHit = catalog
     ? fromCatalog(catalog)
@@ -63,6 +79,8 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
           brand: localProduct.brand,
           presentation: localProduct.presentation,
           category: localProduct.category,
+          subcategory: localProduct.subcategory,
+          location: localProduct.location !== "estante" ? localProduct.location : undefined,
           image: localProduct.image,
           source: localProduct.source,
           fetchedAt: localProduct.updatedAt,
@@ -70,28 +88,33 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
       : null;
 
   const cacheFresh =
-    cache && Date.now() - new Date(cache.fetchedAt).getTime() < CACHE_MS
-      ? cache.payload
-      : null;
+    cache && Date.now() - new Date(cache.fetchedAt).getTime() < CACHE_MS ? cache.payload : null;
 
-  // PRIORIDAD: catálogo local con precio > caché de API > catálogo local sin precio > API
-  const localHasPrice =
-    localHit &&
-    (typeof localHit.price === "number" || typeof localHit.priceC === "number");
-
-  if (localHasPrice) {
-    return localHit;
-  }
-
-  // Si el catálogo tiene el producto (aunque no tenga precio), usarlo directo
-  // sin llamar a las APIs externas (que pueden tardar o fallar).
   if (localHit) {
+    // Older lots used Estante by default. Reuse a different saved location, or
+    // let catalog/name metadata suggest one when no explicit choice was saved.
+    if (
+      !catalog?.location &&
+      localProduct?.location &&
+      localProduct.location !== "estante" &&
+      Object.hasOwn(LOCATION_LABEL, localProduct.location)
+    ) {
+      return {
+        ...localHit,
+        location: localProduct.location,
+        category:
+          Object.hasOwn(CATEGORY_LABEL, localProduct.category) && localProduct.category !== "otros"
+            ? localProduct.category
+            : localHit.category,
+      };
+    }
     return localHit;
   }
 
   if (cacheFresh?.found) {
     return {
       ...cacheFresh,
+      ...(!cacheFresh.location ? suggestProductPlacement(cacheFresh) : {}),
       sourcesTried: ["cache", ...(cacheFresh.sourcesTried ?? [])],
     };
   }
@@ -110,6 +133,7 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
         brand: remote.brand,
         presentation: remote.presentation,
         category: remote.category,
+        subcategory: remote.subcategory,
         image: remote.image,
         source: remote.source,
         fetchedAt: new Date().toISOString(),
@@ -122,24 +146,34 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
   }
 }
 
-export async function rememberCatalog(entry: {
-  barcode: string;
-  name: string;
-  brand: string;
-  presentation: string;
-  category: ProductCategory;
-  image: string | null;
-  source: CatalogEntry["source"];
-  department?: string;
-  supplier?: string;
-  price?: number;
-  priceC?: number;
-  cost?: number;
-  qtySnapshot?: number;
-  inactive?: boolean;
-}): Promise<void> {
-  await getDb().catalog.put({
-    ...entry,
-    fetchedAt: new Date().toISOString(),
+export async function rememberCatalog(
+  entry: Pick<
+    CatalogEntry,
+    | "barcode"
+    | "name"
+    | "brand"
+    | "presentation"
+    | "category"
+    | "image"
+    | "source"
+    | "subcategory"
+    | "location"
+  >,
+): Promise<void> {
+  const db = getDb();
+  await db.transaction("rw", db.catalog, async () => {
+    const previous = await db.catalog.get(entry.barcode);
+    const subcategory =
+      entry.subcategory ||
+      previous?.subcategory ||
+      (previous && !Object.hasOwn(CATEGORY_LABEL, previous.category)
+        ? previous.category
+        : undefined);
+    await db.catalog.put({
+      ...previous,
+      ...entry,
+      subcategory,
+      fetchedAt: new Date().toISOString(),
+    });
   });
 }

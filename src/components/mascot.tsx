@@ -8,6 +8,7 @@ interface MascotProps {
   className?: string;
   size?: number;
   showBubble?: boolean;
+  thought?: string;
 }
 
 const expressions: Record<MascotMood, string> = {
@@ -17,15 +18,21 @@ const expressions: Record<MascotMood, string> = {
   wave: "👋",
 };
 
-export function Mascot({ mood = "happy", className, size = 120, showBubble = false }: MascotProps) {
+export function Mascot({
+  mood = "happy",
+  className,
+  size = 120,
+  showBubble = false,
+  thought,
+}: MascotProps) {
   const id = useId();
   const paint = (part: string) => "url(#" + id + "-" + part + ")";
 
   return (
     <div className={cn("relative inline-flex flex-col items-center gap-2", className)}>
       {showBubble && (
-        <span className="som-thought" aria-hidden="true">
-          {expressions[mood]}
+        <span className={cn("som-thought", thought && "som-thought-visible")} aria-hidden="true">
+          {thought ?? expressions[mood]}
         </span>
       )}
       <svg

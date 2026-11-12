@@ -117,6 +117,7 @@ export function Scanner({ onDetect, paused, recount = false }: ScannerProps) {
       void stop();
       return;
     }
+    lastCode.current = "";
     void start();
     return () => {
       void stop();

@@ -21,6 +21,11 @@ import {
 } from "@/lib/vigia/types";
 import type { ProductDraft } from "@/lib/vigia/store";
 import { isoDate, todayStart } from "@/lib/vigia/dates";
+import {
+  CATEGORY_EMOJI,
+  LOCATION_EMOJI,
+  suggestProductPlacement,
+} from "@/lib/vigia/product-placement";
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = Object.keys(CATEGORY_LABEL) as ProductCategory[];
@@ -64,6 +69,7 @@ export function ProductForm({
   onSubmit,
   onCancel,
   showPrices = false,
+  scanPlacement = false,
 }: {
   initial: ProductDraft;
   lookingUp?: boolean;
@@ -72,6 +78,7 @@ export function ProductForm({
   onSubmit: (draft: ProductDraft) => Promise<void> | void;
   onCancel?: () => void;
   showPrices?: boolean;
+  scanPlacement?: boolean;
 }) {
   const [draft, setDraft] = useState<ProductDraft>(initial);
   const [quantityInput, setQuantityInput] = useState(() => String(initial.quantity ?? 1));
@@ -79,6 +86,7 @@ export function ProductForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const overrides = useRef({ category: false, location: false });
 
   // Solo resetear el draft si el initial cambia REALMENTE (por identidad de contenido)
   // Esto evita que se resetee cuando el padre re-renderiza
@@ -86,6 +94,7 @@ export function ProductForm({
   useEffect(() => {
     if (lastInitialRef.current !== initial) {
       lastInitialRef.current = initial;
+      overrides.current = { category: false, location: false };
       setDraft(initial);
       setPrices(editPrices(initial));
       setQuantityInput(String(initial.quantity ?? 1));
@@ -94,6 +103,23 @@ export function ProductForm({
 
   function patch<K extends keyof ProductDraft>(key: K, value: ProductDraft[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
+  }
+
+  function updateScanPlacement(changes: Partial<Pick<ProductDraft, "name" | "subcategory">>) {
+    const { category: categorySet, location: locationSet } = overrides.current;
+    setDraft((current) => {
+      const next = { ...current, ...changes };
+      const suggested = suggestProductPlacement({
+        name: next.name,
+        subcategory: next.subcategory,
+        category: categorySet ? next.category : undefined,
+      });
+      return {
+        ...next,
+        category: categorySet ? next.category : suggested.category,
+        location: locationSet ? next.location : suggested.location,
+      };
+    });
   }
 
   async function handleImage(file: File | undefined) {
@@ -138,7 +164,9 @@ export function ProductForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {foundFromApi ? (
         <p className="rounded-md bg-ok-soft px-3 py-2 text-sm text-ok">
-          Encontramos este producto. Revisa los datos y agrega la fecha de vencimiento.
+          {scanPlacement
+            ? "Producto identificado. Revisá la categoría y ubicación sugeridas antes de guardar."
+            : "Encontramos este producto. Revisa los datos y agrega la fecha de vencimiento."}
         </p>
       ) : lookingUp ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -162,7 +190,11 @@ export function ProductForm({
           <Input
             id="name"
             value={draft.name}
-            onChange={(e) => patch("name", e.target.value)}
+            onChange={(e) => {
+              const name = e.target.value;
+              if (scanPlacement && !initial.name) updateScanPlacement({ name });
+              else patch("name", name);
+            }}
             placeholder="Ej. Leche entera"
             required
           />
@@ -186,7 +218,10 @@ export function ProductForm({
         <Field label="Categoría">
           <Select
             value={draft.category}
-            onValueChange={(v) => patch("category", v as ProductCategory)}
+            onValueChange={(v) => {
+              overrides.current.category = true;
+              patch("category", v as ProductCategory);
+            }}
           >
             <SelectTrigger aria-label="Categoría">
               <SelectValue />
@@ -194,6 +229,7 @@ export function ProductForm({
             <SelectContent>
               {CATEGORIES.map((c) => (
                 <SelectItem key={c} value={c}>
+                  {scanPlacement && <span aria-hidden="true">{CATEGORY_EMOJI[c]} </span>}
                   {CATEGORY_LABEL[c]}
                 </SelectItem>
               ))}
@@ -206,6 +242,10 @@ export function ProductForm({
             value={draft.subcategory ?? ""}
             onChange={(e) => {
               const v = e.target.value;
+              if (scanPlacement) {
+                updateScanPlacement({ subcategory: v });
+                return;
+              }
               patch("subcategory", v);
               if (v.trim()) {
                 patch("category", inferCategory(v));
@@ -217,7 +257,10 @@ export function ProductForm({
         <Field label="Ubicación">
           <Select
             value={draft.location}
-            onValueChange={(v) => patch("location", v as StoreLocation)}
+            onValueChange={(v) => {
+              overrides.current.location = true;
+              patch("location", v as StoreLocation);
+            }}
           >
             <SelectTrigger aria-label="Ubicación">
               <SelectValue />
@@ -225,6 +268,7 @@ export function ProductForm({
             <SelectContent>
               {LOCATIONS.map((c) => (
                 <SelectItem key={c} value={c}>
+                  {scanPlacement && <span aria-hidden="true">{LOCATION_EMOJI[c]} </span>}
                   {LOCATION_LABEL[c]}
                 </SelectItem>
               ))}

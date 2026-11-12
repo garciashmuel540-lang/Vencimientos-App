@@ -50,7 +50,10 @@ export interface CatalogEntry {
   name: string;
   brand: string;
   presentation: string;
-  category: ProductCategory;
+  /** El catálogo puede traer una subcategoría comercial en este campo. */
+  category: string;
+  subcategory?: string;
+  location?: StoreLocation;
   image: string | null;
   source: Product["source"];
   fetchedAt: string;
@@ -85,6 +88,8 @@ export interface LookupResult {
   brand: string;
   presentation: string;
   category: ProductCategory;
+  subcategory?: string;
+  location?: StoreLocation;
   image: string | null;
   source: Product["source"];
   found: boolean;

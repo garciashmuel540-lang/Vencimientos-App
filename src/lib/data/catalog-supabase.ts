@@ -175,10 +175,21 @@ export async function syncCatalogFromSupabase(): Promise<{
     const { getDb, setKv } = await import("@/lib/vigia/db");
     const db = getDb();
 
-    // Reemplazar el catálogo local con el de Supabase
     await db.transaction("rw", db.catalog, async () => {
+      const saved = await db.catalog.filter((entry) => Boolean(entry.location)).toArray();
+      const merged = new Map(entries.map((entry) => [entry.barcode, entry]));
+      for (const entry of saved) {
+        const remote = merged.get(entry.barcode);
+        merged.set(entry.barcode, {
+          ...entry,
+          ...remote,
+          category: entry.category,
+          subcategory: entry.subcategory ?? remote?.subcategory,
+          location: entry.location,
+        });
+      }
       await db.catalog.clear();
-      await db.catalog.bulkPut(entries);
+      await db.catalog.bulkPut([...merged.values()]);
     });
     await setKv("catalogLastSync", new Date().toISOString());
 

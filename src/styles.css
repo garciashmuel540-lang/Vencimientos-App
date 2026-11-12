@@ -259,6 +259,7 @@ a,
 .som-header-trigger > span { border-radius:1rem; padding:.08rem .65rem; background:var(--color-foreground); color:var(--color-background); font:700 .71rem/1.4 var(--font-sans); }
 .som-header-trigger:active { transform:scale(.96); }
 .som-thought { position:absolute; z-index:2; right:65%; top:0; font: 1rem/1.3 system-ui; padding:.13rem .32rem; border-radius:50%; border:1px solid var(--color-border); background:var(--color-card); box-shadow:var(--shadow-border); pointer-events:none; opacity:0; animation:som-think 9s ease-in-out infinite; }
+.som-thought-visible { animation:none; opacity:1; }
 .som-thought::after { content:""; position:absolute; right:-.18rem; bottom:-.12rem; width:.27rem; height:.27rem; border-radius:50%; background:var(--color-card); border:1px solid var(--color-border); }
 @keyframes som-think { 0%, 7%, 45%, 100% { opacity:0; transform:translateY(2px); } 14%, 36% { opacity:1; transform:translateY(-3px); } }
 .som-chat-avatar { position:relative; z-index:1; line-height:0; }

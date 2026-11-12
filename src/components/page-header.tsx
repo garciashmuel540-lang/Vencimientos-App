@@ -10,6 +10,7 @@ export function PageHeader({
   action,
   onMenuClick,
   mood = "happy",
+  thought,
 }: {
   eyebrow?: string;
   title: string;
@@ -17,6 +18,7 @@ export function PageHeader({
   action?: ReactNode;
   onMenuClick?: () => void;
   mood?: MascotMood;
+  thought?: string;
 }) {
   const open = useChatFocus((s) => s.autoOpen);
   const openChat = useChatFocus((s) => s.openChat);
@@ -64,7 +66,12 @@ export function PageHeader({
           className="som-header-trigger no-print"
           onClick={openChat}
         >
-          <Mascot mood={greeting ? "wave" : mood} size={80} showBubble />
+          <Mascot
+            mood={greeting && !thought ? "wave" : mood}
+            size={80}
+            showBubble
+            thought={thought}
+          />
           <span>Chat</span>
         </button>
         {action}

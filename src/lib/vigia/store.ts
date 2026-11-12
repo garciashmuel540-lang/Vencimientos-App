@@ -286,6 +286,8 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
       brand: product.brand,
       presentation: product.presentation,
       category: product.category,
+      subcategory: product.subcategory,
+      location: product.location,
       image: product.image,
       source: product.source,
     });
@@ -562,6 +564,8 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
               name: prev.name || entry.name,
               brand: prev.brand || entry.brand,
               category: prev.category || entry.category,
+              subcategory: prev.subcategory || entry.subcategory,
+              location: prev.location ?? entry.location,
               department: prev.department || entry.department,
               supplier: prev.supplier || entry.supplier,
             }

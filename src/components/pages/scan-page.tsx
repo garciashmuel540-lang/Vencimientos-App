@@ -34,9 +34,10 @@ export function ScanPage() {
         brand: result.brand,
         presentation: result.presentation,
         category: result.category,
+        subcategory: result.subcategory,
         expiresAt: isoDate(todayStart()),
         quantity: 1,
-        location: "estante",
+        location: result.location ?? "estante",
         notes: "",
         image: result.image,
         source: result.source,
@@ -55,15 +56,22 @@ export function ScanPage() {
 
   return (
     <main>
-      <PageHeader onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader
+        onMenuClick={() => setSidebarOpen(true)}
+        mood={lookingUp ? "thinking" : "happy"}
+        thought={lookingUp ? "🤔" : foundFromApi ? "🧡" : undefined}
         eyebrow="Cámara"
         title="Escanear"
-        description="Apunta al código o escríbelo. Luego solo falta la fecha de vencimiento."
+        description="Escaneá el código para completar el producto, su categoría y su ubicación."
       />
       <div className="px-4">
         <Scanner onDetect={(c) => void handleCode(c)} paused={paused && Boolean(draft)} />
       </div>
-      {lookingUp ? <p role="status" className="p-4 text-sm">Consultando el catálogo…</p> : null}
+      {lookingUp ? (
+        <p role="status" className="p-4 text-sm">
+          Consultando el catálogo…
+        </p>
+      ) : null}
       {draft && !lookingUp ? (
         <section className="mt-6 px-4 pb-4">
           <h2 className="mb-3 font-display text-xl font-medium">Registrar lote</h2>
@@ -71,6 +79,7 @@ export function ScanPage() {
             initial={draft}
             lookingUp={lookingUp}
             foundFromApi={foundFromApi}
+            scanPlacement
             submitLabel="Guardar en inventario"
             onCancel={() => {
               setDraft(null);
@@ -79,7 +88,9 @@ export function ScanPage() {
             }}
             onSubmit={async (next) => {
               await upsert(next);
-              toast.success("Listo. Ya guardamos este producto; la próxima vez lo reconoceremos al instante.");
+              toast.success(
+                "Listo. Ya guardamos este producto; la próxima vez lo reconoceremos al instante.",
+              );
               setDraft(null);
               setFoundFromApi(false);
               setPaused(false);

@@ -4,25 +4,10 @@
  * desde el cliente por RPC.
  */
 import { createServerFn } from "@tanstack/react-start";
-import type { LookupResult, ProductCategory } from "./types";
+import type { LookupResult } from "./types";
+import { suggestProductPlacement } from "./product-placement";
 
 const UA = "VigiaExpiryApp/1.0 (web; control-de-vencimientos; contacto: vigia-app)";
-
-function guessCategory(text: string): ProductCategory {
-  const t = text.toLowerCase();
-  if (/(milk|leche|yogurt|yoghurt|queso|cheese|crema|lácteo|lacteo)/.test(t))
-    return "lacteo";
-  if (/(soda|cola|jugo|juice|agua|water|beer|cerveza|refresco|bebida)/.test(t))
-    return "bebida";
-  if (/(chip|papa|galleta|cookie|snack|chocolate|dulce|candy)/.test(t)) return "snack";
-  if (/(bread|pan|tortilla|bolillo)/.test(t)) return "panaderia";
-  if (/(jamon|jamón|ham|salchicha|pavo|turkey|carne)/.test(t)) return "carnes";
-  if (/(soap|jabon|jabón|cloro|detergent|limpieza|pinol)/.test(t)) return "limpieza";
-  if (/(shampoo|crema dental|desodorante|cuidado)/.test(t)) return "cuidado";
-  if (/(frozen|congelad)/.test(t)) return "congelados";
-  if (/(can|lata|enlat)/.test(t)) return "enlatados";
-  return "otros";
-}
 
 interface OffProduct {
   product_name?: string;
@@ -49,19 +34,15 @@ async function fetchOpenFoodFacts(barcode: string): Promise<LookupResult | null>
   const json = (await res.json()) as { status?: number; product?: OffProduct };
   if (json.status !== 1 || !json.product) return null;
   const p = json.product;
-  const name =
-    p.product_name_es?.trim() ||
-    p.product_name?.trim() ||
-    p.generic_name?.trim() ||
-    "";
+  const name = p.product_name_es?.trim() || p.product_name?.trim() || p.generic_name?.trim() || "";
   if (!name) return null;
-  const blob = `${name} ${p.brands ?? ""} ${p.categories ?? ""}`;
+  const placement = suggestProductPlacement({ name, description: p.categories });
   return {
     barcode,
     name,
     brand: (p.brands ?? "").split(",")[0]?.trim() ?? "",
     presentation: p.quantity ?? "",
-    category: guessCategory(blob),
+    ...placement,
     image: p.image_front_small_url || p.image_url || null,
     source: "openfoodfacts",
     found: true,
@@ -86,13 +67,13 @@ async function fetchUpcItemDb(barcode: string): Promise<LookupResult | null> {
   const json = (await res.json()) as { code?: string; items?: UpcItem[] };
   const item = json.items?.[0];
   if (!item?.title) return null;
-  const blob = `${item.title} ${item.brand ?? ""} ${item.description ?? ""}`;
+  const placement = suggestProductPlacement({ name: item.title, description: item.description });
   return {
     barcode,
     name: item.title,
     brand: item.brand ?? "",
     presentation: item.size ?? "",
-    category: guessCategory(blob),
+    ...placement,
     image: item.images?.[0] ?? null,
     source: "upcitemdb",
     found: true,
@@ -114,19 +95,19 @@ async function fetchOpenBeautyFacts(barcode: string): Promise<LookupResult | nul
   const json = (await res.json()) as { status?: number; product?: OffProduct };
   if (json.status !== 1 || !json.product) return null;
   const p = json.product;
-  const name =
-    p.product_name_es?.trim() ||
-    p.product_name?.trim() ||
-    p.generic_name?.trim() ||
-    "";
+  const name = p.product_name_es?.trim() || p.product_name?.trim() || p.generic_name?.trim() || "";
   if (!name) return null;
-  const blob = `${name} ${p.brands ?? ""} ${p.categories ?? ""}`;
+  const placement = suggestProductPlacement({
+    name,
+    category: "cuidado",
+    description: p.categories,
+  });
   return {
     barcode,
     name,
     brand: (p.brands ?? "").split(",")[0]?.trim() ?? "",
     presentation: p.quantity ?? "",
-    category: guessCategory(blob),
+    ...placement,
     image: p.image_front_small_url || p.image_url || null,
     source: "openbeautyfacts",
     found: true,
@@ -148,19 +129,15 @@ async function fetchOpenProductsFacts(barcode: string): Promise<LookupResult | n
   const json = (await res.json()) as { status?: number; product?: OffProduct };
   if (json.status !== 1 || !json.product) return null;
   const p = json.product;
-  const name =
-    p.product_name_es?.trim() ||
-    p.product_name?.trim() ||
-    p.generic_name?.trim() ||
-    "";
+  const name = p.product_name_es?.trim() || p.product_name?.trim() || p.generic_name?.trim() || "";
   if (!name) return null;
-  const blob = `${name} ${p.brands ?? ""} ${p.categories ?? ""}`;
+  const placement = suggestProductPlacement({ name, description: p.categories });
   return {
     barcode,
     name,
     brand: (p.brands ?? "").split(",")[0]?.trim() ?? "",
     presentation: p.quantity ?? "",
-    category: guessCategory(blob),
+    ...placement,
     image: p.image_front_small_url || p.image_url || null,
     source: "openproductsfacts",
     found: true,
