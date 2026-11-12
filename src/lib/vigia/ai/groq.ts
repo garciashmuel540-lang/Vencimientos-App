@@ -21,7 +21,7 @@ function convertToolsToGroq(tools: InternalTool[]) {
   }));
 }
 
-export async function* llamarGroq(ctx: ChatContext): AsyncGenerator<ChatChunk> {
+export async function* llamarGroq(ctx: ChatContext, model = MODEL): AsyncGenerator<ChatChunk> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("Falta GROQ_API_KEY en el servidor.");
@@ -39,7 +39,7 @@ export async function* llamarGroq(ctx: ChatContext): AsyncGenerator<ChatChunk> {
   ];
 
   const stream = await groq.chat.completions.create({
-    model: MODEL,
+    model,
     messages,
     tools: convertToolsToGroq(INTERNAL_TOOLS),
     tool_choice: "auto",

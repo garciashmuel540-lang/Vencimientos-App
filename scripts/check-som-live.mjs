@@ -32,6 +32,7 @@ const context = {
 await Promise.all([
   ["Groq", process.env.GROQ_API_KEY, llamarGroq],
   ["Gemini", process.env.GEMINI_API_KEY, llamarGemini],
+  ["Groq 20B", process.env.GROQ_API_KEY, (context) => llamarGroq(context, "openai/gpt-oss-20b")],
 ].map(async ([name, enabled, ask]) => {
   if (!enabled) return console.log(`[som-check] ${name} sin configuración`);
   try {
@@ -43,6 +44,9 @@ await Promise.all([
   } catch (err) {
     const status = typeof err?.status === "number" ? err.status : "sin respuesta HTTP";
     const code = typeof err?.code === "string" && /^[a-z0-9_-]{1,50}$/i.test(err.code) ? err.code : "";
-    console.log(`[som-check] ${name}: ${status} ${code}`);
+    const reason = String(err?.message).match(/API_KEY_INVALID|API_KEY_SERVICE_BLOCKED|PERMISSION_DENIED|FAILED_PRECONDITION|RESOURCE_EXHAUSTED|INVALID_ARGUMENT|NOT_FOUND/gi)?.join(",") ?? "";
+    const schema = /function|parameters|schema/i.test(String(err?.message)) ? "schema" : "";
+    const credentials = /api key|credential/i.test(String(err?.message)) ? "credentials" : "";
+    console.log(`[som-check] ${name}: ${status} ${code} ${reason} ${schema} ${credentials}`);
   }
 }));

@@ -25,6 +25,11 @@ export async function* streamSom(context: ChatContext): AsyncGenerator<ChatChunk
   const providers = [
     { name: "Groq", enabled: process.env.GROQ_API_KEY, ask: llamarGroq },
     { name: "Gemini", enabled: process.env.GEMINI_API_KEY, ask: llamarGemini },
+    {
+      name: "Groq 20B",
+      enabled: process.env.GROQ_API_KEY,
+      ask: (ctx: ChatContext) => llamarGroq(ctx, "openai/gpt-oss-20b"),
+    },
   ];
   for (const provider of providers) {
     if (!provider.enabled) continue;

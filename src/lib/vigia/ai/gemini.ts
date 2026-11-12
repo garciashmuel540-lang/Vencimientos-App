@@ -34,7 +34,9 @@ export async function* llamarGemini(ctx: ChatContext): AsyncGenerator<ChatChunk>
           functionDeclarations: INTERNAL_TOOLS.map(({ name, description, parameters }) => ({
             name,
             description,
-            parametersJsonSchema: parameters,
+            parametersJsonSchema: Object.keys(parameters.properties).length
+              ? parameters
+              : undefined,
           })),
         },
       ],
