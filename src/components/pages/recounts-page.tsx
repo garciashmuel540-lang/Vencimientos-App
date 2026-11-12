@@ -66,7 +66,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(""),
     [search, setSearch] = useState(""),
     [saved, setSaved] = useState("");
-  const [readyImage, setReadyImage] = useState<File | null>(null),
+  const [readyImages, setReadyImages] = useState<File[]>([]),
     [sources, setSources] = useState(false);
   const camera = useRef<HTMLInputElement>(null),
     upload = useRef<HTMLInputElement>(null);
@@ -102,7 +102,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     setSearch("");
     setSelectedId(null);
     setSources(false);
-    setReadyImage(null);
+    setReadyImages([]);
     setSaveError(false);
   }
   useEffect(() => {
@@ -160,7 +160,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     next = { ...next, updatedAt: new Date().toISOString() };
     current.current = next;
     setDoc(next);
-    setReadyImage(null);
+    setReadyImages([]);
     setSaved("Guardando…");
     setSaveError(false);
     setHistory((old) => [summarizeRecount(next), ...old.filter((d) => d.id !== next.id)]);
@@ -226,7 +226,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     current.current = null;
     syncedPhotos.current = null;
     setDoc(null);
-    setReadyImage(null);
+    setReadyImages([]);
     setSelectedId(null);
     sessionStorage.removeItem(resumeKey);
   }
@@ -397,11 +397,11 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     lock.current = true;
     setBusy("Preparando imagen del conteo…");
     try {
-      const { makeRecountImage } = await import("@/lib/vigia/recount-share");
-      const file = await makeRecountImage(doc);
+      const { makeRecountImages } = await import("@/lib/vigia/recount-share");
+      const files = await makeRecountImages(doc);
       if (mounted.current) {
-        setReadyImage(file);
-        toast.success("Imagen lista para compartir.");
+        setReadyImages(files);
+        toast.success(files.length === 1 ? "Imagen lista para compartir." : `${files.length} hojas listas para compartir.`);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo preparar el reporte.");
@@ -411,20 +411,20 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
     }
   }
   async function sendFiles() {
-    if (!readyImage) return;
+    if (!readyImages.length) return;
     try {
-      const files = [readyImage];
+      const files = readyImages;
       if (navigator.canShare?.({ files })) {
         await navigator.share({ files, title: doc?.title ?? "Recuento" });
       } else {
-        const url = URL.createObjectURL(readyImage);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = readyImage.name;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        for (const file of files) {
+          const url = URL.createObjectURL(file);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = file.name;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
         toast.success("Reporte descargado.");
       }
     } catch (e) {
@@ -446,7 +446,6 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
         title="Recuentos"
         eyebrow="Inventario diario"
         description="De la hoja impresa al conteo físico."
-        tip="Fotografiá la hoja completa, recta y con buena luz."
         onMenuClick={() => openMenu(true)}
       />
       <div className="mx-auto max-w-3xl space-y-4 px-4">
@@ -827,12 +826,12 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                     )}
                     {item.physical.trim() &&
                       (quantity(item.physical) === null || quantity(item.physical)! < 0) && (
-                        <p className="text-sm text-red-700">
+                        <p className="text-sm text-red-700 dark:text-bad">
                           Ingresá un físico válido, mayor o igual a cero.
                         </p>
                       )}
                     <p
-                      className={`rounded-lg px-3 py-2 text-sm font-semibold ${result.status === "ok" ? "bg-emerald-50 text-emerald-800" : result.status === "falta" ? "bg-red-50 text-red-800" : result.status === "sobra" ? "bg-amber-50 text-amber-800" : "bg-muted text-muted-foreground"}`}
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold ${result.status === "ok" ? "bg-emerald-50 text-emerald-800 dark:bg-ok-soft dark:text-ok" : result.status === "falta" ? "bg-red-50 text-red-800 dark:bg-bad-soft dark:text-bad" : result.status === "sobra" ? "bg-amber-50 text-amber-800 dark:bg-warn-soft dark:text-warn" : "bg-muted text-muted-foreground"}`}
                     >
                       {quantity(item.system) === null ? "Sistema pendiente" : result.label}
                     </p>
@@ -871,7 +870,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                     className="w-full"
                     onClick={() => {
                       persist({ ...doc, reviewed: false });
-                      setReadyImage(null);
+                      setReadyImages([]);
                     }}
                   >
                     Revisar documento o agregar páginas
@@ -903,11 +902,11 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                 {busy}
               </p>
             )}
-            {readyImage && (
+            {readyImages.length > 0 && (
               <div className="rounded-xl border border-primary p-4">
-                <p className="mb-3 text-sm">Una imagen tipo A4 con todos los ítems contados.</p>
+                <p className="mb-3 text-sm">{readyImages.length === 1 ? "Una hoja A4 vertical." : `${readyImages.length} hojas A4 verticales.`}</p>
                 <Button className="w-full" onClick={() => void sendFiles()}>
-                  Enviar imagen
+                  {readyImages.length === 1 ? "Enviar imagen" : "Enviar hojas"}
                 </Button>
               </div>
             )}

@@ -3,16 +3,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Mascot, type MascotMood } from "@/components/mascot";
 import { useChatFocus } from "@/lib/vigia/chat-focus";
 
-const seenTips = new Set<string>();
-let lastTip = 0;
-
 export function PageHeader({
   eyebrow,
   title,
   description,
   action,
   onMenuClick,
-  tip,
   mood = "happy",
 }: {
   eyebrow?: string;
@@ -20,30 +16,15 @@ export function PageHeader({
   description?: string;
   action?: ReactNode;
   onMenuClick?: () => void;
-  tip: string;
   mood?: MascotMood;
 }) {
   const open = useChatFocus((s) => s.autoOpen);
   const openChat = useChatFocus((s) => s.openChat);
   const [greeting, setGreeting] = useState(true);
-  const [comment, setComment] = useState(false);
   useEffect(() => {
     setGreeting(true);
-    setComment(false);
     const hello = window.setTimeout(() => setGreeting(false), 1800);
-    const show = window.setTimeout(() => {
-      if (useChatFocus.getState().autoOpen || seenTips.has(title) || Date.now() - lastTip < 45000)
-        return;
-      seenTips.add(title);
-      lastTip = Date.now();
-      setComment(true);
-    }, 700);
-    const hide = window.setTimeout(() => setComment(false), 4700);
-    return () => {
-      clearTimeout(hello);
-      clearTimeout(show);
-      clearTimeout(hide);
-    };
+    return () => clearTimeout(hello);
   }, [title]);
   return (
     <header className="som-page-header">
@@ -83,12 +64,11 @@ export function PageHeader({
           className="som-header-trigger no-print"
           onClick={openChat}
         >
-          <Mascot mood={greeting ? "wave" : mood} size={80} />
+          <Mascot mood={greeting ? "wave" : mood} size={80} showBubble />
           <span>Chat</span>
         </button>
         {action}
       </div>
-      {comment && !open && <p className="som-page-tip no-print">{tip}</p>}
     </header>
   );
 }

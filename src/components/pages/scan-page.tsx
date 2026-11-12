@@ -55,7 +55,7 @@ export function ScanPage() {
 
   return (
     <main>
-      <PageHeader tip="Si el código no se lee, escribilo." onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Cámara"
         title="Escanear"
         description="Apunta al código o escríbelo. Luego solo falta la fecha de vencimiento."

@@ -5,6 +5,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { ChatContext, ChatChunk, InternalTool } from "./types";
 import { buildConfirmationLabel, DESTRUCTIVE_ACTIONS } from "./types";
+import { buildUserMessage } from "./context";
 import { INTERNAL_TOOLS, SYSTEM_PROMPT } from "./tools";
 
 const MODEL = "gemini-2.0-flash-exp";
@@ -36,174 +37,16 @@ function convertToolsToGemini(tools: InternalTool[]) {
   });
 }
 
-function buildInventorySummary(ctx: ChatContext): string {
-  const { products, today } = ctx;
-  const fmt = (p: { name: string; quantity: number; expiresAt: string }) => {
-    const days = Math.round(
-      (new Date(p.expiresAt).getTime() - new Date(today).getTime()) / 86400000,
-    );
-    const label =
-      days < 0
-        ? `vencido hace ${-days}d`
-        : days === 0
-          ? "vence HOY"
-          : `vence en ${days}d`;
-    return `- ${p.name} (${p.quantity} u., ${label})`;
-  };
-  const lines: string[] = [];
-  lines.push(`Tienda: ${ctx.storeName ?? "Vigía"}`);
-  lines.push(`Hoy: ${today}`);
-  lines.push(`Total: ${products.length} productos`);
-  lines.push("");
-  const expired = products.filter((p) => p.status === "expired");
-  const soon = products.filter((p) => p.status === "soon");
-  const ok = products.filter((p) => p.status === "ok");
-  if (expired.length) {
-    lines.push(`VENCIDOS (${expired.length}):`);
-    expired.forEach((p) => lines.push(fmt(p)));
-    lines.push("");
-  }
-  if (soon.length) {
-    lines.push(`POR VENCER (${soon.length}):`);
-    soon.forEach((p) => lines.push(fmt(p)));
-    lines.push("");
-  }
-  if (ok.length && ok.length <= 15) {
-    lines.push(`VIGENTES (${ok.length}):`);
-    ok.forEach((p) => lines.push(fmt(p)));
-  } else if (ok.length) {
-    lines.push(`VIGENTES: ${ok.length} productos (no listados).`);
-  }
-  return lines.join("\n");
-}
-
-function buildFSSummary(ctx: ChatContext): string {
-  const products = ctx.fsProducts ?? [];
-  const counts = ctx.fsCounts ?? [];
-  if (products.length === 0 && counts.length === 0) return "";
-
-  const lines: string[] = [];
-  lines.push("");
-  lines.push("--- FOOD SERVICE ---");
-  lines.push(`Catálogo FS: ${products.length} productos`);
-  lines.push(`Conteos cargados: ${counts.length}${ctx.fsIsAdmin ? " (admin: incluye todos los usuarios)" : ""}`);
-
-  if (products.length > 0) {
-    lines.push("");
-    lines.push("Productos FS (código | nombre | unidad | contenedor | unitario):");
-    const limit = products.slice(0, 40);
-    for (const p of limit) {
-      lines.push(
-        `- ${p.code} | ${p.name} | ${p.unit} | cont=${p.containerWeight} | unit=${p.unitWeight}`,
-      );
-    }
-    if (products.length > 40) {
-      lines.push(`  ... y ${products.length - 40} más`);
-    }
-  }
-
-  if (counts.length > 0) {
-    lines.push("");
-    lines.push("Últimos conteos FS (nombre | abiertos | sellados | sistema | fecha):");
-    const sorted = [...counts].sort((a, b) =>
-      (b.updated_at ?? "").localeCompare(a.updated_at ?? ""),
-    );
-    const limit = sorted.slice(0, 30);
-    for (const c of limit) {
-      lines.push(
-        `- ${c.product_name} | ab=${c.opened ?? "-"} | se=${c.sealed ?? "-"} | sis=${c.system_qty ?? "-"} | ${c.count_date}`,
-      );
-    }
-    if (sorted.length > 30) {
-      lines.push(`  ... y ${sorted.length - 30} más`);
-    }
-  }
-
-  return lines.join("\n");
-}
-
-function buildExtraContextGemini(ctx: ChatContext): string {
-  const lines: string[] = [];
-  if (ctx.dayOfWeek || ctx.nowISO) {
-    lines.push("");
-    lines.push("--- CONTEXTO TEMPORAL ---");
-    if (ctx.dayOfWeek) lines.push(`Día: ${ctx.dayOfWeek}`);
-    if (ctx.nowISO) lines.push(`Fecha/hora: ${ctx.nowISO}`);
-  }
-  if (ctx.stats) {
-    lines.push("");
-    lines.push("--- ESTADÍSTICAS ---");
-    lines.push(`Total productos: ${ctx.stats.totalProducts}`);
-    lines.push(`Total unidades: ${ctx.stats.totalUnits}`);
-    lines.push(`Vigentes: ${ctx.stats.ok}`);
-    lines.push(`Por vencer: ${ctx.stats.soon}`);
-    lines.push(`Vencidos: ${ctx.stats.expired}`);
-  }
-  if (ctx.actionHistory && ctx.actionHistory.length > 0) {
-    lines.push("");
-    lines.push("--- ÚLTIMAS ACCIONES ---");
-    for (const h of ctx.actionHistory.slice(0, 10)) {
-      lines.push(`- [${h.action}] ${h.name} (${h.at.slice(0, 16)})`);
-    }
-  }
-  if (ctx.settings) {
-    lines.push("");
-    lines.push("--- CONFIGURACIÓN ---");
-    lines.push(`Nombre tienda: ${ctx.settings.storeName}`);
-  }
-  return lines.join("\n");
-}
-
-export async function* llamarGemini(
-  ctx: ChatContext,
-): AsyncGenerator<ChatChunk> {
+export async function* llamarGemini(ctx: ChatContext): AsyncGenerator<ChatChunk> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("Falta GEMINI_API_KEY en el servidor.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const inventory = buildInventorySummary(ctx);
-  const fsBlock = buildFSSummary(ctx);
-  const extraBlock = buildExtraContextGemini(ctx);
-
   const contents = [
-    ...ctx.history.map((m) => ({
-      role: m.role,
-      parts: [{ text: m.text }],
-    })),
-    {
-      role: "user" as const,
-      parts: [
-        {
-          text: `${ctx.question}\n\n--- INVENTARIO ---\n${inventory}${fsBlock}${
-            ctx.focusedProduct
-              ? `\n\n--- PRODUCTO ENFOCADO ---\nNombre: ${ctx.focusedProduct.name}\nCantidad: ${ctx.focusedProduct.quantity}\nVence: ${ctx.focusedProduct.expiresAt}\nEstado: ${ctx.focusedProduct.status}`
-              : ""
-          }${
-            ctx.catalogMatches && ctx.catalogMatches.length > 0
-              ? `\n\n--- CATÁLOGO (coincidencias) ---\n${ctx.catalogMatches
-                  .map((c) => {
-                    const conIva =
-                      typeof c.priceC === "number"
-                        ? `C$ ${c.priceC.toFixed(2)} con IVA`
-                        : null;
-                    const sinIva =
-                      typeof c.price === "number"
-                        ? `C$ ${c.price.toFixed(2)} sin IVA`
-                        : null;
-                    const priceTxt =
-                      conIva && sinIva
-                        ? `${conIva} / ${sinIva}`
-                        : conIva ?? sinIva ?? "sin precio";
-                    return `- ${c.name}${c.brand ? ` | ${c.brand}` : ""} | ${priceTxt}`;
-                  })
-                  .join("\n")}`
-              : ""
-          }`,
-        },
-      ],
-    },
+    ...ctx.history.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
+    { role: "user", parts: [{ text: buildUserMessage(ctx) }] },
   ];
 
   const stream = await ai.models.generateContentStream({
@@ -230,9 +73,7 @@ export async function* llamarGemini(
           name,
           args,
           requiresConfirmation: isDestructive,
-          confirmationLabel: isDestructive
-            ? buildConfirmationLabel(name, args)
-            : undefined,
+          confirmationLabel: isDestructive ? buildConfirmationLabel(name, args) : undefined,
         };
       }
       continue;

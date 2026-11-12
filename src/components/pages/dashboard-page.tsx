@@ -54,7 +54,7 @@ export function DashboardPage() {
   return (
     <main>
       <div className="som-hero">
-        <PageHeader tip="¿Revisamos lo que vence primero?"
+        <PageHeader
           onMenuClick={() => setSidebarOpen(true)}
           eyebrow={settings.storeName}
           title="Vigía"

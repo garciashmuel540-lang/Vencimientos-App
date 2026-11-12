@@ -8,6 +8,12 @@ export interface ChatProduct {
   expiresAt: string;
   status: "ok" | "soon" | "expired";
   category?: string;
+  barcode?: string;
+  brand?: string;
+  location?: string;
+  price?: number;
+  priceC?: number;
+  notes?: string;
 }
 
 export interface ChatHistoryMsg {
@@ -17,6 +23,7 @@ export interface ChatHistoryMsg {
 
 export interface FSProductChat {
   code: string;
+  itemCode?: string;
   name: string;
   category: string;
   unit: string;
@@ -34,8 +41,9 @@ export interface FSCountChat {
   system_qty: number | null;
   count_date: string;
   updated_at: string;
-  user_id?: string;
-  user_email?: string;
+  inventory?: number;
+  difference?: number;
+  status?: string;
 }
 
 export interface CatalogMatch {
@@ -58,14 +66,15 @@ export interface ChatContext {
   catalogMatches?: CatalogMatch[];
   fsProducts?: FSProductChat[];
   fsCounts?: FSCountChat[];
-  fsIsAdmin?: boolean;
   // ============ CONTEXTO AMPLIADO ============
   /** Historial de acciones recientes */
   actionHistory?: ChatHistoryEntry[];
-  /** Promociones activas */
-  activePromos?: ChatPromo[];
-  /** Usuarios (solo visible para admin) */
-  users?: ChatUser[];
+  promotions?: ChatPromo[];
+  recounts?: ChatRecount[];
+  recountTotal?: number;
+  fsCountTotal?: number;
+  promoTotal?: number;
+  unavailable?: string[];
   /** Estadísticas del inventario */
   stats?: ChatStats;
   /** Configuración de la tienda */
@@ -104,10 +113,7 @@ export const DESTRUCTIVE_ACTIONS = new Set([
   "guardarFS",
 ]);
 
-export function buildConfirmationLabel(
-  name: string,
-  args: Record<string, unknown>,
-): string {
+export function buildConfirmationLabel(name: string, args: Record<string, unknown>): string {
   if (name === "eliminarProducto") {
     return `Eliminar "${String(args.name ?? "producto")}"`;
   }
@@ -143,11 +149,26 @@ export interface ChatPromo {
   priceBefore: number;
   priceNow: number;
   endDate?: string;
+  startDate?: string;
+  dynamic?: string;
+  observations?: string;
+  status: "activa" | "próxima" | "vencida";
 }
 
-export interface ChatUser {
-  email: string;
-  role: string;
+export interface ChatRecount {
+  title: string;
+  date: string;
+  itemCount: number;
+  measuredCount: number;
+  items: {
+    name: string;
+    code: string;
+    category: string;
+    physical: number | null;
+    system: number | null;
+    difference: number | null;
+    status: string;
+  }[];
 }
 
 export interface ChatStats {
@@ -163,4 +184,7 @@ export interface ChatStats {
 export interface ChatSettings {
   storeName: string;
   days: number[];
+  sound: boolean;
+  vibration: boolean;
+  notifyOnOpen: boolean;
 }

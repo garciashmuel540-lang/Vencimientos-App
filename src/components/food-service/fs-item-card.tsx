@@ -166,9 +166,9 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
   }[result.status];
 
   const statusColor = {
-    ok: "text-emerald-700",
-    sobra: "text-amber-700",
-    falta: "text-red-700",
+    ok: "text-emerald-700 dark:text-ok",
+    sobra: "text-amber-700 dark:text-warn",
+    falta: "text-red-700 dark:text-bad",
     incompleto: "text-muted-foreground",
   }[result.status];
 
@@ -374,7 +374,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs text-red-600 hover:text-red-700"
+                className="h-7 text-xs text-red-600 hover:text-red-700 dark:text-bad"
                 onClick={async () => {
                   if (debounceRef.current) window.clearTimeout(debounceRef.current);
                   await writeQueue.current;

@@ -11,10 +11,7 @@ import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { createElement } from "react";
-import { Mascot } from "@/components/mascot";
-import { domToPng } from "modern-screenshot";
-import { buildFSShareHtml, FS_SHARE_WIDTH, FS_SHARE_HEIGHT, FS_SHARE_PAGE_SIZE, hasFSShareData } from "@/lib/vigia/food-service-share";
+import { hasFSShareData } from "@/lib/vigia/food-service-share";
 import { useSupabaseAuth } from "@/lib/auth/supabase-auth";
 import { useUserEmails } from "@/lib/auth/use-user-emails";
 import { toShortEmail } from "@/lib/auth/user-utils";
@@ -303,46 +300,21 @@ export function FoodServicePage() {
             system_qty: count.system_qty,
           })
         : null;
-      return { product, calc, hasData, count };
+      return { product, calc, count };
     });
 
     const dateFormatted = new Date(date + "T12:00:00").toLocaleDateString(
       "es", { day: "numeric", month: "long", year: "numeric" },
     );
-    const container = document.createElement("div");
-    Object.assign(container.style, {
-      position: "fixed", top: "0", left: "0", width: `${FS_SHARE_WIDTH}px`, height: `${FS_SHARE_HEIGHT}px`,
-      zIndex: "-1000", pointerEvents: "none", background: "#F1F5F2",
-    });
-    container.setAttribute("aria-hidden", "true");
     const title = cat ? FS_CATEGORY_LABEL[cat] : "Inventario general";
-
-    document.body.appendChild(container);
-
     try {
-      await document.fonts.ready;
-      const { renderToStaticMarkup } = await import("react-dom/server");
-      const mascot = renderToStaticMarkup(createElement(Mascot, { mood: "wave", size: 160 }));
-      const files: File[] = [];
-      const images: string[] = [];
-      const pages = Math.ceil(rowsData.length / FS_SHARE_PAGE_SIZE);
-      for (let page = 0; page < pages; page++) {
-        const pageRows = rowsData.slice(page * FS_SHARE_PAGE_SIZE, (page + 1) * FS_SHARE_PAGE_SIZE);
-        container.innerHTML = buildFSShareHtml(title, dateFormatted, pageRows, FS_CATEGORY_LABEL, page + 1, pages, mascot);
-        container.querySelectorAll("svg *").forEach((node) => {
-          if (node instanceof SVGElement) node.style.animation = "none";
-        });
-        const hand = container.querySelector<SVGElement>(".som-wave");
-        if (hand) hand.setAttribute("d", "M20 58C12 59 5 47 5 36c0-4 4-5 6-2l3 8 7 5Z");
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        const dataUrl = await domToPng(container, {
-          quality: 1, scale: 1, width: FS_SHARE_WIDTH, height: FS_SHARE_HEIGHT, backgroundColor: "#FFFFFF", debug: false,
-        });
-        const blob = await (await fetch(dataUrl)).blob();
-        files.push(new File([blob], `vigia-${cat ?? "general"}-${date}-${page + 1}.png`, { type: "image/png" }));
-        images.push(dataUrl);
-      }
-
+      const { makeInventoryImages } = await import("@/lib/vigia/inventory-share");
+      const files = await makeInventoryImages({ title, date: dateFormatted, fileStem: `vigia-${cat ?? "general"}-${date}`, rows: rowsData.map(({ product, calc, count }) => ({
+        name: product.name.replace(/^FSI\s+/, ""), code: product.itemCode, category: FS_CATEGORY_LABEL[product.category],
+        detail: [count?.opened != null ? `Abiertos: ${count.opened} ${product.unit}` : "", count?.sealed != null ? `Sellados: ${count.sealed}` : ""].filter(Boolean).join(" · "),
+        physical: calc?.inventory ?? null, system: count?.system_qty ?? null, difference: calc?.difference ?? null,
+        status: calc && calc.status !== "incompleto" ? calc.status : "pending",
+      })) });
       // Compartir
       if (navigator.share && navigator.canShare?.({ files })) {
         try {
@@ -375,13 +347,15 @@ export function FoodServicePage() {
           throw err;
         }
       } else {
-        for (let i = 0; i < files.length; i++) {
+        for (const file of files) {
+          const url = URL.createObjectURL(file);
           const link = document.createElement("a");
-          link.download = files[i].name;
-          link.href = images[i];
+          link.download = file.name;
+          link.href = url;
           document.body.appendChild(link);
           link.click();
           link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
         }
         toast.success(files.length === 1 ? "Imagen descargada" : `${files.length} imágenes descargadas`);
       }
@@ -389,7 +363,6 @@ export function FoodServicePage() {
       console.error("[share] error:", err);
       toast.error("No se pudo compartir la imagen");
     } finally {
-      container.remove();
       shareLock.current = false;
       setSharing(false);
     }
@@ -397,7 +370,7 @@ export function FoodServicePage() {
 
   return (
     <main className="pb-24">
-      <PageHeader tip="Empezá por los productos abiertos."
+      <PageHeader
         onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Conteo diario"
         title="Food Service"

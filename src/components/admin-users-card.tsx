@@ -215,7 +215,7 @@ export function AdminUsersCard() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="size-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-bad dark:hover:text-bad dark:hover:bg-bad-soft"
                     onClick={() => setPendingDelete(u)}
                     disabled={isMe}
                     aria-label="Borrar usuario"

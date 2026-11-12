@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { quantity, type Recount } from "@/lib/vigia/recounts";
+import { quantity, type Recount, type RecountItem } from "@/lib/vigia/recounts";
 
 const table = "vigia_recounts";
 const fields = "id,user_id,title,count_date,updated_at,reviewed,item_count,measured_count";
@@ -72,6 +72,30 @@ export async function listCloudRecounts(userId: string): Promise<RecountSummary[
     if (data.length < 500) return result;
   }
 }
+export async function listRecountItems(userId: string) {
+  if (!supabase) throw new Error("Supabase no configurado");
+  type CountItem = Pick<RecountItem, "name" | "code" | "category" | "system" | "physical">;
+  const result: (RecountSummary & { items: CountItem[] })[] = [];
+  const size = 25;
+  for (let start = 0; ; start += size) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(`${fields},items:payload->items`)
+      .eq("user_id", userId)
+      .order("count_date", { ascending: false })
+      .order("id")
+      .range(start, start + size - 1);
+    if (error) throw error;
+    for (const row of data as (SummaryRow & { items: RecountItem[] | null })[]) {
+      const items = (row.items ?? []).map(({ name, code, category, system, physical }) => ({
+        name, code, category, system, physical,
+      }));
+      result.push({ ...summary(row), items });
+    }
+    if (data.length < size) return result;
+  }
+}
+
 export async function openCloudRecount(id: string, userId: string): Promise<Recount | null> {
   if (!supabase) throw new Error("Supabase no configurado");
   const { data, error } = await supabase

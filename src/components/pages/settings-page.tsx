@@ -224,7 +224,7 @@ export function SettingsPage() {
 
   return (
     <main>
-      <PageHeader tip="Podés ajustar tus avisos aquí." onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Preferencias"
         title="Ajustes"
         description="Alertas, apariencia y datos de esta tienda."

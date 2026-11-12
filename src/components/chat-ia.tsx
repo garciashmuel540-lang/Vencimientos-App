@@ -16,7 +16,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useVigiaStore } from "@/lib/vigia/store";
-import { productStatus } from "@/lib/vigia/dates";
+import { supabase } from "@/lib/supabase";
+import { listRecountItems } from "@/lib/data/recounts-supabase";
+import { getDb } from "@/lib/vigia/db";
+import { compareRecount, quantity } from "@/lib/vigia/recounts";
+import { ranked, relevance } from "@/lib/vigia/ai/context";
+import { productStatus, statusOf } from "@/lib/vigia/dates";
 import { askVigiaFn, type ChatProduct } from "@/lib/vigia/ai-chat";
 import type { Product, ProductCategory, StoreLocation } from "@/lib/vigia/types";
 import { useChatFocus } from "@/lib/vigia/chat-focus";
@@ -672,23 +677,44 @@ export function ChatIA() {
     setMessages([...nextMessages, { role: "model", text: "" }]);
 
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const chatProducts: ChatProduct[] = products
-        .filter((p) => p.quantity > 0)
-        .map((p) => ({
-          name: p.name,
-          quantity: p.quantity,
-          expiresAt: p.expiresAt,
-          status: productStatus(p, soonWithin),
-          category: p.category,
+      const session = (await supabase?.auth.getSession())?.data.session;
+      if (!session) throw new Error("Iniciá sesión para consultar a Som.");
+      const now = new Date();
+      const localTime = { timeZone: "America/Managua" };
+      const today = new Intl.DateTimeFormat("en-CA", {
+        ...localTime, year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(now);
+      const dayOfWeek = new Intl.DateTimeFormat("es-NI", { ...localTime, weekday: "long" }).format(now);
+      const keywords = q.toLowerCase().match(/[\p{L}\p{N}]+/gu)
+        ?.filter((word) => word.length >= 3 && !STOP_WORDS.has(word)) ?? [];
+      const previousQuestion = [...messages].reverse().find((message) => message.role === "user")?.text ?? "";
+      const previousWords = previousQuestion.toLowerCase().match(/[\p{L}\p{N}]+/gu)
+        ?.filter((word) => word.length >= 3 && !STOP_WORDS.has(word)) ?? [];
+      const score = (...fields: (string | undefined)[]) =>
+        relevance(keywords, ...fields) * 4 + relevance(previousWords, ...fields);
+      const chatProducts: ChatProduct[] = [...products]
+        .sort((a, b) => a.expiresAt.localeCompare(b.expiresAt))
+        .map(({ name, quantity, expiresAt, category, barcode, brand, location, price, priceC, notes }) => ({
+          name, quantity, expiresAt, category, barcode, brand, location, price, priceC,
+          notes: notes?.slice(0, 250),
+          status: statusOf(expiresAt, soonWithin, new Date(today + "T12:00:00")),
         }));
-
-      // Extraer palabras clave del mensaje (>= 3 letras)
-      const keywords = q
-        .toLowerCase()
-        .replace(/[^a-z0-9áéíóúñü\s]/gi, " ")
-        .split(/\s+/)
-        .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+      const stats = {
+        totalProducts: chatProducts.length, totalUnits: 0, ok: 0, soon: 0, expired: 0,
+        byCategory: {} as Record<string, number>,
+      };
+      for (const product of chatProducts) {
+        stats.totalUnits += product.quantity;
+        stats[product.status]++;
+        const category = product.category ?? "otros";
+        stats.byCategory[category] = (stats.byCategory[category] ?? 0) + product.quantity;
+      }
+      const sources = Promise.allSettled([
+        pullAllFSCounts(),
+        listRecountItems(session.user.id),
+        getDb().promotions.toArray(),
+        getDb().history.toArray(),
+      ] as const);
 
       // 1) Intentar RAG primero (búsqueda semántica)
       let catalogMatches: import("@/lib/vigia/ai/types").CatalogMatch[] = [];
@@ -716,54 +742,86 @@ export function ChatIA() {
       // 2) Fallback a búsqueda por keyword si RAG no dio nada
       if (catalogMatches.length === 0) {
         console.info("[chat-ia] RAG vacío, usando keyword search");
-        catalogMatches = await useVigiaStore
-          .getState()
-          .searchCatalog(keywords);
+        catalogMatches = await useVigiaStore.getState().searchCatalog(keywords).catch(() => []);
       }
 
-      // Preparar datos de Food Service para el contexto
-      const fsProductsCtx = FS_PRODUCTS.map((p) => ({
-        code: p.code,
-        name: p.name,
-        category: p.category,
-        unit: p.unit,
-        containerWeight: p.containerWeight,
-        unitWeight: p.unitWeight,
-      }));
-      const fsCountsCtx = fsCounts.map((c) => ({
-        product_code: c.product_code,
-        product_name: c.product_name,
-        category: c.category,
-        unit: c.unit,
-        opened: c.opened,
-        sealed: c.sealed,
-        system_qty: c.system_qty,
-        count_date: c.count_date,
-        updated_at: c.updated_at,
-        user_id: c.user_id,
-        user_email: userEmails.get(c.user_id) ?? c.user_id,
-      }));
-
+      const [counts, recounts, promotions, history] = await sources;
+      const unavailable = [
+        counts.status === "rejected" ? "Food Service" : "",
+        recounts.status === "rejected" ? "Recuentos" : "",
+        promotions.status === "rejected" ? "Promociones" : "",
+        history.status === "rejected" ? "Historial" : "",
+      ].filter(Boolean);
+      const fsRows = counts.status === "fulfilled" ? counts.value : fsCounts;
+      if (counts.status === "fulfilled") setFsCounts(fsRows);
+      const fsByCode = new Map(FS_PRODUCTS.map((product) => [product.code, product]));
+      const dates = new Set(q.match(/\b\d{4}-\d{2}-\d{2}\b/g) ?? []);
+      if (/\bhoy\b/i.test(q)) dates.add(today);
+      for (const match of q.matchAll(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/g)) {
+        dates.add(`${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`);
+      }
+      const dateScore = (date: string) => dates.has(date) ? 20 : 0;
+      const fsCountsCtx = ranked(fsRows, (row) => dateScore(row.count_date) + score(
+        row.product_name, row.product_code, row.category, fsByCode.get(row.product_code)?.itemCode,
+      ), 60).map(({ product_code, product_name, category, unit, opened, sealed, system_qty, count_date, updated_at }) => {
+        const product = fsByCode.get(product_code);
+        const result = product ? calcFSItem(product, { opened, sealed, system_qty }) : null;
+        const calculated = result && result.status !== "incompleto" ? result : null;
+        return { product_code, product_name, category, unit, opened, sealed, system_qty, count_date, updated_at,
+          inventory: calculated?.inventory, difference: calculated?.difference, status: result?.status };
+      });
+      const documents = recounts.status === "fulfilled" ? recounts.value : [];
+      const rankedDocuments = ranked(documents, (doc) => dateScore(doc.date) + score(doc.title) +
+        doc.items.reduce((best, item) => Math.max(best, score(item.name, item.code, item.category)), 0), 12);
+      let remainingItems = 180;
+      const recountContext = rankedDocuments.map(({ title, date, itemCount, measuredCount, items }) => {
+        const selected = ranked(items, (item) => score(item.name, item.code, item.category),
+          Math.min(remainingItems, 60));
+        remainingItems -= selected.length;
+        return { title, date, itemCount, measuredCount, items: selected.map((item) => {
+          const result = compareRecount(item);
+          return { name: item.name, code: item.code, category: item.category,
+            system: quantity(item.system), physical: quantity(item.physical),
+            difference: result.difference, status: result.status };
+        }) };
+      });
+      const promoRows = promotions.status === "fulfilled" ? promotions.value : [];
+      const promoStatus = (promo: Pick<(typeof promoRows)[number], "startDate" | "endDate">) =>
+        promo.startDate && promo.startDate > today ? "próxima"
+          : promo.endDate && promo.endDate < today ? "vencida" : "activa";
+      const historyRows = [...(history.status === "fulfilled" ? history.value : useVigiaStore.getState().history)]
+        .sort((a, b) => b.at.localeCompare(a.at));
       const stream = await askVigiaFn({
         data: {
-          storeName: settings.storeName,
-          today,
-          products: chatProducts,
-          history: messages.map((m) => ({ role: m.role, text: m.text })),
-          question: q,
-          catalogMatches,
-          focusedProduct: focus
-            ? {
-                name: focus.name,
-                quantity: focus.quantity,
-                expiresAt: focus.expiresAt,
-                status: productStatus(focus, soonWithin),
-                category: focus.category,
-                brand: focus.brand,
-              }
-            : undefined,
-          fsProducts: fsProductsCtx,
-          fsCounts: fsCountsCtx,
+          accessToken: session.access_token,
+          context: {
+            storeName: settings.storeName, today, nowISO: now.toISOString(), dayOfWeek, question: q,
+            products: ranked(chatProducts, (p) => score(p.name, p.brand, p.barcode, p.category, p.location), 60),
+            history: messages.filter((m) => m.text).slice(-12),
+            catalogMatches,
+            focusedProduct: focus ? {
+              name: focus.name, quantity: focus.quantity, expiresAt: focus.expiresAt,
+              status: productStatus(focus, soonWithin), category: focus.category, brand: focus.brand,
+              barcode: focus.barcode, price: focus.price, priceC: focus.priceC, location: focus.location,
+            } : undefined,
+            fsProducts: FS_PRODUCTS.map(({ code, itemCode, name, category, unit, containerWeight, unitWeight }) =>
+              ({ code, itemCode, name, category, unit, containerWeight, unitWeight })),
+            fsCounts: fsCountsCtx,
+            fsCountTotal: fsRows.length,
+            recounts: recountContext,
+            recountTotal: documents.length,
+            promotions: ranked(promoRows, (promo) => score(promo.name, promo.barcode, promo.category, promoStatus(promo)) +
+              (promoStatus(promo) === "activa" ? 1 : 0), 40)
+              .map(({ name, barcode, priceBefore, priceNow, startDate, endDate, dynamic, observations }) =>
+                ({ name, barcode, priceBefore, priceNow, startDate, endDate, dynamic, observations: observations?.slice(0, 250),
+                  status: promoStatus({ startDate, endDate }) })),
+            promoTotal: promoRows.length,
+            actionHistory: ranked(historyRows, (entry) => score(entry.name, entry.barcode, entry.action), 25)
+              .map(({ action, name, barcode, at }) => ({ action, name, barcode, at })),
+            settings,
+            stats,
+            unavailable,
+          },
         },
       });
 
@@ -826,7 +884,7 @@ export function ChatIA() {
             }} className="som-panel no-print fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[80dvh] max-w-xl flex-col rounded-t-2xl border border-border bg-card shadow-2xl">
           <header className="som-panel-heading flex items-center gap-3 rounded-t-2xl border-b border-border px-4 py-2">
             <div className="som-chat-avatar" ref={animateSomArrival}>
-              <Mascot mood={loading ? "thinking" : "happy"} size={44}/>
+              <Mascot mood={loading ? "thinking" : "happy"} size={44} />
             </div>
             <Dialog.Title className="flex-1 text-lg font-bold">Som</Dialog.Title>
             <Dialog.Close asChild><Button variant="ghost" size="icon" aria-label="Cerrar conversación"><X className="size-5"/></Button></Dialog.Close>
