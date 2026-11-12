@@ -23,7 +23,7 @@ self.addEventListener("message", (event) => {
         body: data.body || "",
         tag: data.tag || "vigia",
         renotify: true,
-        icon: "/icon-192.png",
+        icon: "/vigia-som-192.png",
       }),
     );
   }
@@ -67,7 +67,7 @@ async function checkSnapshot() {
         body: fresh[0].body,
         tag: "vigia-digest",
         renotify: true,
-        icon: "/icon-192.png",
+        icon: "/vigia-som-192.png",
       },
     );
     const ids = [...already, ...fresh.map((a) => a.id)];

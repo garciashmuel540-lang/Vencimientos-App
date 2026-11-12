@@ -164,7 +164,7 @@ export async function dispatchAlerts(
     await reg.showNotification(title, {
       body,
       tag: "vigia-digest",
-      icon: "/icon-192.png",
+      icon: "/vigia-som-192.png",
     });
   } else {
     new Notification(title, { body, tag: "vigia-digest" });
