@@ -1,3 +1,4 @@
+import { createSearchIndex } from "@/lib/vigia/search-index";
 import { useMemo, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Plus, Search, User, Users } from "lucide-react";
@@ -79,8 +80,9 @@ export function InventoryPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [products, category]);
 
+  const searchIndex = useMemo(() => createSearchIndex(products), [products]);
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const matches = q.trim() ? new Set(searchIndex.find(q, Infinity, true)) : null;
     return products.filter((p) => {
       // Filtro de dueño (solo admin)
       if (isAdmin && ownerFilter !== "all") {
@@ -95,14 +97,9 @@ export function InventoryPage() {
       if (category !== "all" && p.category !== category) return false;
       if (subcategory !== "all" && p.subcategory !== subcategory) return false;
       if (location !== "all" && p.location !== location) return false;
-      if (!needle) return true;
-      return (
-        p.name.toLowerCase().includes(needle) ||
-        p.brand.toLowerCase().includes(needle) ||
-        p.barcode.includes(needle)
-      );
+      return !matches || matches.has(p);
     });
-  }, [products, q, status, category, subcategory, location, soonWithin, isAdmin, ownerFilter, user?.id]);
+  }, [products, searchIndex, q, status, category, subcategory, location, soonWithin, isAdmin, ownerFilter, user?.id]);
 
   return (
     <main>

@@ -86,6 +86,7 @@ export interface ChatContext {
 }
 
 export type ChatChunk =
+  | { type: "reset" }
   | { type: "text"; content: string }
   | {
       type: "action";

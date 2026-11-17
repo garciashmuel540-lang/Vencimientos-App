@@ -69,12 +69,22 @@ export const askVigiaFn = createServerFn({ method: "POST" })
     } = await supabase.auth.getUser(data.accessToken);
     if (error || !user) throw new Error("Volvé a iniciar sesión para consultar a Sôm.");
 
+    const abort = new AbortController();
+    const iterator = streamSom(data.context, abort.signal);
     return new ReadableStream<string>({
-      async start(controller) {
-        for await (const chunk of streamSom(data.context)) {
-          controller.enqueue(JSON.stringify(chunk) + "\n");
+      async pull(controller) {
+        try {
+          const next = await iterator.next();
+          if (abort.signal.aborted) return;
+          if (next.done) controller.close();
+          else controller.enqueue(JSON.stringify(next.value) + "\n");
+        } catch (error) {
+          if (!abort.signal.aborted) controller.error(error);
         }
-        controller.close();
+      },
+      async cancel() {
+        abort.abort();
+        await iterator.return(undefined);
       },
     });
   });

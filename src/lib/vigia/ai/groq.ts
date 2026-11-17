@@ -21,7 +21,7 @@ function convertToolsToGroq(tools: InternalTool[]) {
   }));
 }
 
-export async function* llamarGroq(ctx: ChatContext, model = MODEL): AsyncGenerator<ChatChunk> {
+export async function* llamarGroq(ctx: ChatContext, model = MODEL, signal?: AbortSignal): AsyncGenerator<ChatChunk> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error("Falta GROQ_API_KEY en el servidor.");
@@ -52,7 +52,7 @@ export async function* llamarGroq(ctx: ChatContext, model = MODEL): AsyncGenerat
       include_reasoning: false,
       stream: true,
     },
-    { signal: AbortSignal.timeout(12000) },
+    { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(12000)]) : AbortSignal.timeout(12000) },
   );
 
   // Acumulador de tool calls (Groq las envía por partes)

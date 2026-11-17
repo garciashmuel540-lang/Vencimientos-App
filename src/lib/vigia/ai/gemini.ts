@@ -3,7 +3,7 @@ const model = "gemini-3.1-flash-lite";
 type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
 type Content = { role: "user" | "model"; parts: Part[] };
 
-export async function geminiJson(contents: Content[], maxOutputTokens: number, system?: string) {
+export async function geminiJson(contents: Content[], maxOutputTokens: number, system?: string, signal?: AbortSignal) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   const response = await fetch(
@@ -11,7 +11,7 @@ export async function geminiJson(contents: Content[], maxOutputTokens: number, s
     {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      signal: AbortSignal.timeout(14000),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(14000)]) : AbortSignal.timeout(14000),
       body: JSON.stringify({
         contents,
         systemInstruction: system ? { parts: [{ text: system }] } : undefined,

@@ -801,6 +801,10 @@ export function ChatIA() {
 
           if (chunk.type === "text") {
             appendToLastModel(chunk.content);
+          } else if (chunk.type === "reset") {
+            setMessages((prev) => prev.map((message, index) =>
+              index === prev.length - 1 && message.role === "model"
+                ? { ...message, text: "" } : message));
           } else if (chunk.type === "error") {
             appendToLastModel(`⚠️ ${chunk.content}`);
           } else if (chunk.type === "action") {

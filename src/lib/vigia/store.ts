@@ -1,3 +1,4 @@
+import { getCatalogSearchIndex } from "./catalog-search";
 /** Estado de inventario en el cliente, respaldado por IndexedDB. */
 import { create } from "zustand";
 import { addHistory, getDb, getKv, getSettings, saveSettings, setKv } from "./db";
@@ -613,58 +614,22 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
   },
 
   searchCatalog: async (keywords) => {
-    const words = keywords.map((w) => w.toLowerCase().trim()).filter((w) => w.length >= 3);
-    if (words.length === 0) return [];
-    const db = getDb();
-    const all = await db.catalog.toArray();
-    const scored = all
-      .map((e) => {
-        const name = (e.name + " " + e.brand).toLowerCase();
-        let score = 0;
-        for (const w of words) {
-          if (e.barcode === w) score += 100 + w.length;
-          else if (name.includes(w)) {
-            // Palabras más largas pesan más (una palabra de 8 letras
-            // vale el doble que una de 4)
-            score += w.length;
-          }
-        }
-        return { entry: e, score };
-      })
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 15)
-      .map((x) => ({
-        barcode: x.entry.barcode,
-        name: x.entry.name,
-        brand: x.entry.brand,
-        price: x.entry.price,
-        priceC: x.entry.priceC,
-        department: x.entry.department,
-        category: x.entry.category,
-      }));
-    return scored;
+    if (!keywords.some((word) => word.trim().length >= 3)) return [];
+    const index = await getCatalogSearchIndex();
+    return index.search(keywords).map((entry) => ({
+      barcode: entry.barcode, name: entry.name, brand: entry.brand,
+      price: entry.price, priceC: entry.priceC,
+      department: entry.department, category: entry.category,
+    }));
   },
 
   findCatalogMatches: async (query) => {
-    const q = query.toLowerCase().trim();
-    if (!q) return [];
-    const db = getDb();
-    const all = await db.catalog.toArray();
-    return all
-      .filter(
-        (e) =>
-          e.barcode === q || e.name.toLowerCase().includes(q) || e.brand.toLowerCase().includes(q),
-      )
-      .slice(0, 10)
-      .map((e) => ({
-        barcode: e.barcode,
-        name: e.name,
-        brand: e.brand,
-        price: e.price,
-        priceC: e.priceC,
-        cost: e.cost,
-      }));
+    if (!query.trim()) return [];
+    const index = await getCatalogSearchIndex();
+    return index.find(query, 10).map((entry) => ({
+      barcode: entry.barcode, name: entry.name, brand: entry.brand,
+      price: entry.price, priceC: entry.priceC, cost: entry.cost,
+    }));
   },
 
   updateSettings: async (patch) => {
