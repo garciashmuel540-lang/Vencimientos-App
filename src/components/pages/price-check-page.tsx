@@ -4,7 +4,7 @@ import { Pencil, Plus, RefreshCw, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
-import { PrintPriceLabel } from "@/components/price-label";
+import { makePriceLabel, PrintPriceLabels, type PriceLabelItem } from "@/components/price-label";
 import { Scanner } from "@/components/scanner";
 import { ProductForm, emptyDraft } from "@/components/product-form";
 import { Button } from "@/components/ui/button";
@@ -47,11 +47,38 @@ export function PriceCheckPage() {
   const [priceForm, setPriceForm] = useState(() => editPrices({}));
   const [promotion, setPromotion] = useState<Promotion | null>(null);
 
+  const [continuous, setContinuous] = useState(true);
+  const [labels, setLabels] = useState<(PriceLabelItem & { order: number })[]>([]);
+  const [reviewing, setReviewing] = useState(false);
+  const [pending, setPending] = useState(0);
+  const pendingCodes = useRef(new Set<string>());
   const lookupVersion = useRef(0);
+  const currentLabel = result && makePriceLabel(result, promotion);
+
+  function recordLabel(
+    product: LookupResult,
+    promo: Promotion | null,
+    add: boolean,
+    order: number,
+  ) {
+    const item = makePriceLabel(product, promo);
+    setLabels((previous) => {
+      const existing = previous.find((row) => row.barcode === product.barcode);
+      if (!item) return existing ? previous.filter((row) => row !== existing) : previous;
+      if (existing) return previous.map((row) => (row === existing ? { ...row, ...item } : row));
+      return add
+        ? [...previous, { ...item, copies: 1, order }].sort((a, b) => a.order - b.order)
+        : previous;
+    });
+    return item;
+  }
 
   async function handleCode(c: string) {
+    if (reviewing || adding || editingPrice || pendingCodes.current.has(c)) return;
     const version = ++lookupVersion.current;
-    setPaused(true);
+    pendingCodes.current.add(c);
+    setPending(pendingCodes.current.size);
+    setPaused(!continuous);
     setLooking(true);
     setPromotion(null);
     setCode(c);
@@ -59,7 +86,13 @@ export function PriceCheckPage() {
     setInInventory(null);
 
     try {
-      const [r, promo] = await Promise.all([lookupProduct(c), useVigiaStore.getState().getActivePromotion(c)]);
+      const [r, promo] = await Promise.all([
+        lookupProduct(c),
+        useVigiaStore.getState().getActivePromotion(c),
+      ]);
+      const item = recordLabel(r, promo, continuous, version);
+      if (continuous && !item)
+        toast.message(`${r.name || c}: sin precio al consumidor para imprimir.`);
       if (version !== lookupVersion.current) return;
       setResult(r);
 
@@ -72,9 +105,11 @@ export function PriceCheckPage() {
 
       setPromotion(promo);
     } catch {
-      if (version !== lookupVersion.current) return;
-      toast.error("No se pudo consultar el código. Intenta de nuevo.");
+      if (version === lookupVersion.current) setPaused(false);
+      toast.error(`No se pudo consultar ${c}. Volvé a escanearlo.`);
     } finally {
+      pendingCodes.current.delete(c);
+      setPending(pendingCodes.current.size);
       if (version === lookupVersion.current) setLooking(false);
     }
   }
@@ -108,14 +143,65 @@ export function PriceCheckPage() {
 
   return (
     <main>
-      <PageHeader mood="thinking" onMenuClick={() => setSidebarOpen(true)}
+      <PageHeader
+        mood="thinking"
+        onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Cámara"
         title="Precios"
         description="Escaneá un código o escribilo para consultar e imprimir el precio."
       />
 
       <div className="px-4">
-        <Scanner onDetect={(c) => void handleCode(c)} paused={paused} />
+        {(continuous || labels.length > 0) && (
+          <section
+            className="mb-4 grid gap-3 rounded-lg bg-card p-3"
+            aria-label="Lista de impresión"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div role="status" className="min-w-0">
+                <h2 className="font-semibold">Lista de impresión</h2>
+                <p className="text-sm text-muted-foreground">
+                  {pending
+                    ? "Consultando códigos…"
+                    : labels.length
+                      ? `${labels.length} ${labels.length === 1 ? "producto listo" : "productos listos"}`
+                      : "Escaneá los productos que querés imprimir."}
+                </p>
+              </div>
+              {labels.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={pending > 0}
+                  onClick={() => setLabels([])}
+                >
+                  Vaciar lista
+                </Button>
+              )}
+            </div>
+            <PrintPriceLabels
+              items={labels}
+              pending={pending > 0}
+              onOpenChange={setReviewing}
+              onCopies={(barcode, copies) =>
+                setLabels((rows) =>
+                  copies
+                    ? rows.map((row) => (row.barcode === barcode ? { ...row, copies } : row))
+                    : rows.filter((row) => row.barcode !== barcode),
+                )
+              }
+            />
+          </section>
+        )}
+        <Scanner
+          onDetect={(c) => void handleCode(c)}
+          paused={paused || reviewing || adding || editingPrice}
+          continuous={continuous}
+          onContinuousChange={(enabled) => {
+            setContinuous(enabled);
+            setPaused(false);
+          }}
+        />
       </div>
 
       {looking ? (
@@ -249,7 +335,12 @@ export function PriceCheckPage() {
                 )}
 
                 <div className="mt-5 flex flex-col gap-2">
-                  <PrintPriceLabel product={result} promotion={promotion} />
+                  {!continuous && currentLabel && (
+                    <PrintPriceLabels items={[{ ...currentLabel, copies: 1 }]} onOpenChange={setReviewing} />
+                  )}
+                  {!currentLabel && (
+                    <p className="text-sm text-muted-foreground">Agregá el precio al consumidor para imprimir la etiqueta.</p>
+                  )}
                   <Button
                     size="lg"
                     variant="secondary"
@@ -401,7 +492,9 @@ export function PriceCheckPage() {
                       category: result.category,
                       presentation: result.presentation,
                     });
-                    setResult({ ...result, ...values });
+                    const updated = { ...result, ...values };
+                    recordLabel(updated, promotion, continuous, lookupVersion.current);
+                    setResult(updated);
                     setEditingPrice(false);
                     toast.success("Precio actualizado");
                   } catch (error) {

@@ -412,31 +412,33 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
   font-family: Arial, sans-serif;
 }
 .shelf-label-content {
-  padding: 5cqw;
+  padding: 2.4cqw 3cqw;
   overflow-wrap: anywhere;
-  font-size: 4cqw;
-  line-height: 1.2;
-}
-.shelf-label-name {
-  display: block;
-  font-size: 6.6cqw;
+  font-size: 3.8cqw;
   line-height: 1.1;
 }
+.shelf-label-name { display: block; font-size: 5.8cqw; line-height: 1.08; }
+.shelf-label-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2cqw;
+  margin: 1.3cqw 0;
+  font-size: 4.1cqw;
+  font-variant-numeric: tabular-nums;
+}
+.shelf-label-meta span:first-child { text-transform: uppercase; font-weight: 600; }
+.shelf-barcode { display: block; width: 83%; height: 14cqw; margin: 0 auto; }
 .shelf-label-amount {
-  margin: 4cqw 0;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -.045em;
+  margin: 1cqw 0 0;
+  font-weight: 900;
+  line-height: .98;
+  letter-spacing: -.055em;
   white-space: nowrap;
+  text-align: center;
 }
-.shelf-label-amount span { font-size: .42em; }
-.shelf-label-offer { margin-top: 2cqw; font-weight: bold; }
-.shelf-label-code {
-  margin-top: 3cqw;
-  padding-top: 2cqw;
-  border-top: 1px solid black;
-  font-size: 3.7cqw;
-}
+.shelf-label-amount span { font-size: .43em; }
+.shelf-label-offer { margin: 1cqw 0; font-weight: bold; }
 .price-print-sheet { display: none; }
 @media print {
   body:has(> .price-print-sheet) > :not(.price-print-sheet) { display: none !important; }
@@ -445,11 +447,14 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
     padding: 0 !important;
     overflow: visible !important;
   }
-  .price-print-sheet {
-    display: block;
+  .price-print-sheet { display: block; font-size: 0; }
+  .price-print-sheet .shelf-label {
+    display: inline-block;
+    vertical-align: top;
     width: 90mm;
-    max-width: 100%;
+    max-width: calc(100% - 2mm);
+    margin: 0 2mm 2mm 0;
     break-inside: avoid;
   }
-  .price-print-sheet[data-large="true"] { width: 170mm; }
+  .price-print-sheet[data-large="true"] .shelf-label { width: 170mm; }
 }
