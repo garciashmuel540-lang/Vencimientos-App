@@ -458,3 +458,14 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
   }
   .price-print-sheet[data-large="true"] .shelf-label { width: 170mm; }
 }
+
+/* Copia a tamaño físico para exportar la misma etiqueta que se imprime. */
+.price-pdf-source {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  pointer-events: none;
+}
+@media print {
+  .price-pdf-source { display: none; }
+}
