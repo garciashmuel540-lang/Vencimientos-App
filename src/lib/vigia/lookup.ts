@@ -71,7 +71,7 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
   const localProduct = lots.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 
   const localHit = catalog
-    ? fromCatalog(catalog)
+    ? fromCatalog({ ...catalog, priceC: catalog.priceC ?? localProduct?.priceC })
     : localProduct
       ? fromCatalog({
           barcode: localProduct.barcode,
@@ -83,6 +83,8 @@ export async function lookupProduct(barcode: string): Promise<LookupResult> {
           location: localProduct.location !== "estante" ? localProduct.location : undefined,
           image: localProduct.image,
           source: localProduct.source,
+          priceC: localProduct.priceC,
+          price: localProduct.price,
           fetchedAt: localProduct.updatedAt,
         })
       : null;

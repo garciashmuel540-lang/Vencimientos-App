@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { getCatalogSearchIndex } from "./catalog-search";
 /** Estado de inventario en el cliente, respaldado por IndexedDB. */
 import { create } from "zustand";
@@ -492,8 +493,8 @@ export const useVigiaStore = create<VigiaState>((set, get) => ({
     const code = barcode.replace(/\s/g, "");
     const all = await getDb().promotions.where("barcode").equals(code).toArray();
     if (all.length === 0) return null;
-    const today = new Date().toISOString().slice(0, 10);
-    const active = all.filter((p) => !p.endDate || p.endDate >= today);
+    const today = format(new Date(), "yyyy-MM-dd");
+    const active = all.filter((p) => (!p.startDate || p.startDate <= today) && (!p.endDate || p.endDate >= today));
     if (active.length === 0) return null;
     // Elegir la más reciente
     return active.sort((a, b) => (b.importedAt ?? "").localeCompare(a.importedAt ?? ""))[0];

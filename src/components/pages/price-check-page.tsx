@@ -1,9 +1,10 @@
 import { editPrices, readPrices } from "@/lib/vigia/price-input";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pencil, Plus, RefreshCw, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
+import { PrintPriceLabel } from "@/components/price-label";
 import { Scanner } from "@/components/scanner";
 import { ProductForm, emptyDraft } from "@/components/product-form";
 import { Button } from "@/components/ui/button";
@@ -46,15 +47,20 @@ export function PriceCheckPage() {
   const [priceForm, setPriceForm] = useState(() => editPrices({}));
   const [promotion, setPromotion] = useState<Promotion | null>(null);
 
+  const lookupVersion = useRef(0);
+
   async function handleCode(c: string) {
+    const version = ++lookupVersion.current;
     setPaused(true);
     setLooking(true);
+    setPromotion(null);
     setCode(c);
     setResult(null);
     setInInventory(null);
 
     try {
-      const r = await lookupProduct(c);
+      const [r, promo] = await Promise.all([lookupProduct(c), useVigiaStore.getState().getActivePromotion(c)]);
+      if (version !== lookupVersion.current) return;
       setResult(r);
 
       const codeNorm = c.replace(/\s/g, "");
@@ -64,12 +70,12 @@ export function PriceCheckPage() {
         null;
       setInInventory(found);
 
-      const promo = await useVigiaStore.getState().getActivePromotion(c);
       setPromotion(promo);
     } catch {
+      if (version !== lookupVersion.current) return;
       toast.error("No se pudo consultar el código. Intenta de nuevo.");
     } finally {
-      setLooking(false);
+      if (version === lookupVersion.current) setLooking(false);
     }
   }
 
@@ -105,7 +111,7 @@ export function PriceCheckPage() {
       <PageHeader mood="thinking" onMenuClick={() => setSidebarOpen(true)}
         eyebrow="Cámara"
         title="Precios"
-        description="Escanea un código para ver la información y el precio."
+        description="Escaneá un código o escribilo para consultar e imprimir el precio."
       />
 
       <div className="px-4">
@@ -191,9 +197,9 @@ export function PriceCheckPage() {
                     Precio al consumidor
                   </p>
                   <p className="font-display text-3xl font-semibold text-primary">
-                    {fmtPrice(result.priceC ?? result.price)}
+                    {fmtPrice(result.priceC)}
                   </p>
-                  {result.priceC && result.price && result.priceC !== result.price ? (
+                  {typeof result.price === "number" && result.priceC !== result.price ? (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Precio interno (sin IVA): {fmtPrice(result.price)}
                     </p>
@@ -243,6 +249,7 @@ export function PriceCheckPage() {
                 )}
 
                 <div className="mt-5 flex flex-col gap-2">
+                  <PrintPriceLabel product={result} promotion={promotion} />
                   <Button
                     size="lg"
                     variant="secondary"

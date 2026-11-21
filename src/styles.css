@@ -400,3 +400,56 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
   font-family: "Figtree", ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
+
+/* La vista previa y el papel usan la misma etiqueta y escalan con su ancho. */
+.shelf-label {
+  container-type: inline-size;
+  width: 100%;
+  color-scheme: light;
+  background: white;
+  color: black;
+  border: 1px solid black;
+  font-family: Arial, sans-serif;
+}
+.shelf-label-content {
+  padding: 5cqw;
+  overflow-wrap: anywhere;
+  font-size: 4cqw;
+  line-height: 1.2;
+}
+.shelf-label-name {
+  display: block;
+  font-size: 6.6cqw;
+  line-height: 1.1;
+}
+.shelf-label-amount {
+  margin: 4cqw 0;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.045em;
+  white-space: nowrap;
+}
+.shelf-label-amount span { font-size: .42em; }
+.shelf-label-offer { margin-top: 2cqw; font-weight: bold; }
+.shelf-label-code {
+  margin-top: 3cqw;
+  padding-top: 2cqw;
+  border-top: 1px solid black;
+  font-size: 3.7cqw;
+}
+.price-print-sheet { display: none; }
+@media print {
+  body:has(> .price-print-sheet) > :not(.price-print-sheet) { display: none !important; }
+  body:has(> .price-print-sheet) {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .price-print-sheet {
+    display: block;
+    width: 90mm;
+    max-width: 100%;
+    break-inside: avoid;
+  }
+  .price-print-sheet[data-large="true"] { width: 170mm; }
+}

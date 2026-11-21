@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabase";
 import { listRecountItems } from "@/lib/data/recounts-supabase";
 import { getDb } from "@/lib/vigia/db";
 import { compareRecount, quantity } from "@/lib/vigia/recounts";
+import type { ChatChunk } from "@/lib/vigia/ai/types";
 import { localIntent } from "@/lib/vigia/ai/local-intent";
 import { runSomQuery } from "@/lib/vigia/ai/client-queries";
 import { chooseChatSources } from "@/lib/vigia/ai/chat-sources";
@@ -62,17 +63,6 @@ const SUGGESTIONS = [
   "Dame un resumen del inventario en una tabla",
   "¿Qué hago con los vencidos?",
 ];
-
-type ChatChunk =
-  | { type: "text"; content: string }
-  | {
-      type: "action";
-      name: string;
-      args: Record<string, unknown>;
-      requiresConfirmation?: boolean;
-      confirmationLabel?: string;
-    }
-  | { type: "error"; content: string };
 
 const CATEGORIES: ProductCategory[] = [
   "bebida", "lacteo", "snack", "panaderia", "carnes",
