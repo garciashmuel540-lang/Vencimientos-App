@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactElement } from "react";
-import { defaultShelfSize, isShelfSize, shelfGrid, shelfLimits, type ShelfSize } from "@/lib/vigia/shelf-size";
+import { fitShelfSheet, defaultShelfSize, isShelfSize, shelfGrid, shelfLimits, type ShelfSize } from "@/lib/vigia/shelf-size";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import JsBarcode from "jsbarcode";
@@ -310,6 +310,7 @@ export function PrintPriceLabels({
                   </label>
                 ))}
                 <p className="text-sm text-muted-foreground">Hasta {grid.perPage} etiquetas por hoja Carta al 100 %.</p>
+                <Button variant="outline" onClick={() => changeSize(fitShelfSheet(size, count))}>Aprovechar hoja Carta</Button>
                 <Button variant="ghost" onClick={() => changeSize(defaultShelfSize)}>Restablecer 4 × 2,4 cm</Button>
               </div>
             )}
