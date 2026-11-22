@@ -411,12 +411,12 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
   color: #000;
   color-scheme: light;
   border: 1px solid #000;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Bell MT", BellMT, Georgia, "Times New Roman", serif;
 }
 .shelf-label-content {
   --unit: var(--label-unit, 1cqw);
   display: grid;
-  grid-template-columns: 56fr 44fr;
+  grid-template-columns: 58fr 42fr;
   line-height: 1.1;
   min-height: 42cqw;
 }
@@ -435,8 +435,9 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
 }
 .shelf-label-name {
   -webkit-line-clamp: 2;
-  font-size: calc(6.4 * var(--unit));
-  font-weight: 400;
+  font-size: calc(9 * var(--unit));
+  line-height: 1.02;
+  font-weight: 700;
 }
 .shelf-label-detail {
   -webkit-line-clamp: 1;
