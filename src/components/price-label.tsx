@@ -45,7 +45,7 @@ function ShelfLabel({ item, large }: { item: PriceLabelItem; large: boolean }) {
   );
 
   return (
-    <article data-compact={!large} className="shelf-label" aria-label="Etiqueta de precio">
+    <article data-compact={!large} data-promo={Boolean(promotion)} className="shelf-label" aria-label="Etiqueta de precio">
       <div className="shelf-label-content">
         <strong className="shelf-label-name">
           {name || barcode}
@@ -262,11 +262,11 @@ export function PrintPriceLabels({
                 value={large ? "sign" : "shelf"}
                 onChange={(e) => setLarge(e.target.value === "sign")}
               >
-                <option value="shelf">Etiqueta compacta · 4 × 3 cm</option>
+                <option value="shelf">Etiqueta de estante · 4 × 2,4 cm</option>
                 <option value="sign">Cartel grande · 17 cm de ancho</option>
               </select>
             </label>
-            {!large && <p className="text-sm text-muted-foreground">Hasta 32 etiquetas por hoja A4 a escala 100 %.</p>}
+            {!large && <p className="text-sm text-muted-foreground">Hasta 40 etiquetas por hoja Carta a escala 100 %.</p>}
             {items.map((item) => (
               <div key={item.barcode} className="rounded-lg bg-muted p-3">
                 <ShelfLabel large={large} item={item} />

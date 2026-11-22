@@ -441,10 +441,10 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
 .shelf-label-offer { margin: 1cqw 0; font-weight: bold; }
 /* Tamaño físico compartido por la vista previa, la impresión y la captura del PDF. */
 .shelf-label[data-compact="true"] {
-  --price-cap: 21cqw;
+  --price-cap: 22cqw;
   box-sizing: border-box;
   width: 40mm;
-  height: 30mm;
+  height: 24mm;
   overflow: hidden;
 }
 .shelf-label[data-compact="true"] .shelf-label-content {
@@ -470,8 +470,30 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
 .shelf-label[data-compact="true"] .shelf-label-meta span:last-child { flex-shrink: 0; }
 .shelf-label[data-compact="true"] .shelf-barcode { width: 100%; height: 13cqw; }
 .shelf-label[data-compact="true"] .shelf-label-offer { margin: .5cqw 0; }
-.shelf-label[data-compact="true"] .shelf-label-amount { margin-top: auto; }
+.shelf-label[data-compact="true"] .shelf-label-amount {
+  order: -1;
+  margin: 0;
+  text-align: left;
+}
+.shelf-label[data-compact="true"] .shelf-label-name { order: -2; }
+.shelf-label[data-compact="true"] .shelf-label-meta { order: 2; margin: 0; }
+.shelf-label[data-compact="true"] .shelf-barcode {
+  order: 1;
+  margin-top: auto;
+  flex-shrink: 0;
+  height: 11cqw;
+}
+.shelf-label[data-compact="true"][data-promo="true"] {
+  --price-cap: 17cqw;
+}
+.shelf-label[data-compact="true"][data-promo="true"] .shelf-label-name {
+  -webkit-line-clamp: 1;
+}
+.shelf-label[data-compact="true"][data-promo="true"] .shelf-label-content {
+  font-size: 3.3cqw;
+}
 .price-print-sheet { display: none; }
+@page vigia-shelf { size: letter portrait; margin: 9mm 10mm; }
 @page vigia-labels { size: A4 portrait; margin: 10mm; }
 @media print {
   body:has(> .price-print-sheet) > :not(.price-print-sheet) { display: none !important; }
@@ -481,6 +503,7 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
     overflow: visible !important;
   }
   .price-print-sheet { page: vigia-labels; display: block; font-size: 0; }
+  .price-print-sheet[data-large="false"] { page: vigia-shelf; line-height: 0; }
   .price-print-sheet .shelf-label {
     display: inline-block;
     vertical-align: top;
