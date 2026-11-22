@@ -1,3 +1,5 @@
+import type { CSSProperties, ReactElement } from "react";
+import { defaultShelfSize, isShelfSize, shelfGrid, shelfLimits, type ShelfSize } from "@/lib/vigia/shelf-size";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import JsBarcode from "jsbarcode";
@@ -25,7 +27,7 @@ export function makePriceLabel(product: LookupResult, promotion: Promotion | nul
 
 export type PriceLabelItem = NonNullable<ReturnType<typeof makePriceLabel>> & { copies: number };
 
-function ShelfLabel({ item, large }: { item: PriceLabelItem; large: boolean }) {
+function ShelfLabel({ item, large, size }: { item: PriceLabelItem; large: boolean; size: ShelfSize }) {
   const { barcode, name, brand, presentation, amount, promotion } = item;
   const price = amount.toFixed(2);
   const drawBarcode = useCallback(
@@ -45,7 +47,7 @@ function ShelfLabel({ item, large }: { item: PriceLabelItem; large: boolean }) {
   );
 
   return (
-    <article data-compact={!large} data-promo={Boolean(promotion)} className="shelf-label" aria-label="Etiqueta de precio">
+    <article style={large ? undefined : { width: `${size.width}mm`, height: `${size.height}mm`, "--label-unit": `${Math.min(size.width, size.height * 40 / 24) / 100}mm` } as CSSProperties} data-compact={!large} data-promo={Boolean(promotion)} className="shelf-label" aria-label="Etiqueta de precio">
       <div className="shelf-label-content">
         <strong className="shelf-label-name">
           {name || barcode}
@@ -84,7 +86,7 @@ function ShelfLabel({ item, large }: { item: PriceLabelItem; large: boolean }) {
   );
 }
 
-type PrintJob = { items: PriceLabelItem[]; large: boolean };
+type PrintJob = { items: PriceLabelItem[]; large: boolean; size: ShelfSize };
 
 function PrintDestinations({ job, onBack }: { job: PrintJob; onBack: () => void }) {
   const source = useRef<HTMLDivElement>(null);
@@ -101,7 +103,7 @@ function PrintDestinations({ job, onBack }: { job: PrintJob; onBack: () => void 
     async function preparePdf() {
       try {
         const { createPriceLabelPdf } = await import("@/lib/vigia/price-label-pdf");
-        const file = await createPriceLabelPdf(labels, job.large, controller.signal);
+        const file = await createPriceLabelPdf(labels, job.large, job.size, controller.signal);
         if (controller.signal.aborted) return;
         url = URL.createObjectURL(file);
         setPdf({ file, url });
@@ -203,10 +205,10 @@ function PrintDestinations({ job, onBack }: { job: PrintJob; onBack: () => void 
         ref={source}
         aria-hidden="true"
         className="price-pdf-source"
-        style={{ width: job.large ? "170mm" : "40mm" }}
+        style={{ width: job.large ? "170mm" : `${job.size.width}mm` }}
       >
         {job.items.map((item) => (
-          <ShelfLabel large={job.large} key={item.barcode} item={item} />
+          <ShelfLabel size={job.size} large={job.large} key={item.barcode} item={item} />
         ))}
       </div>
     </>
@@ -227,8 +229,38 @@ export function PrintPriceLabels({
   const [open, setOpen] = useState(false);
   const [large, setLarge] = useState(false);
   const [job, setJob] = useState<PrintJob | null>(null);
+  const [size, setSize] = useState(defaultShelfSize);
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem("vigia.shelfSize") ?? "null");
+      if (isShelfSize(saved)) setSize(saved);
+    } catch { /* Usar la medida inicial si el almacenamiento está bloqueado. */ }
+  }, [open]);
+
+  function changeSize(next: ShelfSize) {
+    setSize(next);
+    try { localStorage.setItem("vigia.shelfSize", JSON.stringify(next)); } catch { /* Solo esta sesión. */ }
+  }
+
+  const grid = shelfGrid(job?.size ?? size);
   const count = items.reduce((total, item) => total + item.copies, 0);
   const title = onCopies ? `Revisar e imprimir (${count})` : "Imprimir precio";
+
+  const printPages: ReactElement[][] = [];
+  if (open) {
+    const printLarge = job?.large ?? large;
+    for (const item of job?.items ?? items) {
+      for (let copy = 0; copy < item.copies; copy++) {
+        let page = printPages[printPages.length - 1];
+        if (!page || (!printLarge && page.length === grid.perPage)) {
+          page = [];
+          printPages.push(page);
+        }
+        page.push(<ShelfLabel key={`${item.barcode}-${copy}`} item={item} large={printLarge} size={job?.size ?? size} />);
+      }
+    }
+  }
 
   function changeOpen(value: boolean) {
     if (!value) setJob(null);
@@ -262,14 +294,27 @@ export function PrintPriceLabels({
                 value={large ? "sign" : "shelf"}
                 onChange={(e) => setLarge(e.target.value === "sign")}
               >
-                <option value="shelf">Etiqueta de estante · 4 × 2,4 cm</option>
+                <option value="shelf">Etiqueta de estante ajustable</option>
                 <option value="sign">Cartel grande · 17 cm de ancho</option>
               </select>
             </label>
-            {!large && <p className="text-sm text-muted-foreground">Hasta 40 etiquetas por hoja Carta a escala 100 %.</p>}
+            {!large && (
+              <div className="grid gap-3">
+                {(["width", "height"] as const).map((axis) => (
+                  <label key={axis} className="grid gap-1 text-sm">
+                    {axis === "width" ? "Ancho" : "Alto"} · {(size[axis] / 10).toLocaleString("es-NI")} cm
+                    <input type="range" min={shelfLimits[axis][0]} max={shelfLimits[axis][1]}
+                      step={1} value={size[axis]}
+                      onChange={(e) => changeSize({ ...size, [axis]: Number(e.target.value) })} />
+                  </label>
+                ))}
+                <p className="text-sm text-muted-foreground">Hasta {grid.perPage} etiquetas por hoja Carta al 100 %.</p>
+                <Button variant="ghost" onClick={() => changeSize(defaultShelfSize)}>Restablecer 4 × 2,4 cm</Button>
+              </div>
+            )}
             {items.map((item) => (
-              <div key={item.barcode} className="rounded-lg bg-muted p-3">
-                <ShelfLabel large={large} item={item} />
+              <div key={item.barcode} className="overflow-x-auto rounded-lg bg-muted p-3">
+                <ShelfLabel size={size} large={large} item={item} />
                 {onCopies && (
                   <div className="mt-2 flex items-center gap-2">
                     <Button
@@ -312,7 +357,7 @@ export function PrintPriceLabels({
               size="lg"
               className="sticky bottom-0 shrink-0"
               disabled={!count || pending}
-              onClick={() => setJob({ items, large })}
+              onClick={() => setJob({ items, large, size })}
             >
               <Printer />
               {onCopies
@@ -325,11 +370,11 @@ export function PrintPriceLabels({
       {open &&
         createPortal(
           <div className="price-print-sheet" data-large={job?.large ?? large}>
-            {(job?.items ?? items).flatMap((item) =>
-              Array.from({ length: item.copies }, (_, i) => (
-                <ShelfLabel large={job?.large ?? large} key={`${item.barcode}-${i}`} item={item} />
-              )),
-            )}
+            {printPages.map((page, index) => (
+              <div key={index} className="price-print-page" style={{ gridTemplateColumns: `repeat(${grid.columns}, ${(job?.size ?? size).width}mm)` }}>
+                {page}
+              </div>
+            ))}
           </div>,
           document.body,
         )}
