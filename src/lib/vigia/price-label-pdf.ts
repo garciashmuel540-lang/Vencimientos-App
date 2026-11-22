@@ -12,8 +12,8 @@ export async function createPriceLabelPdf(
 ): Promise<File> {
   const pdf = await PDFDocument.create();
   const [pageWidth, pageHeight] = PageSizes.A4;
-  const width = (large ? 170 : 90) * MM;
-  const columns = large ? 1 : 2;
+  const width = (large ? 170 : 40) * MM;
+  const columns = large ? 1 : 4;
   const availableHeight = pageHeight - 2 * MARGIN;
   let page = pdf.addPage(PageSizes.A4);
   let top = pageHeight - MARGIN;
@@ -49,7 +49,9 @@ export async function createPriceLabelPdf(
     signal.throwIfAborted();
     const image = await pdf.embedPng(await png.arrayBuffer());
     const scale = Math.min(width / image.width, availableHeight / image.height);
-    const label = { image, width: image.width * scale, height: image.height * scale };
+    const label = large
+      ? { image, width: image.width * scale, height: image.height * scale }
+      : { image, width, height: 30 * MM };
     for (let i = 0; i < copies; i++) {
       row.push(label);
       if (row.length === columns) drawRow();

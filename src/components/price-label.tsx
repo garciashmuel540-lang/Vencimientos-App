@@ -25,7 +25,7 @@ export function makePriceLabel(product: LookupResult, promotion: Promotion | nul
 
 export type PriceLabelItem = NonNullable<ReturnType<typeof makePriceLabel>> & { copies: number };
 
-function ShelfLabel({ item }: { item: PriceLabelItem }) {
+function ShelfLabel({ item, large }: { item: PriceLabelItem; large: boolean }) {
   const { barcode, name, brand, presentation, amount, promotion } = item;
   const price = amount.toFixed(2);
   const drawBarcode = useCallback(
@@ -45,7 +45,7 @@ function ShelfLabel({ item }: { item: PriceLabelItem }) {
   );
 
   return (
-    <article className="shelf-label" aria-label="Etiqueta de precio">
+    <article data-compact={!large} className="shelf-label" aria-label="Etiqueta de precio">
       <div className="shelf-label-content">
         <strong className="shelf-label-name">
           {name || barcode}
@@ -75,7 +75,7 @@ function ShelfLabel({ item }: { item: PriceLabelItem }) {
         {promotion?.endDate && <p>Hasta el {formatDate(promotion.endDate)}</p>}
         <p
           className="shelf-label-amount"
-          style={{ fontSize: `min(35cqw, ${168 / (price.length + 0.8)}cqw)` }}
+          style={{ fontSize: `min(var(--price-cap, 35cqw), ${168 / (price.length + 0.8)}cqw)` }}
         >
           <span>C$</span> {price}
         </p>
@@ -203,10 +203,10 @@ function PrintDestinations({ job, onBack }: { job: PrintJob; onBack: () => void 
         ref={source}
         aria-hidden="true"
         className="price-pdf-source"
-        style={{ width: job.large ? "170mm" : "90mm" }}
+        style={{ width: job.large ? "170mm" : "40mm" }}
       >
         {job.items.map((item) => (
-          <ShelfLabel key={item.barcode} item={item} />
+          <ShelfLabel large={job.large} key={item.barcode} item={item} />
         ))}
       </div>
     </>
@@ -262,13 +262,14 @@ export function PrintPriceLabels({
                 value={large ? "sign" : "shelf"}
                 onChange={(e) => setLarge(e.target.value === "sign")}
               >
-                <option value="shelf">Etiqueta de estante · 9 cm de ancho</option>
+                <option value="shelf">Etiqueta compacta · 4 × 3 cm</option>
                 <option value="sign">Cartel grande · 17 cm de ancho</option>
               </select>
             </label>
+            {!large && <p className="text-sm text-muted-foreground">Hasta 32 etiquetas por hoja A4 a escala 100 %.</p>}
             {items.map((item) => (
               <div key={item.barcode} className="rounded-lg bg-muted p-3">
-                <ShelfLabel item={item} />
+                <ShelfLabel large={large} item={item} />
                 {onCopies && (
                   <div className="mt-2 flex items-center gap-2">
                     <Button
@@ -326,7 +327,7 @@ export function PrintPriceLabels({
           <div className="price-print-sheet" data-large={job?.large ?? large}>
             {(job?.items ?? items).flatMap((item) =>
               Array.from({ length: item.copies }, (_, i) => (
-                <ShelfLabel key={`${item.barcode}-${i}`} item={item} />
+                <ShelfLabel large={job?.large ?? large} key={`${item.barcode}-${i}`} item={item} />
               )),
             )}
           </div>,
