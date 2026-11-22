@@ -404,93 +404,64 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
 /* La vista previa y el papel usan la misma etiqueta y escalan con su ancho. */
 .shelf-label {
   container-type: inline-size;
+  box-sizing: border-box;
   width: 100%;
+  overflow: hidden;
+  background: #fff;
+  color: #000;
   color-scheme: light;
-  background: white;
-  color: black;
-  border: 1px solid black;
-  font-family: Arial, sans-serif;
+  border: 1px solid #000;
+  font-family: Arial, Helvetica, sans-serif;
 }
 .shelf-label-content {
-  padding: 2.4cqw 3cqw;
-  overflow-wrap: anywhere;
-  font-size: 3.8cqw;
+  --unit: var(--label-unit, 1cqw);
+  display: grid;
+  grid-template-columns: 56fr 44fr;
   line-height: 1.1;
+  min-height: 42cqw;
 }
-.shelf-label-name { display: block; font-size: 5.8cqw; line-height: 1.08; }
-.shelf-label-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 2cqw;
-  margin: 1.3cqw 0;
-  font-size: 4.1cqw;
-  font-variant-numeric: tabular-nums;
-}
-.shelf-label-meta span:first-child { text-transform: uppercase; font-weight: 600; }
-.shelf-barcode { display: block; width: 83%; height: 14cqw; margin: 0 auto; }
-.shelf-label-amount {
-  margin: 1cqw 0 0;
-  font-weight: 900;
-  line-height: .98;
-  letter-spacing: -.055em;
-  white-space: nowrap;
-  text-align: center;
-}
-.shelf-label-amount span { font-size: .43em; }
-.shelf-label-offer { margin: 1cqw 0; font-weight: bold; }
-/* Tamaño físico compartido por la vista previa, la impresión y la captura del PDF. */
-.shelf-label[data-compact="true"] {
-  --price-cap: calc(22 * var(--label-unit));
-  box-sizing: border-box;
-  overflow: hidden;
-}
-.shelf-label[data-compact="true"] .shelf-label-content {
-  height: 100%;
-  font-size: calc(3.8 * var(--label-unit));
+.shelf-label[data-compact="true"] .shelf-label-content { height: 100%; min-height: 0; }
+.shelf-label-info {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: calc(1.5 * var(--label-unit)) calc(2 * var(--label-unit));
+  padding: calc(2 * var(--unit));
+  overflow-wrap: anywhere;
 }
-.shelf-label[data-compact="true"] .shelf-label-name {
+.shelf-label-name, .shelf-label-detail, .shelf-label-promotion strong {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: calc(5.5 * var(--label-unit));
 }
-.shelf-label[data-compact="true"] .shelf-label-meta { margin: calc(.5 * var(--label-unit)) 0; }
-.shelf-label[data-compact="true"] .shelf-label-meta span,
-.shelf-label[data-compact="true"] .shelf-label-offer {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.shelf-label-name {
+  -webkit-line-clamp: 2;
+  font-size: calc(6.4 * var(--unit));
+  font-weight: 400;
 }
-.shelf-label[data-compact="true"] .shelf-label-meta span:last-child { flex-shrink: 0; }
-.shelf-label[data-compact="true"] .shelf-barcode { width: 100%; height: calc(13 * var(--label-unit)); }
-.shelf-label[data-compact="true"] .shelf-label-offer { margin: calc(.5 * var(--label-unit)) 0; }
-.shelf-label[data-compact="true"] .shelf-label-amount {
-  order: -1;
-  margin: 0;
-  text-align: left;
-}
-.shelf-label[data-compact="true"] .shelf-label-name { order: -2; }
-.shelf-label[data-compact="true"] .shelf-label-meta { order: 2; margin: 0; font-size: calc(4.1 * var(--label-unit)); }
-.shelf-label[data-compact="true"] .shelf-barcode {
-  order: 1;
-  margin-top: auto;
-  flex-shrink: 0;
-  height: calc(11 * var(--label-unit));
-}
-.shelf-label[data-compact="true"][data-promo="true"] {
-  --price-cap: calc(17 * var(--label-unit));
-}
-.shelf-label[data-compact="true"][data-promo="true"] .shelf-label-name {
+.shelf-label-detail {
   -webkit-line-clamp: 1;
+  margin-top: calc(.7 * var(--unit));
+  font-size: calc(4.1 * var(--unit));
 }
-.shelf-label[data-compact="true"][data-promo="true"] .shelf-label-content {
-  font-size: calc(3.3 * var(--label-unit));
+.shelf-label-promotion { margin-top: calc(.6 * var(--unit)); font-size: calc(3.2 * var(--unit)); }
+.shelf-label-promotion strong { -webkit-line-clamp: 1; }
+.shelf-label-code {
+  margin-top: auto;
+  padding-top: calc(.8 * var(--unit));
+  text-align: center;
+  font-size: calc(3.5 * var(--unit));
+  letter-spacing: .03em;
+  font-variant-numeric: tabular-nums;
 }
+.shelf-barcode { display: block; width: 100%; height: calc(10 * var(--unit)); }
+.shelf-label-price {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 1cqw;
+  border-left: 1px solid #000;
+}
+.shelf-label-price svg { display: block; width: 100%; height: auto; max-height: 100%; fill: #000; }
 .price-print-sheet { display: none; }
 @page vigia-shelf { size: letter portrait; margin: 10mm; }
 @page vigia-labels { size: A4 portrait; margin: 10mm; }

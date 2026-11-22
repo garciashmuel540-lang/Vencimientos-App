@@ -46,41 +46,42 @@ function ShelfLabel({ item, large, size }: { item: PriceLabelItem; large: boolea
     [barcode],
   );
 
+  const details = [brand, presentation]
+    .filter((value) => value && !name?.toLowerCase().includes(value.toLowerCase()))
+    .join(" · ");
+  const dimensions = large ? undefined : {
+    width: `${size.width}mm`,
+    height: `${size.height}mm`,
+    "--label-unit": `${Math.min(size.width, size.height * 40 / 24) / 100}mm`,
+  } as CSSProperties;
+
   return (
-    <article style={large ? undefined : { width: `${size.width}mm`, height: `${size.height}mm`, "--label-unit": `${Math.min(size.width, size.height * 40 / 24) / 100}mm` } as CSSProperties} data-compact={!large} data-promo={Boolean(promotion)} className="shelf-label" aria-label="Etiqueta de precio">
+    <article className="shelf-label" style={dimensions} data-compact={!large} aria-label="Etiqueta de precio">
       <div className="shelf-label-content">
-        <strong className="shelf-label-name">
-          {name || barcode}
-          {presentation &&
-            !name?.toLowerCase().includes(presentation.toLowerCase()) &&
-            ` · ${presentation}`}
-        </strong>
-        <div className="shelf-label-meta">
-          <span>{brand}</span>
-          <span>{barcode}</span>
+        <div className="shelf-label-info">
+          <div className="shelf-label-name">{name || barcode}</div>
+          {details && <div className="shelf-label-detail">{details}</div>}
+          {promotion && (
+            <div className="shelf-label-promotion">
+              <strong>Promoción{promotion.dynamic && ` · ${promotion.dynamic}`}</strong>
+              {promotion.startDate && <div>Desde el {formatDate(promotion.startDate)}</div>}
+              {promotion.endDate && <div>Hasta el {formatDate(promotion.endDate)}</div>}
+            </div>
+          )}
+          <div className="shelf-label-code">
+            {/^[ -~]+$/.test(barcode) && (
+              <svg className="shelf-barcode" ref={drawBarcode} aria-hidden="true" preserveAspectRatio="none" />
+            )}
+            <div>{barcode}</div>
+          </div>
         </div>
-        {/^[ -~]+$/.test(barcode) && (
-          <svg
-            className="shelf-barcode"
-            ref={drawBarcode}
-            role="img"
-            aria-label={`Código de barras ${barcode}`}
-            preserveAspectRatio="none"
-          />
-        )}
-        {promotion && (
-          <p className="shelf-label-offer">
-            Promoción{promotion.dynamic && ` · ${promotion.dynamic}`}
-          </p>
-        )}
-        {promotion?.startDate && <p>Desde el {formatDate(promotion.startDate)}</p>}
-        {promotion?.endDate && <p>Hasta el {formatDate(promotion.endDate)}</p>}
-        <p
-          className="shelf-label-amount"
-          style={{ fontSize: `min(var(--price-cap, 35cqw), ${168 / (price.length + 0.8)}cqw)` }}
-        >
-          <span>C$</span> {price}
-        </p>
+        <div className="shelf-label-price">
+          <svg viewBox="0 0 100 55" role="img" aria-label={`Precio C$ ${price}`}>
+            <text x="1" y="43" fontSize="48" fontWeight="900" textLength="98" lengthAdjust="spacingAndGlyphs">
+              <tspan fontSize="25">C$</tspan>{price}
+            </text>
+          </svg>
+        </div>
       </div>
     </article>
   );
