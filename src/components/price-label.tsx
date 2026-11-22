@@ -76,9 +76,9 @@ function ShelfLabel({ item, large, size }: { item: PriceLabelItem; large: boolea
           </div>
         </div>
         <div className="shelf-label-price">
-          <svg viewBox="0 0 100 55" role="img" aria-label={`Precio C$ ${price}`}>
-            <text x="1" y="43" fontSize="48" fontWeight="900" textLength="98" lengthAdjust="spacingAndGlyphs">
-              <tspan fontSize="25">C$</tspan>{price}
+          <svg viewBox={`0 0 ${35 + price.length * 25} 58`} role="img" aria-label={`Precio C$ ${price}`}>
+            <text x="0" y="45" fontSize="54" fontWeight="700" textLength={35 + price.length * 25} lengthAdjust="spacingAndGlyphs">
+              <tspan fontSize="31" dy="-8">C$</tspan><tspan dy="8">{price}</tspan>
             </text>
           </svg>
         </div>
@@ -230,10 +230,12 @@ export function PrintPriceLabels({
   const [open, setOpen] = useState(false);
   const [large, setLarge] = useState(false);
   const [job, setJob] = useState<PrintJob | null>(null);
-  const [size, setSize] = useState(defaultShelfSize);
+  const [manualSize, setSize] = useState(defaultShelfSize);
+  const [autoFit, setAutoFit] = useState(true);
   useEffect(() => {
     if (!open) return;
     try {
+      setAutoFit(localStorage.getItem("vigia.labelLayout") !== "manual");
       const saved: unknown = JSON.parse(localStorage.getItem("vigia.shelfSize") ?? "null");
       if (isShelfSize(saved)) setSize(saved);
     } catch { /* Usar la medida inicial si el almacenamiento está bloqueado. */ }
@@ -244,8 +246,9 @@ export function PrintPriceLabels({
     try { localStorage.setItem("vigia.shelfSize", JSON.stringify(next)); } catch { /* Solo esta sesión. */ }
   }
 
-  const grid = shelfGrid(job?.size ?? size);
   const count = items.reduce((total, item) => total + item.copies, 0);
+  const size = autoFit ? fitShelfSheet(count) : manualSize;
+  const grid = shelfGrid(job?.size ?? size);
   const title = onCopies ? `Revisar e imprimir (${count})` : "Imprimir precio";
 
   const printPages: ReactElement[][] = [];
@@ -301,7 +304,16 @@ export function PrintPriceLabels({
             </label>
             {!large && (
               <div className="grid gap-3">
-                {(["width", "height"] as const).map((axis) => (
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={autoFit} onChange={(event) => {
+                    const enabled = event.target.checked;
+                    setAutoFit(enabled);
+                    try { localStorage.setItem("vigia.labelLayout", enabled ? "auto" : "manual"); } catch { /* Solo esta sesión. */ }
+                  }} />
+                  Ajustar automáticamente a hoja Carta
+                </label>
+                {autoFit && <p className="text-sm">3 columnas · {(size.width / 10).toLocaleString("es-NI")} × {(size.height / 10).toLocaleString("es-NI")} cm</p>}
+                {!autoFit && (["width", "height"] as const).map((axis) => (
                   <label key={axis} className="grid gap-1 text-sm">
                     {axis === "width" ? "Ancho" : "Alto"} · {(size[axis] / 10).toLocaleString("es-NI")} cm
                     <input type="range" min={shelfLimits[axis][0]} max={shelfLimits[axis][1]}
@@ -310,8 +322,7 @@ export function PrintPriceLabels({
                   </label>
                 ))}
                 <p className="text-sm text-muted-foreground">Hasta {grid.perPage} etiquetas por hoja Carta al 100 %.</p>
-                <Button variant="outline" onClick={() => changeSize(fitShelfSheet(size, count))}>Aprovechar hoja Carta</Button>
-                <Button variant="ghost" onClick={() => changeSize(defaultShelfSize)}>Restablecer 4 × 2,4 cm</Button>
+                {!autoFit && <Button variant="ghost" onClick={() => changeSize(defaultShelfSize)}>Restablecer 4 × 2,4 cm</Button>}
               </div>
             )}
             {items.map((item) => (

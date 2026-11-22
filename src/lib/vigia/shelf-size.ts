@@ -11,24 +11,26 @@ export function isShelfSize(value: unknown): value is ShelfSize {
   });
 }
 
-const usableWidth = 215.9 - 20;
-const usableHeight = 279.4 - 20;
-const gap = 2;
+export const shelfMargin = 5;
+export const shelfGap = 0.5;
+const usableWidth = 215.9 - 2 * shelfMargin;
+const usableHeight = 279.4 - 2 * shelfMargin;
 
 export function shelfGrid({ width, height }: ShelfSize) {
-  // Carta con márgenes de 10 mm y separación de 2 mm.
-  const columns = Math.floor((usableWidth + gap) / (width + gap));
-  const rows = Math.floor((usableHeight + gap) / (height + gap));
+  const columns = Math.floor((usableWidth + shelfGap) / (width + shelfGap));
+  const rows = Math.floor((usableHeight + shelfGap) / (height + shelfGap));
   return { columns, perPage: columns * rows };
 }
 
-export function fitShelfSheet(size: ShelfSize, count: number): ShelfSize {
-  if (count < 1) return size;
-  const grid = shelfGrid(size);
-  const columns = Math.min(count, grid.columns);
-  const rows = Math.ceil(Math.min(count, grid.perPage) / columns);
+export function fitShelfSheet(count: number): ShelfSize {
+  const columns = 3;
+  const maxRows = Math.floor((usableHeight + shelfGap) / (shelfLimits.height[0] + shelfGap));
+  const rows = Math.max(1, Math.min(maxRows, Math.ceil(count / columns)));
+  // Redondear hacia abajo deja espacio para el redondeo de la impresora.
+  const fit = (space: number, slots: number) =>
+    Math.floor(((space + shelfGap) / slots - shelfGap) * 10) / 10;
   return {
-    width: Math.min(shelfLimits.width[1], Math.floor((usableWidth + gap) / columns - gap)),
-    height: Math.min(shelfLimits.height[1], Math.floor((usableHeight + gap) / rows - gap)),
+    width: fit(usableWidth, columns),
+    height: Math.min(shelfLimits.height[1], fit(usableHeight, rows)),
   };
 }

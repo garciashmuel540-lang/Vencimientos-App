@@ -1,10 +1,8 @@
-import { shelfGrid, type ShelfSize } from "./shelf-size";
+import { shelfGap, shelfMargin, shelfGrid, type ShelfSize } from "./shelf-size";
 import { toBlob } from "html-to-image";
 import { PDFDocument, type PDFImage, PageSizes } from "pdf-lib";
 
 const MM = 72 / 25.4;
-const MARGIN = 10 * MM;
-const GAP = 2 * MM;
 
 export async function createPriceLabelPdf(
   labels: { element: HTMLElement; copies: number }[],
@@ -12,31 +10,33 @@ export async function createPriceLabelPdf(
   size: ShelfSize,
   signal: AbortSignal,
 ): Promise<File> {
+  const margin = (large ? 10 : shelfMargin) * MM;
+  const gap = (large ? 2 : shelfGap) * MM;
   const pdf = await PDFDocument.create();
   const paper = large ? PageSizes.A4 : PageSizes.Letter;
   const [, pageHeight] = paper;
   const width = (large ? 170 : size.width) * MM;
   const columns = large ? 1 : shelfGrid(size).columns;
-  const availableHeight = pageHeight - 2 * MARGIN;
+  const availableHeight = pageHeight - 2 * margin;
   let page = pdf.addPage(paper);
-  let top = pageHeight - MARGIN;
+  let top = pageHeight - margin;
   let row: { image: PDFImage; width: number; height: number }[] = [];
 
   function drawRow() {
     const height = Math.max(...row.map((label) => label.height));
-    if (top - height < MARGIN - 0.01) {
+    if (top - height < margin - 0.01) {
       page = pdf.addPage(paper);
-      top = pageHeight - MARGIN;
+      top = pageHeight - margin;
     }
     row.forEach((label, index) => {
       page.drawImage(label.image, {
-        x: MARGIN + index * (width + GAP),
+        x: margin + index * (width + gap),
         y: top - label.height,
         width: label.width,
         height: label.height,
       });
     });
-    top -= height + GAP;
+    top -= height + gap;
     row = [];
   }
 

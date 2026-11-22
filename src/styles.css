@@ -416,12 +416,13 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
 .shelf-label-content {
   --unit: var(--label-unit, 1cqw);
   display: grid;
-  grid-template-columns: 58fr 42fr;
+  grid-template-columns: 1fr 1fr;
   line-height: 1.1;
   min-height: 42cqw;
 }
 .shelf-label[data-compact="true"] .shelf-label-content { height: 100%; min-height: 0; }
 .shelf-label-info {
+  justify-content: center;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -435,7 +436,7 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
 }
 .shelf-label-name {
   -webkit-line-clamp: 2;
-  font-size: calc(9 * var(--unit));
+  font-size: calc(10 * var(--unit));
   line-height: 1.02;
   font-weight: 700;
 }
@@ -447,8 +448,7 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
 .shelf-label-promotion { margin-top: calc(.6 * var(--unit)); font-size: calc(3.2 * var(--unit)); }
 .shelf-label-promotion strong { -webkit-line-clamp: 1; }
 .shelf-label-code {
-  margin-top: auto;
-  padding-top: calc(.8 * var(--unit));
+  padding-top: calc(1.5 * var(--unit));
   text-align: center;
   font-size: calc(3.5 * var(--unit));
   letter-spacing: .03em;
@@ -464,7 +464,7 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
 }
 .shelf-label-price svg { display: block; width: 100%; height: auto; max-height: 100%; fill: #000; }
 .price-print-sheet { display: none; }
-@page vigia-shelf { size: letter portrait; margin: 10mm; }
+@page vigia-shelf { size: letter portrait; margin: 5mm; }
 @page vigia-labels { size: A4 portrait; margin: 10mm; }
 @media print {
   body:has(> .price-print-sheet) > :not(.price-print-sheet) { display: none !important; }
@@ -485,7 +485,7 @@ button:is(:hover,:focus-visible) .som-leaf { animation: som-sway .65s ease-in-ou
   }
   .price-print-sheet[data-large="false"] .price-print-page {
     display: grid;
-    gap: 2mm;
+    gap: .5mm;
     justify-content: start;
     break-after: page;
   }
