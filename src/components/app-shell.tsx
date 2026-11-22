@@ -25,6 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hideScanFab =
     pathname.startsWith("/escanear") ||
     pathname.startsWith("/precio") ||
+    pathname.startsWith("/tienda") ||
     pathname.startsWith("/recuentos");
   const [tour, setTour] = useState(false);
 

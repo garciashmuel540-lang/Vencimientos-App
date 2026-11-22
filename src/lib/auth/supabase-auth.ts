@@ -11,6 +11,7 @@ export interface SupabaseUser {
   email: string | null;
   name: string | null;
   role: string | null;
+  rmhStore?: string;
   isAdmin: boolean;
 }
 
@@ -41,6 +42,7 @@ function toUser(u: User | undefined | null): SupabaseUser | null {
   const role = (u.user_metadata?.role as string | undefined) ?? null;
   return {
     id: u.id,
+    rmhStore: typeof u.app_metadata?.rmh_store === "string" ? u.app_metadata.rmh_store : undefined,
     email: u.email ?? null,
     name: (u.user_metadata?.name as string | undefined) ?? null,
     role,

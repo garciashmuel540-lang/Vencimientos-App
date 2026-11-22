@@ -14,6 +14,7 @@ import {
   LogOut,
   Package,
   ScanBarcode,
+  Store,
   Settings,
   Tag,
   UtensilsCrossed,
@@ -32,6 +33,7 @@ const NAV = [
   { to: "/recuentos", label: "Recuentos", icon: ClipboardList },
   { to: "/escanear", label: "Escanear", icon: ScanBarcode },
   { to: "/precio", label: "Verificador de precios", icon: Tag },
+  { to: "/tienda", label: "Tienda", icon: Store },
   { to: "/reportes", label: "Reportes", icon: BarChart3 },
   { to: "/ajustes", label: "Ajustes", icon: Settings },
 ] as const;

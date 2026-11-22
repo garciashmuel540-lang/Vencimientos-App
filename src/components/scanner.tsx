@@ -18,6 +18,7 @@ interface ScannerProps {
   onDetect: (code: string) => void;
   paused?: boolean;
   recount?: boolean;
+  showSamples?: boolean;
   continuous?: boolean;
   onContinuousChange?: (enabled: boolean) => void;
 }
@@ -26,6 +27,7 @@ export function Scanner({
   onDetect,
   paused,
   recount = false,
+  showSamples = true,
   continuous,
   onContinuousChange,
 }: ScannerProps) {
@@ -208,7 +210,7 @@ export function Scanner({
         </Button>
       </form>
 
-      {!recount && (
+      {!recount && showSamples && (
         <div>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Probar con un código conocido
