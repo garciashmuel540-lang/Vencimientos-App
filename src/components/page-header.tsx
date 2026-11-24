@@ -36,6 +36,8 @@ export function PageHeader({
             type="button"
             onClick={onMenuClick}
             className="neu-control no-print mt-1 flex size-11 shrink-0 items-center justify-center rounded-full bg-card text-foreground transition-colors hover:bg-muted active:scale-95"
+            aria-haspopup="dialog"
+            data-ui-sound="open"
             aria-label="Abrir menú"
           >
             <Menu className="size-5" />

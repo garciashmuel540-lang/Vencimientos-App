@@ -1,3 +1,4 @@
+import { playInterfaceSound } from "@/lib/vigia/interface-sound";
 import { useMemo, useState } from "react";
 import { Minus, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -170,7 +171,7 @@ export function ProductSheet({
                   <Pencil className="size-4" />
                   Editar
                 </Button>
-                <Button variant="ghost" size="lg" className="text-bad" onClick={() => setConfirm(true)}>
+                <Button variant="ghost" size="lg" className="text-bad" data-ui-sound="open" onClick={() => setConfirm(true)}>
                   <Trash2 className="size-4" />
                   Quitar del inventario
                 </Button>
@@ -191,9 +192,11 @@ export function ProductSheet({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
+              data-own-feedback
               className="bg-destructive text-destructive-foreground"
               onClick={async () => {
                 await remove(product.id);
+                void playInterfaceSound("removed");
                 toast.success("Producto enviado al historial");
                 onOpenChange(false);
               }}

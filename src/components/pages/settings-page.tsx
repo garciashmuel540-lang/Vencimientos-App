@@ -1,4 +1,4 @@
-import { playInterfaceSound } from "@/lib/vigia/interface-sound";
+import { interfaceCues, playInterfaceSound, type Cue } from "@/lib/vigia/interface-sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Bell, FileSpreadsheet, LogOut, Mail, Moon, Package, RotateCcw, Smartphone, Sun, Volume2, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
@@ -56,6 +56,7 @@ export function SettingsPage() {
   const { user: authUser } = useSupabaseAuth();
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system");
   const [perm, setPerm] = useState<NotificationPermission | "unsupported">("denied");
+  const [previewCue, setPreviewCue] = useState<Cue>("open");
   const [signingOut, setSigningOut] = useState(false);
   const [supabaseCount, setSupabaseCount] = useState<number | null>(null);
   const [migrating, setMigrating] = useState(false);
@@ -340,7 +341,10 @@ export function SettingsPage() {
               icon={<Volume2 className="size-4" />}
               label="Sonidos al interactuar"
               checked={settings.interfaceSounds}
-              onChange={(value) => void update({ interfaceSounds: value })}
+              onChange={async (value) => {
+                await update({ interfaceSounds: value });
+                void playInterfaceSound(value ? "on" : "off");
+              }}
             />
             {settings.interfaceSounds && (
               <label className="flex items-center justify-between gap-2 text-sm">
@@ -360,13 +364,28 @@ export function SettingsPage() {
               icon={<Smartphone className="size-4" />}
               label="Vibración al tocar"
               checked={settings.touchVibration}
-              onChange={(value) => void update({ touchVibration: value })}
+              onChange={async (value) => {
+                await update({ touchVibration: value });
+                void playInterfaceSound(value ? "on" : "off");
+              }}
             />
+            <label className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              Acción de prueba
+              <select
+                className="neu-well rounded-lg bg-card px-3 py-2 text-foreground"
+                value={previewCue}
+                onChange={(event) => setPreviewCue(event.target.value as Cue)}
+              >
+                {Object.entries(interfaceCues).map(([key, cue]) => (
+                  <option key={key} value={key}>{cue.label}</option>
+                ))}
+              </select>
+            </label>
             <Button
               variant="secondary"
               disabled={!settings.interfaceSounds && !settings.touchVibration}
               onClick={async () => {
-                const played = await playInterfaceSound("switch", true);
+                const played = await playInterfaceSound(previewCue, true);
                 if (played === false) toast.message("El navegador no pudo reproducir el sonido. Volvé a probar.");
                 else if (!settings.interfaceSounds && !navigator.vibrate) toast.message("Este navegador no ofrece vibración.");
               }}
@@ -700,6 +719,7 @@ function ThemeBtn({
   return (
     <button
       type="button"
+      data-ui-sound="tap"
       aria-pressed={active}
       onClick={onClick}
       className={cn(

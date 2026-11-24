@@ -108,7 +108,7 @@ export function InventoryPage() {
         title="Vencimientos"
         description={`${filtered.length} de ${products.length} productos en control`}
         action={
-          <Button size="icon" aria-label="Alta manual" onClick={() => { setNewProduct(emptyDraft()); setCreating(true); }}>
+          <Button size="icon" aria-haspopup="dialog" aria-label="Alta manual" onClick={() => { setNewProduct(emptyDraft()); setCreating(true); }}>
             <Plus className="size-5" />
           </Button>
         }

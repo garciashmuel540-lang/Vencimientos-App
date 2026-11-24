@@ -378,7 +378,7 @@ export function ProductForm({
 
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         {onCancel ? (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" data-ui-sound="close" onClick={onCancel}>
             Cancelar
           </Button>
         ) : null}

@@ -35,6 +35,8 @@ export function ProductCard({
   return (
     <button
       type="button"
+      aria-haspopup="dialog"
+      data-ui-sound="open"
       onClick={onClick}
       className="w-full text-left"
       aria-label={`${product.name}, ${daysLabel(product.expiresAt)}`}

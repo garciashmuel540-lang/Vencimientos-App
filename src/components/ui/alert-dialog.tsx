@@ -86,6 +86,7 @@ const AlertDialogCancel = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Cancel>
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Cancel
+    data-ui-sound="close"
     ref={ref}
     className={cn(buttonVariants({ variant: "outline" }), className)}
     {...props}

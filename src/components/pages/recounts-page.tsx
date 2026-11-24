@@ -1,3 +1,4 @@
+import { playInterfaceSound } from "@/lib/vigia/interface-sound";
 import { useEffect, useRef, useState } from "react";
 import {
   Camera,
@@ -246,6 +247,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
       versions.current.delete(target.id);
       setHistory((old) => old.filter((row) => row.id !== target.id));
       closeRecount();
+      void playInterfaceSound("removed");
       toast.success("Recuento borrado.");
     } catch {
       toast.error("No se pudo borrar. Reintentá cuando tengas conexión.");
@@ -532,7 +534,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                 variant="ghost"
                 className="text-destructive"
                 disabled={!!busy}
-                onClick={() => setConfirmDelete(true)}
+                data-ui-sound="open" onClick={() => setConfirmDelete(true)}
               >
                 <Trash2 className="mr-2 size-4" />
                 Borrar recuento
@@ -545,10 +547,10 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                   Se eliminarán los ítems, los conteos y las fotos de «{doc.title}».
                 </DialogDescription>
                 <div className="flex flex-wrap justify-end gap-2">
-                  <Button variant="outline" onClick={() => setConfirmDelete(false)}>
+                  <Button variant="outline" data-ui-sound="close" onClick={() => setConfirmDelete(false)}>
                     Cancelar
                   </Button>
-                  <Button variant="destructive" onClick={() => void removeRecount()}>
+                  <Button variant="destructive" data-own-feedback onClick={() => void removeRecount()}>
                     Borrar recuento
                   </Button>
                 </div>

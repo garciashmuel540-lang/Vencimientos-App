@@ -1,14 +1,34 @@
 import { useChatFocus } from "./chat-focus";
 import { useVigiaStore } from "./store";
 
-type Cue = "tap" | "switch" | "scan" | "saved";
-const files: Record<Cue, string> = {
-  tap: "/audio/key.wav",
-  switch: "/audio/switch.wav",
-  scan: "/audio/scan.wav",
-  saved: "/audio/saved.wav",
+export const interfaceCues = {
+  tap: { label: "Tocar un botón", file: "key", pulse: 12 },
+  open: { label: "Abrir un panel", file: "open", pulse: 12 },
+  close: { label: "Cerrar un panel", file: "close", pulse: 12 },
+  navigate: { label: "Cambiar de pantalla", file: "navigate", pulse: 12 },
+  on: { label: "Activar", file: "switch", pulse: 18 },
+  off: { label: "Desactivar", file: "off", pulse: 18 },
+  scan: { label: "Leer un código", file: "scan", pulse: 16 },
+  saved: { label: "Guardar un producto", file: "saved", pulse: [12, 36, 16] },
+  removed: { label: "Quitar un registro", file: "removed", pulse: 16 },
 };
-const pulses = { tap: 12, switch: 18, scan: 16, saved: [12, 36, 16] };
+export type Cue = keyof typeof interfaceCues;
+
+function fileUrl(cue: Cue) {
+  return `/audio/${interfaceCues[cue].file}.wav?v=2`;
+}
+
+function controlCue(control: HTMLElement): Cue {
+  const action = control.dataset.uiSound;
+  if (action && Object.hasOwn(interfaceCues, action)) return action as Cue;
+  if (control.matches('[role="switch"]')) return control.getAttribute("aria-checked") === "true" ? "off" : "on";
+  if (control.hasAttribute("aria-expanded")) return control.getAttribute("aria-expanded") === "true" ? "close" : "open";
+  if (control.matches('[aria-haspopup="dialog"]')) return "open";
+  if (control.hasAttribute("aria-pressed")) return control.getAttribute("aria-pressed") === "true" ? "off" : "on";
+  if (control.matches('a[href]')) return "navigate";
+  return "tap";
+}
+
 const buffers = new Map<Cue, AudioBuffer>();
 const players = new Map<Cue, HTMLAudioElement>();
 let context: AudioContext | undefined;
@@ -18,7 +38,7 @@ let lastScan = -Infinity;
 function player(cue: Cue) {
   let audio = players.get(cue);
   if (!audio) {
-    audio = new Audio(files[cue]);
+    audio = new Audio(fileUrl(cue));
     audio.preload = "auto";
     players.set(cue, audio);
   }
@@ -31,8 +51,8 @@ function primeAudio() {
     if (!context) {
       const audio = new AudioContext({ latencyHint: "interactive" });
       context = audio;
-      for (const cue of Object.keys(files) as Cue[]) {
-        void fetch(files[cue])
+      for (const cue of Object.keys(interfaceCues) as Cue[]) {
+        void fetch(fileUrl(cue))
           .then(response => response.arrayBuffer())
           .then(bytes => audio.decodeAudioData(bytes))
           .then(buffer => buffers.set(cue, buffer))
@@ -50,14 +70,14 @@ export async function playInterfaceSound(cue: Cue, preview = false) {
   if (typeof window === "undefined" || !ready || document.hidden || useChatFocus.getState().autoOpen) return;
   const now = performance.now();
   if (cue === "scan") {
-    if (now - lastScan < 850) return;
+    if (!preview && now - lastScan < 850) return;
     lastScan = now;
-  } else if (cue !== "saved" && !preview) {
+  } else if (cue !== "saved" && cue !== "removed" && !preview) {
     if (now - lastTouch < 105) return;
     lastTouch = now;
   }
   if (settings.touchVibration) {
-    try { navigator.vibrate?.(pulses[cue]); } catch { /* Some webviews disable haptics. */ }
+    try { navigator.vibrate?.(interfaceCues[cue].pulse); } catch { /* Some webviews disable haptics. */ }
   }
   if (!settings.interfaceSounds) return;
   const level = Math.max(0, Math.min(1, settings.effectVolume / 100));
@@ -97,7 +117,7 @@ export function installTouchFeedback() {
     if (!control || control.matches(':disabled, [aria-disabled="true"]') || control.closest(".som-panel")) return;
     primeAudio();
     if (event.type !== "click" || control.closest("[data-own-feedback]")) return;
-    void playInterfaceSound(control.matches('[role="switch"], [aria-pressed]') ? "switch" : "tap");
+    void playInterfaceSound(controlCue(control));
     if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
       control.animate?.([
         { translate: "0 2px", scale: ".975" },
