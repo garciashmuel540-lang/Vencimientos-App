@@ -382,7 +382,7 @@ export function ProductForm({
             Cancelar
           </Button>
         ) : null}
-        <Button type="submit" disabled={saving || lookingUp} size="lg">
+        <Button data-own-feedback type="submit" disabled={saving || lookingUp} size="lg">
           {saving ? "Guardando…" : submitLabel}
         </Button>
       </div>

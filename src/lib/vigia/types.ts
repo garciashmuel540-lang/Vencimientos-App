@@ -107,6 +107,8 @@ export interface AlertSettings {
   days: number[];
   sound: boolean;
   interfaceSounds: boolean;
+  effectVolume: number;
+  touchVibration: boolean;
   vibration: boolean;
   notifyOnOpen: boolean;
   storeName: string;
@@ -137,6 +139,8 @@ export const DEFAULT_SETTINGS: AlertSettings = {
   days: [30, 15, 7, 1],
   sound: true,
   interfaceSounds: true,
+  effectVolume: 70,
+  touchVibration: true,
   vibration: true,
   notifyOnOpen: true,
   storeName: "Mi tienda",

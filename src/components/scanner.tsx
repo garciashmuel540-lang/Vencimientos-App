@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SAMPLE_BARCODES } from "@/lib/vigia/types";
-import { useVigiaStore } from "@/lib/vigia/store";
 import { cn } from "@/lib/utils";
 
 interface Html5QrcodeLike {
@@ -109,7 +108,6 @@ export function Scanner({
             lastCode.current = code;
             singleRead = !batchRef.current;
             signalRead();
-            if (useVigiaStore.getState().settings.vibration) navigator.vibrate?.(30);
             onDetectRef.current(code);
             if (singleRead) {
               cameraTask.current = cameraTask.current.then(releaseCamera);
@@ -220,7 +218,7 @@ export function Scanner({
             aria-label="Código de barras manual"
           />
         </div>
-        <Button type="submit" variant="secondary">
+        <Button data-own-feedback type="submit" variant="secondary">
           Buscar
         </Button>
       </form>
@@ -233,6 +231,7 @@ export function Scanner({
           <div className="flex flex-wrap gap-2">
             {SAMPLE_BARCODES.map((s) => (
               <button
+                data-own-feedback
                 key={s.code}
                 type="button"
                 onClick={() => submitManual(s.code)}

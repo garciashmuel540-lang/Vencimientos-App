@@ -60,6 +60,7 @@ export async function getSettings(): Promise<AlertSettings> {
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
+    touchVibration: saved.touchVibration ?? saved.vibration ?? DEFAULT_SETTINGS.touchVibration,
     interfaceSounds: saved.interfaceSounds ?? saved.sound ?? DEFAULT_SETTINGS.interfaceSounds,
   };
 }

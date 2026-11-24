@@ -1,4 +1,4 @@
-import { playInterfaceSound } from "@/lib/vigia/interface-sound";
+import { installTouchFeedback } from "@/lib/vigia/interface-sound";
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ScanBarcode } from "lucide-react";
@@ -45,6 +45,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (ready && !isLoginPage) dismissBootSplash();
   }, [ready, isLoginPage]);
 
+  useEffect(() => {
+    if (ready) return installTouchFeedback();
+  }, [ready]);
+
   // En /login: solo mostrar el contenido, sin menú ni chat
   if (isLoginPage) {
     return <>{children}</>;
@@ -61,7 +65,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {!hideScanFab && (
           <Link
             to="/escanear"
-            onClick={() => void playInterfaceSound("tap")}
             className="neu-control no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95"
             aria-label="Escanear"
           >

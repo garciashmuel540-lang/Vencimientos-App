@@ -194,7 +194,6 @@ export function SettingsPage() {
   }
 
   function applyTheme(next: "light" | "dark" | "system") {
-    if (next !== theme) void playInterfaceSound("tap");
     setTheme(next);
     if (next === "system") localStorage.removeItem("vigia-theme");
     else localStorage.setItem("vigia-theme", next);
@@ -336,16 +335,44 @@ export function SettingsPage() {
               onClick={() => applyTheme("system")}
             />
           </div>
-          <div className="mt-5">
+          <div className="mt-5 grid gap-4" data-own-feedback>
             <Row
               icon={<Volume2 className="size-4" />}
               label="Sonidos al interactuar"
               checked={settings.interfaceSounds}
-              onChange={async (value) => {
-                await update({ interfaceSounds: value });
-                if (value) void playInterfaceSound("tap");
-              }}
+              onChange={(value) => void update({ interfaceSounds: value })}
             />
+            {settings.interfaceSounds && (
+              <label className="flex items-center justify-between gap-2 text-sm">
+                Volumen de los efectos
+                <select
+                  className="neu-well rounded-lg bg-card px-3 py-2 text-foreground"
+                  value={settings.effectVolume}
+                  onChange={(event) => void update({ effectVolume: Number(event.target.value) })}
+                >
+                  <option value={35}>Bajo</option>
+                  <option value={70}>Medio</option>
+                  <option value={100}>Alto</option>
+                </select>
+              </label>
+            )}
+            <Row
+              icon={<Smartphone className="size-4" />}
+              label="Vibración al tocar"
+              checked={settings.touchVibration}
+              onChange={(value) => void update({ touchVibration: value })}
+            />
+            <Button
+              variant="secondary"
+              disabled={!settings.interfaceSounds && !settings.touchVibration}
+              onClick={async () => {
+                const played = await playInterfaceSound("switch", true);
+                if (played === false) toast.message("El navegador no pudo reproducir el sonido. Volvé a probar.");
+                else if (!settings.interfaceSounds && !navigator.vibrate) toast.message("Este navegador no ofrece vibración.");
+              }}
+            >
+              Probar respuesta táctil
+            </Button>
           </div>
         </Card>
 
