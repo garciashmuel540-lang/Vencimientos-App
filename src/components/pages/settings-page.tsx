@@ -1,5 +1,6 @@
+import { playInterfaceSound } from "@/lib/vigia/interface-sound";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Bell, FileSpreadsheet, LogOut, Mail, Moon, Package, RotateCcw, Smartphone, Sun, Trash2, Upload, X } from "lucide-react";
+import { Bell, FileSpreadsheet, LogOut, Mail, Moon, Package, RotateCcw, Smartphone, Sun, Volume2, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
@@ -193,6 +194,7 @@ export function SettingsPage() {
   }
 
   function applyTheme(next: "light" | "dark" | "system") {
+    if (next !== theme) void playInterfaceSound("tap");
     setTheme(next);
     if (next === "system") localStorage.removeItem("vigia-theme");
     else localStorage.setItem("vigia-theme", next);
@@ -323,7 +325,7 @@ export function SettingsPage() {
         </Card>
 
         <Card className="p-4">
-          <h2 className="font-medium">Apariencia</h2>
+          <h2 className="font-medium">Apariencia y sonidos</h2>
           <div className="mt-3 grid grid-cols-3 gap-2">
             <ThemeBtn icon={Sun} label="Claro" active={theme === "light"} onClick={() => applyTheme("light")} />
             <ThemeBtn icon={Moon} label="Oscuro" active={theme === "dark"} onClick={() => applyTheme("dark")} />
@@ -332,6 +334,17 @@ export function SettingsPage() {
               label="Sistema"
               active={theme === "system"}
               onClick={() => applyTheme("system")}
+            />
+          </div>
+          <div className="mt-5">
+            <Row
+              icon={<Volume2 className="size-4" />}
+              label="Sonidos al interactuar"
+              checked={settings.interfaceSounds}
+              onChange={async (value) => {
+                await update({ interfaceSounds: value });
+                if (value) void playInterfaceSound("tap");
+              }}
             />
           </div>
         </Card>
@@ -641,7 +654,7 @@ function Row({
         {icon}
         {label}
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Switch aria-label={label} checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }

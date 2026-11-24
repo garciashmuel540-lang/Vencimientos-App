@@ -157,6 +157,7 @@ a,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
@@ -252,6 +253,36 @@ a,
     outline: 2px solid var(--color-ring);
     outline-offset: 3px;
   }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  :is(.neu-control, button.neu-panel, button.neu-selected, [role="switch"]) {
+    transition: translate 180ms cubic-bezier(.2,.8,.25,1.2), scale 180ms ease-out,
+      box-shadow 160ms ease-out, background-color 160ms ease-out;
+  }
+
+  :is(.neu-control, button.neu-panel, button.neu-selected):active:not(:disabled) {
+    translate: 0 1.5px;
+    scale: .98;
+    transition-duration: 55ms;
+  }
+
+  [role="switch"]:active:not(:disabled) > span:first-child {
+    scale: 1.1 .92;
+  }
+
+  [role="switch"] > span:first-child {
+    transition: translate 165ms cubic-bezier(.22,.85,.3,1.15), scale 120ms ease-out;
+  }
+
+  .som-page-header > :first-child, .som-panel[data-state="open"] {
+    animation: vigia-settle 210ms cubic-bezier(.18,.72,.22,1) both;
+  }
+}
+
+@keyframes vigia-settle {
+  from { opacity: .65; translate: 0 5px; }
+  to { opacity: 1; translate: 0 0; }
 }
 
 .som-hero {

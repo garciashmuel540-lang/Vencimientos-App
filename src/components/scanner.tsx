@@ -1,3 +1,4 @@
+import { playInterfaceSound } from "@/lib/vigia/interface-sound";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, ScanBarcode, SwitchCamera } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SAMPLE_BARCODES } from "@/lib/vigia/types";
+import { useVigiaStore } from "@/lib/vigia/store";
 import { cn } from "@/lib/utils";
 
 interface Html5QrcodeLike {
@@ -34,6 +36,7 @@ export function Scanner({
   const hostId = "vigia-reader";
   const cameraTask = useRef(Promise.resolve());
   const lastCode = useRef("");
+  const scanFrame = useRef<HTMLDivElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [manual, setManual] = useState("");
@@ -44,6 +47,15 @@ export function Scanner({
   const onDetectRef = useRef(onDetect);
   onDetectRef.current = onDetect;
   batchRef.current = batch;
+
+  function signalRead() {
+    void playInterfaceSound("scan");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    scanFrame.current?.animate(
+      [{ opacity: 1, transform: "scale(.97)" }, { opacity: 0, transform: "scale(1)" }],
+      { duration: 230, easing: "ease-out" },
+    );
+  }
 
   useEffect(() => {
     let active = true;
@@ -96,7 +108,8 @@ export function Scanner({
             if (heldInView) return;
             lastCode.current = code;
             singleRead = !batchRef.current;
-            if (navigator.vibrate) navigator.vibrate(30);
+            signalRead();
+            if (useVigiaStore.getState().settings.vibration) navigator.vibrate?.(30);
             onDetectRef.current(code);
             if (singleRead) {
               cameraTask.current = cameraTask.current.then(releaseCamera);
@@ -129,6 +142,7 @@ export function Scanner({
         : code.replace(/\D/g, "");
     if (clean.length < (recount || continuous !== undefined ? 1 : 6)) return;
     lastCode.current = clean;
+    signalRead();
     onDetect(clean);
     if (continuous) setManual("");
   }
@@ -142,6 +156,7 @@ export function Scanner({
         />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="relative h-28 w-[80%] max-w-72">
+            <div ref={scanFrame} aria-hidden="true" className="absolute inset-0 rounded-lg border-2 border-primary bg-primary/10 opacity-0" />
             <span className="absolute left-0 top-0 size-6 rounded-tl-md border-l-2 border-t-2 border-primary-foreground" />
             <span className="absolute right-0 top-0 size-6 rounded-tr-md border-r-2 border-t-2 border-primary-foreground" />
             <span className="absolute bottom-0 left-0 size-6 rounded-bl-md border-b-2 border-l-2 border-primary-foreground" />

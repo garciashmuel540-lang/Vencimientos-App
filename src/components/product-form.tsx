@@ -1,3 +1,4 @@
+import { playInterfaceSound } from "@/lib/vigia/interface-sound";
 import { editPrices, readPrices } from "@/lib/vigia/price-input";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Camera, LoaderCircle } from "lucide-react";
@@ -154,6 +155,7 @@ export function ProductForm({
     setSaving(true);
     try {
       await onSubmit({ ...draft, ...(showPrices ? readPrices(prices) : {}), quantity });
+      void playInterfaceSound("saved");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar.");
       setSaving(false);

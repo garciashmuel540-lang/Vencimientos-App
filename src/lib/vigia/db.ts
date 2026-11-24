@@ -56,7 +56,12 @@ export function getDb(): VigiaDB {
 export async function getSettings(): Promise<AlertSettings> {
   const row = await getDb().kv.get("settings");
   if (!row) return { ...DEFAULT_SETTINGS };
-  return { ...DEFAULT_SETTINGS, ...(row.value as AlertSettings) };
+  const saved = row.value as Partial<AlertSettings>;
+  return {
+    ...DEFAULT_SETTINGS,
+    ...saved,
+    interfaceSounds: saved.interfaceSounds ?? saved.sound ?? DEFAULT_SETTINGS.interfaceSounds,
+  };
 }
 
 export async function saveSettings(settings: AlertSettings): Promise<void> {

@@ -1,3 +1,4 @@
+import { playInterfaceSound } from "@/lib/vigia/interface-sound";
 import { Menu } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Mascot, type MascotMood } from "@/components/mascot";
@@ -34,7 +35,7 @@ export function PageHeader({
         {onMenuClick ? (
           <button
             type="button"
-            onClick={onMenuClick}
+            onClick={() => { void playInterfaceSound("tap"); onMenuClick(); }}
             className="neu-control no-print mt-1 flex size-11 shrink-0 items-center justify-center rounded-full bg-card text-foreground transition-colors hover:bg-muted active:scale-95"
             aria-label="Abrir menú"
           >
