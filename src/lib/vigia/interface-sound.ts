@@ -15,7 +15,8 @@ export const interfaceCues = {
 export type Cue = keyof typeof interfaceCues;
 
 function fileUrl(cue: Cue) {
-  return `/audio/${interfaceCues[cue].file}.wav?v=2`;
+  const version = cue === "tap" ? 3 : 2;
+  return `/audio/${interfaceCues[cue].file}.wav?v=${version}`;
 }
 
 function controlCue(control: HTMLElement): Cue {
