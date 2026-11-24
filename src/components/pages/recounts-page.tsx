@@ -491,7 +491,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
               </Button>
             )}
             {loaded && !loadError && history.length === 0 ? (
-              <div className="rounded-2xl border bg-card p-8 text-center">
+              <div className="neu-panel rounded-2xl p-8 text-center">
                 <ClipboardList className="mx-auto mb-3 size-9 text-primary" />
                 <h2 className="font-semibold">Tu primer recuento</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -502,7 +502,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
               history.map((d) => (
                 <button
                   key={d.id}
-                  className="w-full rounded-xl border bg-card p-4 text-left"
+                  className="w-full neu-panel rounded-xl p-4 text-left"
                   disabled={!!busy}
                   onClick={() => void openRecount(d.id)}
                 >
@@ -559,7 +559,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                 type="button"
                 disabled={!!busy}
                 onClick={(event) => openProductScanner(event.currentTarget)}
-                className="no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                className="neu-control no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"
                 aria-label="Escanear producto del recuento"
               >
                 <ScanBarcode className="size-6" />
@@ -606,7 +606,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                 </label>
               </div>
               {!doc.reviewed && (
-                <div className="rounded-2xl border bg-card p-4 space-y-3">
+                <div className="neu-panel rounded-2xl p-4 space-y-3">
                   <h2 className="font-semibold">Escanear documento</h2>
                   <p className="text-sm text-muted-foreground">
                     Fotografiá todas las columnas. Podés agregar varias páginas.
@@ -741,7 +741,7 @@ export function RecountsWorkspace({ userId }: { userId: string }) {
                     key={item.id}
                     ref={item.id === selectedId ? scannedProduct : undefined}
                     tabIndex={item.id === selectedId ? -1 : undefined}
-                    className="scroll-mt-4 rounded-2xl border bg-card p-4 space-y-3"
+                    className="scroll-mt-4 neu-panel rounded-2xl p-4 space-y-3"
                   >
                     {!doc.reviewed ? (
                       <>

@@ -175,7 +175,7 @@ export function FSItemCard({ product, existing, date, onSave, onDelete, readOnly
   const hasData = opened !== "" || sealed !== "" || systemQty !== "";
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="neu-panel rounded-lg overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

@@ -483,7 +483,7 @@ export function FoodServicePage() {
                 key={u.userId}
                 type="button"
                 onClick={() => setSelectedUserId(u.userId)}
-                className="group flex items-center gap-3 rounded-2xl border bg-card p-4 text-left transition-all duration-200 hover:bg-muted/40 hover:border-primary/30 active:scale-[0.99]"
+                className="group flex items-center gap-3 neu-panel rounded-2xl p-4 text-left transition-all duration-200 hover:bg-muted/40 hover:border-primary/30 active:scale-[0.99]"
               >
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
                   <User className="size-5 text-primary" />
@@ -557,7 +557,7 @@ export function FoodServicePage() {
                 return (
                   <div
                     key={cat}
-                    className="rounded-2xl border bg-card overflow-hidden transition-all duration-200"
+                    className="neu-panel rounded-2xl overflow-hidden transition-all duration-200"
                   >
                     <div className="flex items-center gap-2 px-4 py-3.5">
                     <button type="button" onClick={() => toggleCategory(cat)} aria-expanded={isOpen}

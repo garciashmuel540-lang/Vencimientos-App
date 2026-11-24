@@ -7,18 +7,19 @@ import appCss from "../styles.css?url";
 
 const APP_NAME = "Vigía";
 
-const THEME_BOOT = `try{var t=localStorage.getItem("vigia-theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}`;
+const THEME_BOOT = `try{var t=localStorage.getItem("vigia-theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark");document.querySelector('meta[name="theme-color"]')?.setAttribute("content",getComputedStyle(document.documentElement).getPropertyValue("--color-background").trim()||"#262824")}}catch(e){}`;
 
 /** Splash visible desde el primer paint (antes de hidratar React). */
 const BOOT_SPLASH = `
 <style>
-  #vigia-boot{position:fixed;inset:0;z-index:9999;display:grid;place-content:center;justify-items:center;background:var(--color-background,#fff9ef);color:var(--color-foreground,#503224);transition:opacity 160ms ease-out}
+  #vigia-boot{position:fixed;inset:0;z-index:9999;display:grid;place-content:center;justify-items:center;background:var(--color-background,#eae6df);color:var(--color-foreground,#302c28);transition:opacity 160ms ease-out}
   #vigia-boot.done{opacity:0;pointer-events:none}
   @media(prefers-reduced-motion:reduce){#vigia-boot{transition:none}}
+  #vigia-boot img{width:6rem;height:6rem;padding:.5rem;margin:0 auto .75rem;border-radius:50%;box-shadow:var(--shadow-control);outline:0}
   #vigia-boot p{margin:0;font:700 1.8rem system-ui}
 </style>
 <div id="vigia-boot" role="status" aria-label="Cargando Vigía">
-  <span style="font-size:4rem">🍊</span>
+  <img src="/vigia-som.svg" alt="" width="96" height="96" />
   <p class="v-text">Vigía</p>
 </div>
 `;
@@ -34,7 +35,7 @@ export const Route = createRootRoute({
         content:
           "Control de vencimientos para tiendas de conveniencia. Escanea, registra y recibe avisos antes de que un producto caduque.",
       },
-      { name: "theme-color", content: "#fff9ef" },
+      { name: "theme-color", content: "#eae6df" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
     ],

@@ -829,7 +829,7 @@ export function ChatIA() {
             onCloseAutoFocus={(event) => {
               const trigger = document.getElementById("som-page-trigger");
               if (trigger) { event.preventDefault(); trigger.focus({ preventScroll: true }); }
-            }} className="som-panel no-print fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[80dvh] max-w-xl flex-col rounded-t-2xl border border-border bg-card shadow-2xl">
+            }} className="som-panel neu-panel no-print fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[80dvh] max-w-xl flex-col rounded-t-2xl border border-border bg-card shadow-2xl">
           <header className="som-panel-heading flex items-center gap-3 rounded-t-2xl border-b border-border px-4 py-2">
             <div className="som-chat-avatar" ref={animateSomArrival}>
               <Mascot mood={loading ? "thinking" : "happy"} size={48} />
@@ -939,7 +939,7 @@ export function ChatIA() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe tu pregunta o pídele algo…"
               disabled={loading}
-              className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-primary"
+              className="neu-well min-w-0 flex-1 rounded-full border border-input/60 bg-background px-4 py-2 text-sm outline-none focus:border-primary"
             />
             <Button
               type="submit"

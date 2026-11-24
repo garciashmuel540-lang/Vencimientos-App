@@ -154,7 +154,7 @@ export function PriceCheckPage() {
       <div className="px-4">
         {(continuous || labels.length > 0) && (
           <section
-            className="mb-4 grid gap-3 rounded-lg bg-card p-3"
+            className="neu-panel mb-4 grid gap-3 rounded-lg p-3"
             aria-label="Lista de impresión"
           >
             <div className="flex items-center justify-between gap-2">
@@ -237,7 +237,7 @@ export function PriceCheckPage() {
                 </div>
 
                 {promotion ? (
-                  <div className="mt-5 rounded-lg bg-gradient-to-br from-amber-50 to-orange-100 p-4 dark:from-amber-950/40 dark:to-orange-950/40">
+                  <div className="mt-5 rounded-lg neu-well bg-warn-soft p-4">
                     <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                       🎉 Promoción activa
                     </p>

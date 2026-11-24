@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {!hideScanFab && (
           <Link
             to="/escanear"
-            className="no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
+            className="neu-control no-print fixed bottom-6 right-6 z-30 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95"
             aria-label="Escanear"
           >
             <ScanBarcode className="size-6" />

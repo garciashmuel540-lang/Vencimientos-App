@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Bell, PackageCheck, ScanBarcode, TriangleAlert } from "lucide-react";
+import { Bell, Boxes, CalendarClock, CircleAlert, PackageCheck, TriangleAlert } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
 import { ProductCard } from "@/components/product-card";
@@ -80,7 +80,7 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      <section className="grid grid-cols-2 gap-3 px-4">
+      <section className="grid grid-cols-2 gap-4 px-4">
         <Stat label="Vigentes" value={stats.ok} tone="ok" delay="vigia-enter-delay-1" />
         <Stat label="Por vencer" value={stats.soon} tone="soon" delay="vigia-enter-delay-2" />
         <Stat label="Vencidos" value={stats.expired} tone="expired" delay="vigia-enter-delay-3" />
@@ -171,10 +171,16 @@ function Stat({
         : tone === "expired"
           ? "text-bad"
           : "text-foreground";
+  const Icon = { ok: PackageCheck, soon: CalendarClock, expired: CircleAlert, neutral: Boxes }[tone];
   return (
-    <Card className={cn("vigia-enter p-4", delay)}>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn("mt-2 font-display text-4xl tabular leading-none", toneClass)}>{value}</p>
+    <Card className={cn("vigia-enter relative p-4", delay)}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={cn("neu-well grid size-8 place-items-center rounded-full", toneClass)}>
+          <Icon aria-hidden="true" className="size-4" />
+        </span>
+        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      </div>
+      <p className={cn("mt-3 font-display text-4xl font-semibold tabular leading-none", toneClass)}>{value}</p>
       {hint ? <p className="mt-2 text-xs text-muted-foreground">{hint}</p> : null}
     </Card>
   );

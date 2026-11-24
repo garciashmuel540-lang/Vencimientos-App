@@ -200,6 +200,8 @@ export function SettingsPage() {
       next === "dark" ||
       (next === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.classList.toggle("dark", dark);
+    const background = getComputedStyle(document.documentElement).getPropertyValue("--color-background").trim();
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", background);
   }
 
   async function handleSignOut() {
@@ -266,10 +268,11 @@ export function SettingsPage() {
                 <button
                   key={d}
                   type="button"
+                  aria-pressed={on}
                   onClick={() => toggleDay(d)}
                   className={cn(
-                    "h-10 rounded-full px-3 text-sm font-medium",
-                    on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                    "h-11 rounded-full px-3 text-sm font-medium",
+                    on ? "neu-selected bg-accent text-primary" : "neu-control bg-card text-muted-foreground",
                   )}
                 >
                   {d === 1 ? "1 día" : `${d} días`}
@@ -657,10 +660,11 @@ function ThemeBtn({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       className={cn(
         "flex h-16 flex-col items-center justify-center gap-1 rounded-md text-xs font-medium",
-        active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+        active ? "neu-selected bg-accent text-primary" : "neu-control bg-card text-muted-foreground",
       )}
     >
       <Icon className="size-4" />

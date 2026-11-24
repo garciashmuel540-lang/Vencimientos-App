@@ -42,7 +42,9 @@ export function LoginPage() {
     <main className="som-scene flex min-h-dvh items-center justify-center px-4">
       <Card className="w-full max-w-sm p-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <Mascot mood="wave" size={104} />
+          <div className="neu-well mb-2 grid size-28 place-items-center rounded-full bg-background">
+            <Mascot mood="wave" size={96} />
+          </div>
           <h1 className="font-display text-4xl font-bold tracking-tight">
             Vigía
           </h1>

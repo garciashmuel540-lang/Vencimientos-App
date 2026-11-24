@@ -68,7 +68,7 @@ export function AppSidebar({ open, onClose }: Props) {
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="left" className="flex flex-col p-0">
         {/* Header */}
-        <div className="relative border-b bg-accent px-5 py-5">
+        <div className="relative border-b bg-card px-5 py-5">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Vigía
           </p>
@@ -95,7 +95,7 @@ export function AppSidebar({ open, onClose }: Props) {
                     className={cn(
                       "mx-2 my-0.5 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-colors",
                       active
-                        ? "bg-primary/10 text-primary"
+                        ? "neu-selected bg-accent text-primary"
                         : "text-foreground hover:bg-muted/60",
                     )}
                   >
