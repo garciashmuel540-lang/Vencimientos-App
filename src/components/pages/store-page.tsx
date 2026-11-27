@@ -12,19 +12,23 @@ import { getDb, getKv } from "@/lib/vigia/db";
 import { readSnapshot, type StoreSnapshot } from "@/lib/vigia/rmh-catalog";
 import { useSidebarStore } from "@/lib/vigia/sidebar";
 
+import { StoreLive } from "./store-live";
+
+const liveOrigin = import.meta.env.VITE_RMH_LAN_ORIGIN;
+
 export function StorePage() {
   const { user, loading } = useSupabaseAuth();
   const setOpen = useSidebarStore((s) => s.setOpen);
   return (
     <main>
       <PageHeader
-        title="Tienda"
+        title="Mi tienda"
         description="Precios y existencias del catálogo RMH."
         onMenuClick={() => setOpen(true)}
       />
       <div className="grid gap-4 px-4">
         {user?.rmhStore ? (
-          <StoreCatalog
+          <StoreViews
             key={JSON.stringify([user.id, user.rmhStore])}
             owner={user.id}
             store={user.rmhStore}
@@ -45,6 +49,37 @@ export function StorePage() {
         )}
       </div>
     </main>
+  );
+}
+
+function StoreViews({ owner, store }: { owner: string; store: string }) {
+  const [live, setLive] = useState(Boolean(liveOrigin));
+  return (
+    <>
+      {liveOrigin && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Fuente del inventario">
+          <Button
+            variant={live ? "default" : "outline"}
+            aria-pressed={live}
+            onClick={() => setLive(true)}
+          >
+            En vivo por Wi-Fi
+          </Button>
+          <Button
+            variant={live ? "outline" : "default"}
+            aria-pressed={!live}
+            onClick={() => setLive(false)}
+          >
+            Catálogo guardado
+          </Button>
+        </div>
+      )}
+      {live && liveOrigin ? (
+        <StoreLive store={store} origin={liveOrigin} />
+      ) : (
+        <StoreCatalog owner={owner} store={store} />
+      )}
+    </>
   );
 }
 
