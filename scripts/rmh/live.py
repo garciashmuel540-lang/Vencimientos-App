@@ -6,7 +6,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -43,6 +43,13 @@ def read_products(connection, mode, query):
     return [dict(zip(("barcode", "name", "price", "stock"), row)) for row in rows]
 
 
+def check_catalog(connection):
+    import pyodbc
+    with closing(pyodbc.connect(connection, timeout=5, autocommit=True)) as db:
+        db.timeout = 7
+        db.cursor().execute("SELECT TOP (1) barcode, name, price, stock FROM dbo.VigiaCatalog").fetchone()
+
+
 def create_app():
     origin = https_origin("VIGIA_ORIGIN")
     auth = https_origin("VIGIA_URL") + "/auth/v1/user"
@@ -55,11 +62,7 @@ def create_app():
     app.add_middleware(CORSMiddleware, allow_origins=[origin], allow_methods=["POST"],
                        allow_headers=["Authorization", "Content-Type"], allow_private_network=True)
 
-    @app.post("/products")
-    def products(body: Lookup, authorization: str = Header(default="")):
-        query = body.query.strip()
-        if not query or (body.mode == "name" and len(query) < 2):
-            raise HTTPException(422)
+    def authorize(authorization: str = Header(default="")):
         if not authorization.startswith("Bearer ") or not authorization[7:].strip():
             raise HTTPException(401)
         try:
@@ -71,7 +74,21 @@ def create_app():
             if permissions.get("rmh_store") != store or permissions.get("rmh_live_read") is not True:
                 raise HTTPException(403)
         except (httpx.HTTPError, ValueError):
-            raise HTTPException(503, "Identificación temporalmente indisponible") from None
+            raise HTTPException(502, "Identificación temporalmente indisponible") from None
+
+    @app.post("/connection", dependencies=[Depends(authorize)])
+    def connection_status():
+        try:
+            check_catalog(connection)
+        except Exception:
+            raise HTTPException(503, "Consulta a RMH temporalmente indisponible") from None
+        return JSONResponse({"store": store, "connected": True}, headers={"Cache-Control": "no-store"})
+
+    @app.post("/products", dependencies=[Depends(authorize)])
+    def products(body: Lookup):
+        query = body.query.strip()
+        if not query or (body.mode == "name" and len(query) < 2):
+            raise HTTPException(422)
         try:
             rows = read_products(connection, body.mode, query)
             for row in rows:

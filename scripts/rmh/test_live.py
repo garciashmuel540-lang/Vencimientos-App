@@ -50,6 +50,22 @@ class LiveCatalogTest(unittest.TestCase):
         self.assertEqual(len(result["products"]), 25)
         self.assertTrue(result["more"])
 
+    @patch("live.check_catalog")
+    @patch("live.httpx.get")
+    def test_connection_checks_real_catalog_after_authorization(self, auth, check):
+        headers = self.params["headers"]
+        auth.return_value = self.auth_response("B")
+        self.assertEqual(self.client.post("/connection", headers=headers).status_code, 403)
+        check.assert_not_called()
+        auth.return_value = self.auth_response("A")
+        result = self.client.post("/connection", headers=headers)
+        self.assertEqual(result.json(), {"store": "A", "connected": True})
+        check.assert_called_once_with("test")
+        check.side_effect = RuntimeError("database unavailable")
+        self.assertEqual(self.client.post("/connection", headers=headers).status_code, 503)
+        auth.side_effect = httpx.ConnectError("identity unavailable")
+        self.assertEqual(self.client.post("/connection", headers=headers).status_code, 502)
+
     def test_local_preflight(self):
         headers = {"Origin": "https://vigia.example", "Access-Control-Request-Method": "POST",
                    "Access-Control-Request-Headers": "Authorization, Content-Type",

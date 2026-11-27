@@ -36,10 +36,26 @@ export function StorePage() {
         ) : (
           <Card className="grid gap-2 p-5">
             <Store className="size-6 text-primary" />
-            <h2 className="font-semibold">{loading ? "Cargando tienda…" : "Tienda sin asignar"}</h2>
+            <h2 className="font-semibold">
+              {loading
+                ? "Cargando tienda…"
+                : !supabase
+                  ? "Sesión de Vigía sin configurar"
+                  : user
+                    ? "Tienda sin asignar"
+                    : "Ingresá a tu cuenta de Vigía"}
+            </h2>
             {!loading && (
               <p className="text-sm text-muted-foreground">
-                El administrador de la tienda puede vincular tu cuenta con RMH.
+                {!supabase ? (
+                  "Falta configurar el acceso a cuentas en este despliegue."
+                ) : user ? (
+                  "El administrador de la tienda puede vincular tu cuenta con RMH."
+                ) : (
+                  <Link to="/login" className="text-primary underline">
+                    Iniciar sesión
+                  </Link>
+                )}
               </p>
             )}
             <Link to="/precio" className="text-sm font-medium text-primary">
@@ -56,6 +72,12 @@ function StoreViews({ owner, store }: { owner: string; store: string }) {
   const [live, setLive] = useState(Boolean(liveOrigin));
   return (
     <>
+      {!liveOrigin && (
+        <Card className="p-4 text-sm" role="status">
+          La consulta en vivo está pendiente de configuración. Falta la dirección HTTPS del conector
+          de la tienda en Vigía.
+        </Card>
+      )}
       {liveOrigin && (
         <div className="flex flex-wrap gap-2" role="group" aria-label="Fuente del inventario">
           <Button
